@@ -58,8 +58,28 @@ const browser = await chromium.launch({
 try {
   const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
   await page.goto(url, { waitUntil: "networkidle" });
+  await page.evaluate(() => localStorage.clear());
+  await page.reload({ waitUntil: "networkidle" });
+  const initialStamina = await page.locator(".screen-start .staminaText").innerText();
+  if (initialStamina !== "50/50") {
+    throw new Error(`Expected initial stamina to be 50/50, got: ${initialStamina}`);
+  }
+  const initialCountdown = await page.locator(".screen-start .staminaCountdown").innerText();
+  if (!initialCountdown.includes("刷新")) {
+    throw new Error(`Expected full stamina countdown to show reset time, got: ${initialCountdown}`);
+  }
+  await page.locator(".screen-start .getStaminaButton").click();
+  const bonusStamina = await page.locator(".screen-start .staminaText").innerText();
+  if (bonusStamina !== "80/50") {
+    throw new Error(`Expected ad stamina to exceed max as 80/50, got: ${bonusStamina}`);
+  }
   await page.getByRole("button", { name: "开始游戏" }).click();
   await page.waitForSelector(".screen-game.active .tile:not(.empty)");
+  const staminaAfterStart = await readStoredStamina(page);
+  const gameStaminaText = await page.locator(".screen-game .staminaText").innerText();
+  if (staminaAfterStart.stamina !== 77 || gameStaminaText !== "77/50") {
+    throw new Error(`Expected starting a level to cost 3 stamina, got: ${staminaAfterStart.stamina}`);
+  }
   await page.getByRole("button", { name: "主页" }).waitFor({ timeout: 2000 });
   const tileCount = await page.locator(".screen-game.active .tile:not(.empty)").count();
   const hudText = await page.locator(".hud").innerText();
@@ -69,20 +89,43 @@ try {
   await page.waitForSelector(".toast.show", { timeout: 2000 });
   const toastText = await page.locator(".toast.show").innerText();
   const selectedAfterMismatch = await page.locator(".tile.selected").count();
+  const shakingAfterMismatch = await page.locator(".tile.shake").count();
   if (!toastText.includes("不能连接")) {
     throw new Error(`Expected mismatch warning, got: ${toastText}`);
   }
   if (selectedAfterMismatch !== 0) {
     throw new Error(`Expected mismatch to clear selection, got ${selectedAfterMismatch} selected tile(s).`);
   }
+  if (shakingAfterMismatch < 2) {
+    throw new Error(`Expected mismatch to shake both selected tiles, got ${shakingAfterMismatch}.`);
+  }
 
   await clearPairs(page, 10);
   const laterAspect = await getFirstTileAspect(page);
+  await exhaustTool(page, "提示");
+  await page.getByRole("button", { name: "提示" }).click();
+  await page.waitForSelector("#toolModal:not(.hidden)", { timeout: 2000 });
+  await page.screenshot({ path: join(outputDir, "tool-modal-mobile.png"), fullPage: true });
+  const toolModalText = await page.locator("#toolModal").innerText();
+  if (!toolModalText.includes("看广告") || !toolModalText.includes("购买")) {
+    throw new Error(`Expected spent tool modal to mention ad and purchase, got: ${toolModalText}`);
+  }
+  await page.getByRole("button", { name: "继续游戏" }).click();
+
   await page.getByRole("button", { name: "暂停" }).click();
   await page.getByRole("button", { name: "继续游戏" }).click();
   await page.screenshot({ path: join(outputDir, "smoke-mobile.png"), fullPage: true });
   await page.getByRole("button", { name: "主页" }).click();
+  await page.waitForSelector("#exitModal:not(.hidden)", { timeout: 2000 });
+  await page.screenshot({ path: join(outputDir, "exit-modal-mobile.png"), fullPage: true });
+  await page.getByRole("button", { name: "重新开始" }).click();
+  await page.waitForSelector(".screen-game.active .tile:not(.empty)");
+  await page.getByRole("button", { name: "主页" }).click();
+  await page.waitForSelector("#exitModal:not(.hidden)", { timeout: 2000 });
+  await page.getByRole("button", { name: "返回首页" }).click();
   await page.waitForSelector(".screen-start.active");
+
+  await finishGameAndExpectStarsAndNoStaminaAgain(page);
 
   if (tileCount <= 0 || !hudText.includes("时间") || !hudText.includes("得分")) {
     throw new Error(`Unexpected smoke state: tileCount=${tileCount}, hud=${hudText}`);
@@ -122,7 +165,9 @@ async function clickInvalidPair(page) {
 }
 
 async function clearPairs(page, maxPairs) {
+  let idleRetries = 0;
   for (let index = 0; index < maxPairs; index += 1) {
+    if (await page.locator(".screen-result.active").count()) return;
     const pair = await page.evaluate(async () => {
       const module = await import(new URL("./engine.js", window.location.href).href);
       const tiles = [...document.querySelectorAll(".tile")];
@@ -137,11 +182,82 @@ async function clearPairs(page, maxPairs) {
       return module.findAvailablePair(board);
     });
 
-    if (!pair) return;
+    if (!pair) {
+      idleRetries += 1;
+      if (idleRetries > 4) return;
+      await page.waitForTimeout(350);
+      continue;
+    }
+    idleRetries = 0;
     await clickTile(page, pair.from);
     await clickTile(page, pair.to);
-    await page.waitForTimeout(260);
+    await page.waitForTimeout(340);
   }
+}
+
+async function exhaustTool(page, name) {
+  while (true) {
+    const count = await page.getByRole("button", { name }).locator("span").innerText();
+    if (Number(count) <= 0) return;
+    await page.getByRole("button", { name }).click();
+    await page.waitForTimeout(700);
+  }
+}
+
+async function finishGameAndExpectStarsAndNoStaminaAgain(page) {
+  await page.evaluate(() => {
+    localStorage.setItem(
+      "lianliankan.stamina",
+      JSON.stringify({ stamina: 3, updatedAt: Date.now(), adClaims: 0 }),
+    );
+  });
+  await page.reload({ waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "开始游戏" }).click();
+  await page.waitForSelector(".screen-game.active .tile:not(.empty)");
+  await clearPairs(page, 80);
+  await page.waitForSelector(".screen-result.active", { timeout: 3000 });
+  await page.screenshot({ path: join(outputDir, "result-stars-mobile.png"), fullPage: true });
+  const stars = await page.locator("#resultStars .star.filled").count();
+  if (stars < 1 || stars > 3) {
+    throw new Error(`Expected completed level to show 1-3 filled stars, got ${stars}.`);
+  }
+
+  await page.getByRole("button", { name: "再玩一局" }).click();
+  await page.waitForSelector("#staminaModal:not(.hidden)", { timeout: 2000 });
+  const staminaModalText = await page.locator("#staminaModal").innerText();
+  if (
+    !staminaModalText.includes("体力不足") ||
+    !staminaModalText.includes("30 点") ||
+    !staminaModalText.includes("看广告") ||
+    !staminaModalText.includes("购买体力")
+  ) {
+    throw new Error(`Expected no-stamina replay modal, got: ${staminaModalText}`);
+  }
+  await page.screenshot({ path: join(outputDir, "stamina-modal-mobile.png"), fullPage: true });
+  await page.getByRole("button", { name: "看广告获取体力" }).click();
+  const staminaAfterAd = await readStoredStamina(page);
+  if (staminaAfterAd.stamina !== 30 || staminaAfterAd.adClaims !== 1) {
+    throw new Error(`Expected ad to grant 30 stamina once, got: ${JSON.stringify(staminaAfterAd)}`);
+  }
+
+  await page.evaluate(() => {
+    localStorage.setItem(
+      "lianliankan.stamina",
+      JSON.stringify({ stamina: 1, updatedAt: Date.now(), adClaims: 3 }),
+    );
+  });
+  await page.reload({ waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "开始游戏" }).click();
+  await page.waitForSelector("#staminaModal:not(.hidden)", { timeout: 2000 });
+  await page.getByRole("button", { name: "购买体力" }).click();
+  const staminaAfterPurchase = await readStoredStamina(page);
+  if (staminaAfterPurchase.stamina !== 31 || staminaAfterPurchase.adClaims !== 3) {
+    throw new Error(`Expected purchase to grant 30 stamina without ad claims, got: ${JSON.stringify(staminaAfterPurchase)}`);
+  }
+}
+
+async function readStoredStamina(page) {
+  return page.evaluate(() => JSON.parse(localStorage.getItem("lianliankan.stamina")));
 }
 
 async function clickTile(page, point) {

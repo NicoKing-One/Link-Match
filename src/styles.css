@@ -38,6 +38,11 @@ button {
   cursor: pointer;
 }
 
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.56;
+}
+
 .app-shell {
   width: min(100%, 520px);
   min-height: 100vh;
@@ -154,6 +159,45 @@ h2 {
   color: rgba(255, 255, 255, 0.72);
 }
 
+.stamina-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 58px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: 0 10px 24px rgba(26, 45, 60, 0.1);
+}
+
+.stamina-panel span,
+.stamina-panel strong {
+  display: block;
+}
+
+.stamina-panel span {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.stamina-panel strong {
+  margin-top: 2px;
+  font-size: 1.18rem;
+}
+
+.stamina-panel .meta-button {
+  flex: 0 0 auto;
+}
+
+.result-stamina {
+  margin: 0 0 14px;
+  background: rgba(0, 167, 165, 0.08);
+  box-shadow: none;
+}
+
 .primary-button,
 .ghost-button {
   width: 100%;
@@ -186,7 +230,7 @@ h2 {
 
 .hud {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 8px;
   padding: 10px;
 }
@@ -209,6 +253,19 @@ h2 {
   display: block;
   margin-top: 2px;
   font-size: 1.15rem;
+}
+
+.hud-item small,
+.stamina-panel small {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 0.66rem;
+  font-weight: 800;
+}
+
+.stamina-hud strong {
+  font-size: 1rem;
 }
 
 .board-wrap {
@@ -251,7 +308,7 @@ h2 {
   z-index: 1;
   display: grid;
   gap: 6px;
-  width: min(100%, calc((100vh - 228px) * var(--cols) / var(--rows)));
+  width: min(100%, calc((100vh - 248px) * var(--cols) / var(--rows)));
   aspect-ratio: var(--cols) / var(--rows);
   margin: 0 auto;
 }
@@ -321,6 +378,10 @@ h2 {
   animation: pulse 850ms ease-in-out infinite alternate;
 }
 
+.tile.shake {
+  animation: shake 320ms ease-in-out;
+}
+
 .tile.empty {
   pointer-events: none;
   opacity: 0;
@@ -346,7 +407,7 @@ h2 {
 
 .toolbar {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 8px;
   padding: 10px;
 }
@@ -391,6 +452,29 @@ h2 {
   font-weight: 800;
 }
 
+.result-stars {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin: 14px 0 18px;
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.result-stars.hidden {
+  display: none;
+}
+
+.star {
+  color: rgba(98, 112, 122, 0.28);
+  text-shadow: 0 2px 8px rgba(26, 45, 60, 0.08);
+}
+
+.star.filled {
+  color: var(--gold);
+  text-shadow: 0 4px 12px rgba(245, 185, 66, 0.38);
+}
+
 .modal {
   position: fixed;
   inset: 0;
@@ -409,12 +493,40 @@ h2 {
   width: min(100%, 420px);
 }
 
+.modal-actions {
+  display: grid;
+  gap: 10px;
+}
+
 @keyframes pulse {
   from {
     box-shadow: 0 0 0 2px rgba(255, 107, 95, 0.28), 0 8px 18px rgba(26, 45, 60, 0.14);
   }
   to {
     box-shadow: 0 0 0 5px rgba(255, 107, 95, 0.58), 0 12px 24px rgba(26, 45, 60, 0.2);
+  }
+}
+
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0) scale(1);
+  }
+
+  20% {
+    transform: translateX(-5px) rotate(-2deg) scale(1.04);
+  }
+
+  40% {
+    transform: translateX(5px) rotate(2deg) scale(1.04);
+  }
+
+  60% {
+    transform: translateX(-4px) rotate(-1deg) scale(1.03);
+  }
+
+  80% {
+    transform: translateX(4px) rotate(1deg) scale(1.03);
   }
 }
 
@@ -429,5 +541,9 @@ h2 {
 
   .tool-button {
     font-size: 0.78rem;
+  }
+
+  .hud {
+    grid-template-columns: repeat(2, 1fr);
   }
 }

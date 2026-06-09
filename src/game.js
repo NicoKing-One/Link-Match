@@ -10,6 +10,19 @@ import {
   removePair,
   shuffleBoard,
 } from "./engine.js";
+import {
+  AD_STAMINA_REWARD,
+  MAX_AD_STAMINA_CLAIMS,
+  MAX_STAMINA,
+  START_STAMINA_COST,
+  calculateNextStaminaCountdown,
+  calculateRecoveredStamina,
+  calculateStarCount,
+  claimAdStamina,
+  claimPurchasedStamina,
+  normalizeStaminaState,
+  spendStartStamina,
+} from "./game-rules.js";
 
 const ICON_VIEW = {
   flower: { symbol: "✿", color: "#ff6b8f" },
@@ -26,6 +39,8 @@ const ICON_VIEW = {
   crown: { symbol: "♛", color: "#d99122" },
 };
 
+const STAMINA_KEY = "lianliankan.stamina";
+
 const screens = {
   start: document.querySelector("#startScreen"),
   game: document.querySelector("#gameScreen"),
@@ -35,6 +50,9 @@ const screens = {
 const elements = {
   levelList: document.querySelector("#levelList"),
   startButton: document.querySelector("#startButton"),
+  staminaTexts: document.querySelectorAll(".staminaText"),
+  staminaCountdowns: document.querySelectorAll(".staminaCountdown"),
+  getStaminaButtons: document.querySelectorAll(".getStaminaButton"),
   board: document.querySelector("#board"),
   toast: document.querySelector("#toast"),
   linkLayer: document.querySelector("#linkLayer"),
@@ -47,14 +65,30 @@ const elements = {
   hintButton: document.querySelector("#hintButton"),
   shuffleButton: document.querySelector("#shuffleButton"),
   pauseButton: document.querySelector("#pauseButton"),
-  restartButton: document.querySelector("#restartButton"),
   hintCount: document.querySelector("#hintCount"),
   shuffleCount: document.querySelector("#shuffleCount"),
   pauseModal: document.querySelector("#pauseModal"),
   resumeButton: document.querySelector("#resumeButton"),
+  toolModal: document.querySelector("#toolModal"),
+  toolTitle: document.querySelector("#toolTitle"),
+  toolMessage: document.querySelector("#toolMessage"),
+  watchAdButton: document.querySelector("#watchAdButton"),
+  buyToolButton: document.querySelector("#buyToolButton"),
+  toolCloseButton: document.querySelector("#toolCloseButton"),
+  exitModal: document.querySelector("#exitModal"),
+  confirmHomeButton: document.querySelector("#confirmHomeButton"),
+  confirmRestartButton: document.querySelector("#confirmRestartButton"),
+  exitCancelButton: document.querySelector("#exitCancelButton"),
+  staminaModal: document.querySelector("#staminaModal"),
+  staminaTitle: document.querySelector("#staminaTitle"),
+  staminaMessage: document.querySelector("#staminaMessage"),
+  staminaAdButton: document.querySelector("#staminaAdButton"),
+  staminaBuyButton: document.querySelector("#staminaBuyButton"),
+  staminaCloseButton: document.querySelector("#staminaCloseButton"),
   resultEyebrow: document.querySelector("#resultEyebrow"),
   resultTitle: document.querySelector("#resultTitle"),
   resultSummary: document.querySelector("#resultSummary"),
+  resultStars: document.querySelector("#resultStars"),
   resultScore: document.querySelector("#resultScore"),
   resultBest: document.querySelector("#resultBest"),
   againButton: document.querySelector("#againButton"),
@@ -69,26 +103,41 @@ const state = {
   moves: 0,
   remainingSeconds: 0,
   timer: null,
+  staminaTimer: null,
   toastTimer: null,
   hints: 0,
   shuffles: 0,
+  stamina: loadStaminaState(),
   paused: false,
   busy: false,
 };
 
 renderLevelChoices();
 bindEvents();
+refreshStamina();
+startStaminaTimer();
 showScreen("start");
 
 function bindEvents() {
-  elements.startButton.addEventListener("click", () => startGame(state.level));
+  elements.startButton.addEventListener("click", () => requestStartGame(state.level));
+  elements.getStaminaButtons.forEach((button) => {
+    button.addEventListener("click", claimStaminaFromAd);
+  });
   elements.hintButton.addEventListener("click", useHint);
   elements.shuffleButton.addEventListener("click", useShuffle);
   elements.pauseButton.addEventListener("click", pauseGame);
-  elements.restartButton.addEventListener("click", () => startGame(state.level));
-  elements.gameHomeButton.addEventListener("click", returnHome);
+  elements.gameHomeButton.addEventListener("click", openExitModal);
   elements.resumeButton.addEventListener("click", resumeGame);
-  elements.againButton.addEventListener("click", () => startGame(state.level));
+  elements.watchAdButton.addEventListener("click", () => closeToolModal("广告功能待接入"));
+  elements.buyToolButton.addEventListener("click", () => closeToolModal("购买功能待接入"));
+  elements.toolCloseButton.addEventListener("click", () => closeToolModal());
+  elements.confirmHomeButton.addEventListener("click", returnHome);
+  elements.confirmRestartButton.addEventListener("click", () => requestStartGame(state.level));
+  elements.exitCancelButton.addEventListener("click", closeExitModal);
+  elements.staminaAdButton.addEventListener("click", claimStaminaFromAd);
+  elements.staminaBuyButton.addEventListener("click", buyStamina);
+  elements.staminaCloseButton.addEventListener("click", closeStaminaModal);
+  elements.againButton.addEventListener("click", () => requestStartGame(state.level));
   elements.homeButton.addEventListener("click", () => {
     stopTimer();
     showScreen("start");
@@ -113,6 +162,23 @@ function renderLevelChoices() {
   });
 }
 
+function requestStartGame(level) {
+  refreshStamina();
+  const result = spendStartStamina(state.stamina);
+  if (!result.ok) {
+    saveStaminaState(result.state);
+    elements.exitModal.classList.add("hidden");
+    openStaminaModal(
+      "体力不足",
+      `开始一关需要 ${START_STAMINA_COST} 点体力，可以看广告或购买获取 ${AD_STAMINA_REWARD} 点。`,
+    );
+    return;
+  }
+
+  saveStaminaState(result.state);
+  startGame(level);
+}
+
 function startGame(level) {
   stopTimer();
   state.level = level;
@@ -125,6 +191,7 @@ function startGame(level) {
   state.shuffles = level.shuffles;
   state.paused = false;
   state.busy = false;
+  hideModals();
 
   elements.levelName.textContent = `${level.name}模式`;
   updateBestText();
@@ -194,8 +261,8 @@ function selectTile(point) {
   const path = findConnection(state.board, selected, point);
   if (!path || !canConnect(state.board, selected, point)) {
     showToast(getMismatchMessage(selected, point));
-    pulseTile(selected);
-    pulseTile(point);
+    shakeTile(selected);
+    shakeTile(point);
     state.selected = null;
     updateSelection();
     return;
@@ -230,7 +297,11 @@ function handleBoardProgress() {
 }
 
 function useHint() {
-  if (state.hints <= 0 || state.paused || state.busy) return;
+  if (state.paused || state.busy) return;
+  if (state.hints <= 0) {
+    openToolModal("提示");
+    return;
+  }
   const pair = findAvailablePair(state.board);
   if (!pair) return;
   state.hints -= 1;
@@ -244,7 +315,11 @@ function useHint() {
 }
 
 function useShuffle() {
-  if (state.shuffles <= 0 || state.paused || state.busy) return;
+  if (state.paused || state.busy) return;
+  if (state.shuffles <= 0) {
+    openToolModal("洗牌");
+    return;
+  }
   state.shuffles -= 1;
   state.selected = null;
   state.board = shuffleBoard(state.board);
@@ -295,7 +370,7 @@ function returnHome() {
   clearHints();
   clearLink();
   hideToast();
-  elements.pauseModal.classList.add("hidden");
+  hideModals();
   showScreen("start");
 }
 
@@ -313,12 +388,14 @@ function finishGame(won) {
   }
 
   elements.resultEyebrow.textContent = won ? "完成" : "时间到";
-  elements.resultTitle.textContent = won ? "通关成功" : "挑战结束";
+  elements.resultTitle.textContent = won ? "通关成功" : "挑战失败";
   elements.resultSummary.textContent = won
     ? `用 ${state.moves} 步清空棋盘，剩余 ${formatTime(state.remainingSeconds)}。`
     : `还剩 ${remaining} 个图案没有消除，可以调整策略再来一次。`;
+  renderResultStars(won ? calculateStarCount(state.remainingSeconds, state.level) : 0);
   elements.resultScore.textContent = `得分 ${finalScore}`;
   elements.resultBest.textContent = `最佳 ${Math.max(finalScore, best)}`;
+  updateStaminaView();
   showScreen("result");
 }
 
@@ -346,6 +423,149 @@ function clearHints() {
 function pulseTile(point) {
   setTileClass(point, "hint", true);
   window.setTimeout(() => setTileClass(point, "hint", false), 260);
+}
+
+function shakeTile(point) {
+  const tile = getTileElement(point);
+  if (!tile) return;
+  tile.classList.remove("shake");
+  tile.offsetWidth;
+  tile.classList.add("shake");
+  window.setTimeout(() => tile.classList.remove("shake"), 360);
+}
+
+function openToolModal(toolName) {
+  state.paused = true;
+  elements.toolTitle.textContent = `${toolName}用完了`;
+  elements.toolMessage.textContent = `${toolName}次数已经用完，可以看广告获取，或购买更多道具。`;
+  elements.toolModal.classList.remove("hidden");
+}
+
+function closeToolModal(message) {
+  state.paused = false;
+  elements.toolModal.classList.add("hidden");
+  if (message) showToast(message);
+}
+
+function openStaminaModal(
+  title = "体力不足",
+  message = `看广告或购买可以获取 ${AD_STAMINA_REWARD} 点体力，广告最多获取 ${MAX_AD_STAMINA_CLAIMS} 次。`,
+) {
+  state.paused = screens.game.classList.contains("active");
+  elements.staminaTitle.textContent = title;
+  elements.staminaMessage.textContent = message;
+  elements.staminaAdButton.disabled = state.stamina.adClaims >= MAX_AD_STAMINA_CLAIMS;
+  elements.staminaModal.classList.remove("hidden");
+}
+
+function closeStaminaModal() {
+  state.paused = false;
+  elements.staminaModal.classList.add("hidden");
+}
+
+function claimStaminaFromAd() {
+  refreshStamina();
+  const result = claimAdStamina(state.stamina);
+  saveStaminaState(result.state);
+  if (!result.ok) {
+    openStaminaModal("领取次数已用完", `广告体力最多可以领取 ${MAX_AD_STAMINA_CLAIMS} 次，请等待体力自动恢复。`);
+    return;
+  }
+
+  closeStaminaModal();
+  showToast(`获得 ${AD_STAMINA_REWARD} 点体力`);
+}
+
+function buyStamina() {
+  refreshStamina();
+  saveStaminaState(claimPurchasedStamina(state.stamina));
+  closeStaminaModal();
+  showToast(`购买成功，获得 ${AD_STAMINA_REWARD} 点体力`);
+}
+
+function openExitModal() {
+  if (!screens.game.classList.contains("active")) return;
+  state.paused = true;
+  elements.exitModal.classList.remove("hidden");
+}
+
+function closeExitModal() {
+  state.paused = false;
+  elements.exitModal.classList.add("hidden");
+}
+
+function hideModals() {
+  elements.pauseModal.classList.add("hidden");
+  elements.toolModal.classList.add("hidden");
+  elements.exitModal.classList.add("hidden");
+  elements.staminaModal.classList.add("hidden");
+}
+
+function renderResultStars(count) {
+  elements.resultStars.classList.toggle("hidden", count === 0);
+  elements.resultStars.innerHTML = "";
+  for (let index = 1; index <= 3; index += 1) {
+    const star = document.createElement("span");
+    star.className = `star${index <= count ? " filled" : ""}`;
+    star.textContent = "★";
+    elements.resultStars.append(star);
+  }
+}
+
+function refreshStamina() {
+  const nextState = calculateRecoveredStamina(state.stamina);
+  if (JSON.stringify(nextState) !== JSON.stringify(state.stamina)) {
+    saveStaminaState(nextState);
+    return;
+  }
+  updateStaminaView();
+}
+
+function startStaminaTimer() {
+  state.staminaTimer = window.setInterval(refreshStamina, 1000);
+}
+
+function saveStaminaState(nextState) {
+  state.stamina = normalizeStaminaState(nextState);
+  localStorage.setItem(STAMINA_KEY, JSON.stringify(state.stamina));
+  updateStaminaView();
+}
+
+function loadStaminaState() {
+  try {
+    return normalizeStaminaState(JSON.parse(localStorage.getItem(STAMINA_KEY)));
+  } catch {
+    return normalizeStaminaState(null);
+  }
+}
+
+function updateStaminaView() {
+  elements.staminaTexts.forEach((text) => {
+    text.textContent = `${state.stamina.stamina}/${MAX_STAMINA}`;
+  });
+  const countdown = calculateNextStaminaCountdown(state.stamina);
+  const countdownText =
+    countdown.type === "recover"
+      ? `恢复 ${formatCountdown(countdown.remainingMs)}`
+      : `刷新 ${formatCountdown(countdown.remainingMs)}`;
+  elements.staminaCountdowns.forEach((text) => {
+    text.textContent = countdownText;
+  });
+  elements.getStaminaButtons.forEach((button) => {
+    button.disabled = state.stamina.adClaims >= MAX_AD_STAMINA_CLAIMS;
+    button.textContent = state.stamina.adClaims >= MAX_AD_STAMINA_CLAIMS ? "已领取完" : "获取体力";
+  });
+}
+
+function formatCountdown(milliseconds) {
+  const totalSeconds = Math.max(0, Math.ceil(milliseconds / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  if (hours > 0) {
+    return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+  }
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
 function setTileClass(point, className, enabled) {

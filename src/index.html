@@ -17,6 +17,15 @@
 
         <div class="level-list" id="levelList" aria-label="选择难度"></div>
 
+        <div class="stamina-panel">
+          <div>
+            <span>体力</span>
+            <strong class="staminaText">50/50</strong>
+            <small class="staminaCountdown">恢复 03:00</small>
+          </div>
+          <button class="meta-button getStaminaButton" type="button">获取体力</button>
+        </div>
+
         <button class="primary-button" id="startButton" type="button">开始游戏</button>
       </section>
 
@@ -33,6 +42,11 @@
           <div class="hud-item">
             <span>得分</span>
             <strong id="scoreText">0</strong>
+          </div>
+          <div class="hud-item stamina-hud">
+            <span>体力</span>
+            <strong class="staminaText">50/50</strong>
+            <small class="staminaCountdown">恢复 03:00</small>
           </div>
         </header>
 
@@ -53,7 +67,6 @@
           <button class="tool-button" id="hintButton" type="button">提示 <span id="hintCount">0</span></button>
           <button class="tool-button" id="shuffleButton" type="button">洗牌 <span id="shuffleCount">0</span></button>
           <button class="tool-button" id="pauseButton" type="button">暂停</button>
-          <button class="tool-button danger" id="restartButton" type="button">重开</button>
         </footer>
       </section>
 
@@ -62,9 +75,18 @@
           <p class="eyebrow" id="resultEyebrow">完成</p>
           <h2 id="resultTitle">通关成功</h2>
           <p id="resultSummary">你的本局表现会显示在这里。</p>
+          <div class="result-stars" id="resultStars" aria-label="获得星星"></div>
           <div class="result-stats">
             <span id="resultScore">得分 0</span>
             <span id="resultBest">最佳 0</span>
+          </div>
+          <div class="stamina-panel result-stamina">
+            <div>
+              <span>体力</span>
+              <strong class="staminaText">50/50</strong>
+              <small class="staminaCountdown">恢复 03:00</small>
+            </div>
+            <button class="meta-button getStaminaButton" type="button">获取体力</button>
           </div>
           <button class="primary-button" id="againButton" type="button">再玩一局</button>
           <button class="ghost-button" id="homeButton" type="button">返回首页</button>
@@ -77,6 +99,42 @@
         <h2 id="pauseTitle">游戏暂停</h2>
         <p>棋盘状态已经保留，继续后倒计时恢复。</p>
         <button class="primary-button" id="resumeButton" type="button">继续游戏</button>
+      </div>
+    </div>
+
+    <div class="modal hidden" id="toolModal" role="dialog" aria-modal="true" aria-labelledby="toolTitle">
+      <div class="modal-card">
+        <h2 id="toolTitle">道具用完了</h2>
+        <p id="toolMessage">可以看广告获取，或购买更多道具。</p>
+        <div class="modal-actions">
+          <button class="primary-button" id="watchAdButton" type="button">看广告获取</button>
+          <button class="ghost-button" id="buyToolButton" type="button">购买</button>
+          <button class="ghost-button" id="toolCloseButton" type="button">继续游戏</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal hidden" id="exitModal" role="dialog" aria-modal="true" aria-labelledby="exitTitle">
+      <div class="modal-card">
+        <h2 id="exitTitle">离开本局？</h2>
+        <p>当前棋盘会停止计时，你可以返回首页，也可以直接重新开始。</p>
+        <div class="modal-actions">
+          <button class="primary-button" id="confirmHomeButton" type="button">返回首页</button>
+          <button class="ghost-button" id="confirmRestartButton" type="button">重新开始</button>
+          <button class="ghost-button" id="exitCancelButton" type="button">继续游戏</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal hidden" id="staminaModal" role="dialog" aria-modal="true" aria-labelledby="staminaTitle">
+      <div class="modal-card">
+        <h2 id="staminaTitle">体力不足</h2>
+        <p id="staminaMessage">看广告或购买可以获取 30 点体力，广告最多获取 3 次。</p>
+        <div class="modal-actions">
+          <button class="primary-button" id="staminaAdButton" type="button">看广告获取体力</button>
+          <button class="ghost-button" id="staminaBuyButton" type="button">购买体力</button>
+          <button class="ghost-button" id="staminaCloseButton" type="button">稍后再说</button>
+        </div>
       </div>
     </div>
 
