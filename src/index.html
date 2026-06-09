@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>连连看 MVP</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app-shell" aria-live="polite">
+      <section class="screen screen-start active" id="startScreen">
+        <div class="brand-panel">
+          <p class="eyebrow">Link Match</p>
+          <h1>连连看</h1>
+          <p class="subtitle">在倒计时结束前消除所有配对图案。最多两次转弯，外侧边界也能连线。</p>
+        </div>
+
+        <div class="level-list" id="levelList" aria-label="选择难度"></div>
+
+        <button class="primary-button" id="startButton" type="button">开始游戏</button>
+      </section>
+
+      <section class="screen screen-game" id="gameScreen">
+        <header class="hud">
+          <div class="hud-item">
+            <span>时间</span>
+            <strong id="timeText">00:00</strong>
+          </div>
+          <div class="hud-item">
+            <span>剩余</span>
+            <strong id="remainingText">0</strong>
+          </div>
+          <div class="hud-item">
+            <span>得分</span>
+            <strong id="scoreText">0</strong>
+          </div>
+        </header>
+
+        <section class="board-wrap">
+          <div class="board-meta">
+            <strong id="levelName">标准</strong>
+            <div class="board-actions">
+              <span id="bestText">最佳 0</span>
+              <button class="meta-button" id="gameHomeButton" type="button">主页</button>
+            </div>
+          </div>
+          <div class="toast" id="toast" role="status" aria-live="polite"></div>
+          <div class="board" id="board" aria-label="连连看棋盘"></div>
+          <svg class="link-layer" id="linkLayer" aria-hidden="true"></svg>
+        </section>
+
+        <footer class="toolbar">
+          <button class="tool-button" id="hintButton" type="button">提示 <span id="hintCount">0</span></button>
+          <button class="tool-button" id="shuffleButton" type="button">洗牌 <span id="shuffleCount">0</span></button>
+          <button class="tool-button" id="pauseButton" type="button">暂停</button>
+          <button class="tool-button danger" id="restartButton" type="button">重开</button>
+        </footer>
+      </section>
+
+      <section class="screen screen-result" id="resultScreen">
+        <div class="result-card">
+          <p class="eyebrow" id="resultEyebrow">完成</p>
+          <h2 id="resultTitle">通关成功</h2>
+          <p id="resultSummary">你的本局表现会显示在这里。</p>
+          <div class="result-stats">
+            <span id="resultScore">得分 0</span>
+            <span id="resultBest">最佳 0</span>
+          </div>
+          <button class="primary-button" id="againButton" type="button">再玩一局</button>
+          <button class="ghost-button" id="homeButton" type="button">返回首页</button>
+        </div>
+      </section>
+    </main>
+
+    <div class="modal hidden" id="pauseModal" role="dialog" aria-modal="true" aria-labelledby="pauseTitle">
+      <div class="modal-card">
+        <h2 id="pauseTitle">游戏暂停</h2>
+        <p>棋盘状态已经保留，继续后倒计时恢复。</p>
+        <button class="primary-button" id="resumeButton" type="button">继续游戏</button>
+      </div>
+    </div>
+
+    <script type="module" src="./game.js"></script>
+  </body>
+</html>
