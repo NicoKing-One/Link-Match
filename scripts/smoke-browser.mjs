@@ -68,6 +68,10 @@ try {
   if (!initialCountdown.includes("刷新")) {
     throw new Error(`Expected full stamina countdown to show reset time, got: ${initialCountdown}`);
   }
+  await expectStaleFullStaminaSpend(page);
+  await page.evaluate(() => localStorage.clear());
+  await page.reload({ waitUntil: "networkidle" });
+  await page.getByRole("button", { name: /轻松/ }).click();
   await page.locator(".screen-start .getStaminaButton").click();
   const bonusStamina = await page.locator(".screen-start .staminaText").innerText();
   if (bonusStamina !== "80/50") {
@@ -80,9 +84,28 @@ try {
   if (staminaAfterStart.stamina !== 77 || gameStaminaText !== "77/50") {
     throw new Error(`Expected starting a level to cost 3 stamina, got: ${staminaAfterStart.stamina}`);
   }
-  await page.getByRole("button", { name: "主页" }).waitFor({ timeout: 2000 });
+  await page.waitForTimeout(1500);
+  await page.screenshot({ path: join(outputDir, "game-initial-mobile.png"), fullPage: true });
+  const gameHomeButton = page.locator(".screen-game").getByRole("button", { name: "返回首页" });
+  await gameHomeButton.waitFor({ timeout: 2000 });
   const tileCount = await page.locator(".screen-game.active .tile:not(.empty)").count();
+  const tileImageCount = await page.locator(".screen-game.active .tile:not(.empty) img.tile-art").count();
   const hudText = await page.locator(".hud").innerText();
+  const stageText = await page.locator(".stage-banner").innerText();
+  const bestText = await page.locator(".best-pill").innerText();
+  const tileArtRatio = await getFirstTileArtRatio(page);
+  if (tileCount !== 64) {
+    throw new Error(`Expected easy mode to render an 8x8 board with 64 tiles, got ${tileCount}.`);
+  }
+  if (tileImageCount !== tileCount) {
+    throw new Error(`Expected every active tile to use fruit candy image art, got ${tileImageCount}/${tileCount}.`);
+  }
+  if (!stageText.includes("第 01 关卡") || !bestText.includes("最佳") || !bestText.includes("分")) {
+    throw new Error(`Expected top panel to show level, best score and score, got: ${stageText} / ${bestText}`);
+  }
+  if (tileArtRatio < 0.84 || tileArtRatio > 0.94) {
+    throw new Error(`Expected tile art to occupy about 90% of the tile, got ratio=${tileArtRatio.toFixed(2)}.`);
+  }
 
   const firstAspect = await getFirstTileAspect(page);
   await clickInvalidPair(page);
@@ -100,6 +123,8 @@ try {
     throw new Error(`Expected mismatch to shake both selected tiles, got ${shakingAfterMismatch}.`);
   }
 
+  await page.waitForTimeout(1500);
+  await captureFirstLink(page);
   await clearPairs(page, 10);
   const laterAspect = await getFirstTileAspect(page);
   await exhaustTool(page, "提示");
@@ -115,14 +140,14 @@ try {
   await page.getByRole("button", { name: "暂停" }).click();
   await page.getByRole("button", { name: "继续游戏" }).click();
   await page.screenshot({ path: join(outputDir, "smoke-mobile.png"), fullPage: true });
-  await page.getByRole("button", { name: "主页" }).click();
+  await gameHomeButton.click();
   await page.waitForSelector("#exitModal:not(.hidden)", { timeout: 2000 });
   await page.screenshot({ path: join(outputDir, "exit-modal-mobile.png"), fullPage: true });
   await page.getByRole("button", { name: "重新开始" }).click();
   await page.waitForSelector(".screen-game.active .tile:not(.empty)");
-  await page.getByRole("button", { name: "主页" }).click();
+  await gameHomeButton.click();
   await page.waitForSelector("#exitModal:not(.hidden)", { timeout: 2000 });
-  await page.getByRole("button", { name: "返回首页" }).click();
+  await page.locator("#confirmHomeButton").click();
   await page.waitForSelector(".screen-start.active");
 
   await finishGameAndExpectStarsAndNoStaminaAgain(page);
@@ -147,7 +172,7 @@ async function clickInvalidPair(page) {
     const tiles = [...document.querySelectorAll(".tile:not(.empty)")].map((tile) => ({
       row: Number(tile.dataset.row),
       col: Number(tile.dataset.col),
-      symbol: tile.textContent.trim(),
+      symbol: tile.dataset.tile,
     }));
     for (let firstIndex = 0; firstIndex < tiles.length; firstIndex += 1) {
       for (let secondIndex = firstIndex + 1; secondIndex < tiles.length; secondIndex += 1) {
@@ -164,6 +189,25 @@ async function clickInvalidPair(page) {
   await clickTile(page, pair[1]);
 }
 
+async function expectStaleFullStaminaSpend(page) {
+  await page.evaluate(() => {
+    localStorage.setItem(
+      "lianliankan.stamina",
+      JSON.stringify({ stamina: 50, updatedAt: Date.now() - 20 * 60 * 1000, adClaims: 0 }),
+    );
+  });
+  await page.reload({ waitUntil: "networkidle" });
+  await page.getByRole("button", { name: /轻松/ }).click();
+  await page.getByRole("button", { name: "开始游戏" }).click();
+  await page.waitForSelector(".screen-game.active .tile:not(.empty)");
+  await page.waitForTimeout(1200);
+  const gameStaminaText = await page.locator(".screen-game .staminaText").innerText();
+  const stored = await readStoredStamina(page);
+  if (gameStaminaText !== "47/50" || stored.stamina !== 47) {
+    throw new Error(`Expected stale full stamina to spend to 47/50, got text=${gameStaminaText}, stored=${stored.stamina}.`);
+  }
+}
+
 async function clearPairs(page, maxPairs) {
   let idleRetries = 0;
   for (let index = 0; index < maxPairs; index += 1) {
@@ -176,7 +220,7 @@ async function clearPairs(page, maxPairs) {
       const board = Array.from({ length: rows }, () => Array(cols).fill(null));
       tiles.forEach((tile) => {
         if (!tile.classList.contains("empty")) {
-          board[Number(tile.dataset.row)][Number(tile.dataset.col)] = tile.textContent.trim();
+          board[Number(tile.dataset.row)][Number(tile.dataset.col)] = tile.dataset.tile;
         }
       });
       return module.findAvailablePair(board);
@@ -193,6 +237,33 @@ async function clearPairs(page, maxPairs) {
     await clickTile(page, pair.to);
     await page.waitForTimeout(340);
   }
+}
+
+async function captureFirstLink(page) {
+  const pair = await page.evaluate(async () => {
+    const module = await import(new URL("./engine.js", window.location.href).href);
+    const tiles = [...document.querySelectorAll(".tile")];
+    const rows = Math.max(...tiles.map((tile) => Number(tile.dataset.row))) + 1;
+    const cols = Math.max(...tiles.map((tile) => Number(tile.dataset.col))) + 1;
+    const board = Array.from({ length: rows }, () => Array(cols).fill(null));
+    tiles.forEach((tile) => {
+      if (!tile.classList.contains("empty")) {
+        board[Number(tile.dataset.row)][Number(tile.dataset.col)] = tile.dataset.tile;
+      }
+    });
+    return module.findAvailablePair(board);
+  });
+
+  if (!pair) throw new Error("Could not find a valid pair for link capture.");
+  await clickTile(page, pair.from);
+  await clickTile(page, pair.to);
+  await page.waitForSelector(".link-layer path.link-core", { state: "attached", timeout: 1000 });
+  const oldPolylineCount = await page.locator(".link-layer polyline").count();
+  if (oldPolylineCount > 0) {
+    throw new Error("Expected rounded path link, but old polyline link was rendered.");
+  }
+  await page.screenshot({ path: join(outputDir, "link-line-mobile.png"), fullPage: true });
+  await page.waitForTimeout(340);
 }
 
 async function exhaustTool(page, name) {
@@ -270,6 +341,17 @@ async function getFirstTileAspect(page) {
     if (!tile) return 1;
     const rect = tile.getBoundingClientRect();
     return Math.max(rect.width / rect.height, rect.height / rect.width);
+  });
+}
+
+async function getFirstTileArtRatio(page) {
+  return page.evaluate(() => {
+    const tile = document.querySelector(".tile:not(.empty)");
+    const art = tile?.querySelector(".tile-art");
+    if (!tile || !art) return 0;
+    const tileRect = tile.getBoundingClientRect();
+    const artRect = art.getBoundingClientRect();
+    return Math.max(artRect.width / tileRect.width, artRect.height / tileRect.height);
   });
 }
 

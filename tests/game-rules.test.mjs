@@ -52,13 +52,29 @@ test("keeps bonus stamina above max until the next local day reset", () => {
 });
 
 test("spends stamina when starting a level", () => {
-  assert.deepEqual(spendStartStamina({ stamina: 5, updatedAt: 1_000, adClaims: 0 }), {
+  assert.deepEqual(spendStartStamina({ stamina: 5, updatedAt: 1_000, adClaims: 0 }, 9_000), {
     ok: true,
-    state: { stamina: 5 - START_STAMINA_COST, updatedAt: 1_000, adClaims: 0 },
+    state: { stamina: 5 - START_STAMINA_COST, updatedAt: 9_000, adClaims: 0 },
   });
   assert.deepEqual(spendStartStamina({ stamina: 2, updatedAt: 1_000, adClaims: 0 }), {
     ok: false,
     state: { stamina: 2, updatedAt: 1_000, adClaims: 0 },
+  });
+});
+
+test("spending full stamina starts a fresh recovery timer", () => {
+  const staleTime = 1_000;
+  const now = 20 * 60 * 1000;
+  const result = spendStartStamina({ stamina: MAX_STAMINA, updatedAt: staleTime, adClaims: 0 }, now);
+
+  assert.deepEqual(result, {
+    ok: true,
+    state: { stamina: MAX_STAMINA - START_STAMINA_COST, updatedAt: now, adClaims: 0 },
+  });
+  assert.deepEqual(calculateRecoveredStamina(result.state, now + 60_000), {
+    stamina: MAX_STAMINA - START_STAMINA_COST,
+    updatedAt: now,
+    adClaims: 0,
   });
 });
 

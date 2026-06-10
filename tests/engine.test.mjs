@@ -7,6 +7,7 @@ import {
   findAvailablePair,
   findConnection,
   hasAvailableMove,
+  LEVELS,
   shuffleBoard,
 } from "../src/engine.js";
 
@@ -75,6 +76,14 @@ test("creates a paired board with an even tile count", () => {
   assert.equal(flat.length, 8);
   assert.equal(flat.filter((tile) => tile === "A").length % 2, 0);
   assert.equal(flat.filter((tile) => tile === "B").length % 2, 0);
+});
+
+test("easy level uses an 8x8 board", () => {
+  const easy = LEVELS.find((level) => level.id === "easy");
+
+  assert.equal(easy.rows, 8);
+  assert.equal(easy.cols, 8);
+  assert.equal(easy.rows * easy.cols, 64);
 });
 
 test("finds available moves and preserves pairs when shuffling", () => {

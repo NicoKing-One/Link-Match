@@ -25,18 +25,18 @@ import {
 } from "./game-rules.js";
 
 const ICON_VIEW = {
-  flower: { symbol: "✿", color: "#ff6b8f" },
-  star: { symbol: "★", color: "#f5b942" },
-  moon: { symbol: "☾", color: "#7c68d9" },
-  sun: { symbol: "☀", color: "#ff8a3d" },
-  leaf: { symbol: "◆", color: "#5fbf72" },
-  gem: { symbol: "◇", color: "#18a7d8" },
-  heart: { symbol: "♥", color: "#ef4f6d" },
-  cloud: { symbol: "☁", color: "#6b9ac4" },
-  bolt: { symbol: "⚡", color: "#f0a500" },
-  drop: { symbol: "●", color: "#34a0d4" },
-  music: { symbol: "♪", color: "#ad6fea" },
-  crown: { symbol: "♛", color: "#d99122" },
+  flower: { label: "草莓", src: "./assets/jelly-fruit/tiles/flower.png" },
+  star: { label: "蓝莓", src: "./assets/jelly-fruit/tiles/star.png" },
+  moon: { label: "葡萄", src: "./assets/jelly-fruit/tiles/moon.png" },
+  sun: { label: "柠檬糖", src: "./assets/jelly-fruit/tiles/sun.png" },
+  leaf: { label: "橙子", src: "./assets/jelly-fruit/tiles/leaf.png" },
+  gem: { label: "猕猴桃", src: "./assets/jelly-fruit/tiles/gem.png" },
+  heart: { label: "西瓜", src: "./assets/jelly-fruit/tiles/heart.png" },
+  cloud: { label: "樱桃", src: "./assets/jelly-fruit/tiles/cloud.png" },
+  bolt: { label: "棒棒糖", src: "./assets/jelly-fruit/tiles/bolt.png" },
+  drop: { label: "蜜桃糖", src: "./assets/jelly-fruit/tiles/drop.png" },
+  music: { label: "青苹果", src: "./assets/jelly-fruit/tiles/music.png" },
+  crown: { label: "紫糖球", src: "./assets/jelly-fruit/tiles/crown.png" },
 };
 
 const STAMINA_KEY = "lianliankan.stamina";
@@ -193,7 +193,7 @@ function startGame(level) {
   state.busy = false;
   hideModals();
 
-  elements.levelName.textContent = `${level.name}模式`;
+  elements.levelName.textContent = formatLevelTitle(level);
   updateBestText();
   renderBoard();
   updateHud();
@@ -226,13 +226,15 @@ function renderBoard() {
       button.className = `tile${tile ? "" : " empty"}`;
       button.dataset.row = rowIndex;
       button.dataset.col = colIndex;
-      button.setAttribute("aria-label", tile ? `第 ${rowIndex + 1} 行第 ${colIndex + 1} 列` : "已消除");
+      if (tile) button.dataset.tile = tile;
 
       if (tile) {
         const view = ICON_VIEW[tile] ?? ICON_VIEW.flower;
-        button.style.setProperty("--tile-color", view.color);
-        button.innerHTML = `<span class="symbol">${view.symbol}</span>`;
+        button.setAttribute("aria-label", `第 ${rowIndex + 1} 行第 ${colIndex + 1} 列，${view.label}`);
+        button.innerHTML = `<img class="tile-art" src="${view.src}" alt="" aria-hidden="true" />`;
         button.addEventListener("click", () => selectTile({ row: rowIndex, col: colIndex }));
+      } else {
+        button.setAttribute("aria-label", "已消除");
       }
 
       elements.board.append(button);
@@ -405,10 +407,12 @@ function updateHud() {
   elements.scoreText.textContent = state.score;
   elements.hintCount.textContent = state.hints;
   elements.shuffleCount.textContent = state.shuffles;
+  updateBestText();
 }
 
 function updateBestText() {
-  elements.bestText.textContent = `最佳 ${getBestScore(state.level.id)}`;
+  const stars = renderInlineStars(calculateStarCount(Math.max(0, state.remainingSeconds), state.level));
+  elements.bestText.textContent = `最佳 ${getBestScore(state.level.id)} · ${state.score}分 · ${stars}`;
 }
 
 function updateSelection() {
@@ -579,14 +583,57 @@ function getTileElement(point) {
 
 function drawLink(path) {
   elements.linkLayer.innerHTML = "";
-  const points = path.map(pointToSvg).map((point) => `${point.x},${point.y}`).join(" ");
-  const line = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
-  line.setAttribute("points", points);
-  elements.linkLayer.append(line);
+  const points = path.map(pointToSvg);
+  const data = buildRoundedPath(points, 18);
+  const glow = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  const core = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  glow.setAttribute("class", "link-glow");
+  core.setAttribute("class", "link-core");
+  glow.setAttribute("d", data);
+  core.setAttribute("d", data);
+  elements.linkLayer.append(glow, core);
 }
 
 function clearLink() {
   elements.linkLayer.innerHTML = "";
+}
+
+function buildRoundedPath(points, radius) {
+  if (points.length === 0) return "";
+  if (points.length === 1) return `M ${points[0].x} ${points[0].y}`;
+  const commands = [`M ${points[0].x} ${points[0].y}`];
+
+  for (let index = 1; index < points.length - 1; index += 1) {
+    const previous = points[index - 1];
+    const current = points[index];
+    const next = points[index + 1];
+    const previousDistance = distance(previous, current);
+    const nextDistance = distance(current, next);
+    const cornerRadius = Math.min(radius, previousDistance / 2, nextDistance / 2);
+    const beforeCorner = moveToward(current, previous, cornerRadius);
+    const afterCorner = moveToward(current, next, cornerRadius);
+
+    commands.push(`L ${beforeCorner.x} ${beforeCorner.y}`);
+    commands.push(`Q ${current.x} ${current.y} ${afterCorner.x} ${afterCorner.y}`);
+  }
+
+  const last = points[points.length - 1];
+  commands.push(`L ${last.x} ${last.y}`);
+  return commands.join(" ");
+}
+
+function moveToward(from, to, amount) {
+  const total = distance(from, to);
+  if (total === 0) return { ...from };
+  const ratio = amount / total;
+  return {
+    x: from.x + (to.x - from.x) * ratio,
+    y: from.y + (to.y - from.y) * ratio,
+  };
+}
+
+function distance(first, second) {
+  return Math.hypot(first.x - second.x, first.y - second.y);
 }
 
 function showToast(message) {
@@ -633,6 +680,15 @@ function formatTime(seconds) {
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;
   return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+}
+
+function formatLevelTitle(level) {
+  const index = LEVELS.findIndex((item) => item.id === level.id);
+  return `第 ${String(index + 1).padStart(2, "0")} 关卡`;
+}
+
+function renderInlineStars(count) {
+  return `${"★".repeat(count)}${"☆".repeat(3 - count)}`;
 }
 
 function getBestScore(levelId) {

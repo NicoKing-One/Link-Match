@@ -33,8 +33,8 @@ export function calculateRecoveredStamina(state, now = Date.now()) {
   };
 }
 
-export function spendStartStamina(state) {
-  const safeState = normalizeStaminaState(state);
+export function spendStartStamina(state, now = Date.now()) {
+  const safeState = normalizeStaminaState(state, now);
   if (safeState.stamina < START_STAMINA_COST) {
     return { ok: false, state: safeState };
   }
@@ -44,6 +44,7 @@ export function spendStartStamina(state) {
     state: {
       ...safeState,
       stamina: safeState.stamina - START_STAMINA_COST,
+      updatedAt: now,
     },
   };
 }
