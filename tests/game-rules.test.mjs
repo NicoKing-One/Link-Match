@@ -6,6 +6,7 @@ import {
   MAX_AD_STAMINA_CLAIMS,
   MAX_STAMINA,
   START_STAMINA_COST,
+  BEST_SCORE_STAR_COUNT,
   calculateNextStaminaCountdown,
   calculateRecoveredStamina,
   calculateStarCount,
@@ -20,6 +21,10 @@ test("awards stars from remaining time instead of score", () => {
   assert.equal(calculateStarCount(1, level), 1);
   assert.equal(calculateStarCount(72, level), 2);
   assert.equal(calculateStarCount(126, level), 3);
+});
+
+test("best score display uses a stable full star count", () => {
+  assert.equal(BEST_SCORE_STAR_COUNT, 3);
 });
 
 test("recovers one stamina every three minutes and caps at max stamina", () => {

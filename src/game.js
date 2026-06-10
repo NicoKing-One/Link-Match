@@ -12,6 +12,7 @@ import {
 } from "./engine.js";
 import {
   AD_STAMINA_REWARD,
+  BEST_SCORE_STAR_COUNT,
   MAX_AD_STAMINA_CLAIMS,
   MAX_STAMINA,
   START_STAMINA_COST,
@@ -40,6 +41,7 @@ const ICON_VIEW = {
 };
 
 const STAMINA_KEY = "lianliankan.stamina";
+const DEFAULT_BEST_SCORE = 3093;
 
 const screens = {
   start: document.querySelector("#startScreen"),
@@ -293,8 +295,7 @@ function handleBoardProgress() {
   }
 
   if (!findAvailablePair(state.board)) {
-    state.board = shuffleBoard(state.board);
-    renderBoard();
+    showToast("没有可连接组合了，请使用洗牌道具");
   }
 }
 
@@ -305,7 +306,10 @@ function useHint() {
     return;
   }
   const pair = findAvailablePair(state.board);
-  if (!pair) return;
+  if (!pair) {
+    showToast("没有可连接组合了，请使用洗牌道具");
+    return;
+  }
   state.hints -= 1;
   state.selected = null;
   updateHud();
@@ -411,8 +415,11 @@ function updateHud() {
 }
 
 function updateBestText() {
-  const stars = renderInlineStars(calculateStarCount(Math.max(0, state.remainingSeconds), state.level));
-  elements.bestText.textContent = `最佳 ${getBestScore(state.level.id)} · ${state.score}分 · ${stars}`;
+  elements.bestText.innerHTML = `<img class="best-icon" src="./assets/ui-cut/best-crown.png" alt="" aria-hidden="true" /><span>最佳${getBestScore(
+    state.level.id,
+  )}分</span><span class="best-stars" aria-label="${BEST_SCORE_STAR_COUNT} 星">${renderBestStars(
+    BEST_SCORE_STAR_COUNT,
+  )}</span>`;
 }
 
 function updateSelection() {
@@ -684,15 +691,19 @@ function formatTime(seconds) {
 
 function formatLevelTitle(level) {
   const index = LEVELS.findIndex((item) => item.id === level.id);
-  return `第 ${String(index + 1).padStart(2, "0")} 关卡`;
+  return `第0${index + 1}关`;
 }
 
-function renderInlineStars(count) {
-  return `${"★".repeat(count)}${"☆".repeat(3 - count)}`;
+function renderBestStars(count) {
+  return Array.from(
+    { length: 3 },
+    (_, index) =>
+      `<img class="best-star${index < count ? " filled" : ""}" src="./assets/ui-cut/best-star.png" alt="" aria-hidden="true" />`,
+  ).join("");
 }
 
 function getBestScore(levelId) {
-  return Number(localStorage.getItem(bestKey(levelId)) || 0);
+  return Number(localStorage.getItem(bestKey(levelId)) || DEFAULT_BEST_SCORE);
 }
 
 function bestKey(levelId) {

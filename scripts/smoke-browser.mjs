@@ -64,6 +64,10 @@ try {
   if (initialStamina !== "50/50") {
     throw new Error(`Expected initial stamina to be 50/50, got: ${initialStamina}`);
   }
+  const bodyFont = await page.evaluate(() => getComputedStyle(document.body).fontFamily);
+  if (!bodyFont.includes("Microsoft YaHei") && !bodyFont.includes("微软雅黑")) {
+    throw new Error(`Expected Microsoft YaHei font family, got: ${bodyFont}`);
+  }
   const initialCountdown = await page.locator(".screen-start .staminaCountdown").innerText();
   if (!initialCountdown.includes("刷新")) {
     throw new Error(`Expected full stamina countdown to show reset time, got: ${initialCountdown}`);
@@ -94,17 +98,28 @@ try {
   const stageText = await page.locator(".stage-banner").innerText();
   const bestText = await page.locator(".best-pill").innerText();
   const tileArtRatio = await getFirstTileArtRatio(page);
-  if (tileCount !== 64) {
-    throw new Error(`Expected easy mode to render an 8x8 board with 64 tiles, got ${tileCount}.`);
+  const gameStaminaCountdownCount = await page.locator(".screen-game.active .staminaCountdown").count();
+  const bestFilledStarCount = await page.locator(".screen-game.active .best-star.filled").count();
+  if (tileCount !== 42) {
+    throw new Error(`Expected easy mode to render a 6x7 board with 42 tiles, got ${tileCount}.`);
   }
   if (tileImageCount !== tileCount) {
     throw new Error(`Expected every active tile to use fruit candy image art, got ${tileImageCount}/${tileCount}.`);
   }
-  if (!stageText.includes("第 01 关卡") || !bestText.includes("最佳") || !bestText.includes("分")) {
+  if (!stageText.includes("第01关") || !bestText.includes("最佳3093分")) {
     throw new Error(`Expected top panel to show level, best score and score, got: ${stageText} / ${bestText}`);
   }
-  if (tileArtRatio < 0.84 || tileArtRatio > 0.94) {
-    throw new Error(`Expected tile art to occupy about 90% of the tile, got ratio=${tileArtRatio.toFixed(2)}.`);
+  if (gameStaminaCountdownCount !== 0) {
+    throw new Error(`Expected game HUD to hide stamina recovery countdown, got ${gameStaminaCountdownCount}.`);
+  }
+  if (bestFilledStarCount !== 3) {
+    throw new Error(`Expected best score strip to show 3 stable filled stars, got ${bestFilledStarCount}.`);
+  }
+  await expectPolishedGameUi(page);
+  await expectDraftThreeVisualSystem(page);
+  await expectUiCutAssets(page);
+  if (tileArtRatio < 0.82 || tileArtRatio > 1.12) {
+    throw new Error(`Expected tile art to occupy most of the tile, got ratio=${tileArtRatio.toFixed(2)}.`);
   }
 
   const firstAspect = await getFirstTileAspect(page);
@@ -116,6 +131,7 @@ try {
   if (!toastText.includes("不能连接")) {
     throw new Error(`Expected mismatch warning, got: ${toastText}`);
   }
+  await expectToastDoesNotCoverBoard(page);
   if (selectedAfterMismatch !== 0) {
     throw new Error(`Expected mismatch to clear selection, got ${selectedAfterMismatch} selected tile(s).`);
   }
@@ -135,6 +151,7 @@ try {
   if (!toolModalText.includes("看广告") || !toolModalText.includes("购买")) {
     throw new Error(`Expected spent tool modal to mention ad and purchase, got: ${toolModalText}`);
   }
+  await expectModalHasIcon(page, "#toolModal");
   await page.getByRole("button", { name: "继续游戏" }).click();
 
   await page.getByRole("button", { name: "暂停" }).click();
@@ -143,6 +160,7 @@ try {
   await gameHomeButton.click();
   await page.waitForSelector("#exitModal:not(.hidden)", { timeout: 2000 });
   await page.screenshot({ path: join(outputDir, "exit-modal-mobile.png"), fullPage: true });
+  await expectModalHasIcon(page, "#exitModal");
   await page.getByRole("button", { name: "重新开始" }).click();
   await page.waitForSelector(".screen-game.active .tile:not(.empty)");
   await gameHomeButton.click();
@@ -268,10 +286,104 @@ async function captureFirstLink(page) {
 
 async function exhaustTool(page, name) {
   while (true) {
-    const count = await page.getByRole("button", { name }).locator("span").innerText();
+    const count = await page.getByRole("button", { name }).locator(".tool-count").innerText();
     if (Number(count) <= 0) return;
     await page.getByRole("button", { name }).click();
     await page.waitForTimeout(700);
+  }
+}
+
+async function expectPolishedGameUi(page) {
+  const hudIconCount = await page.locator(".screen-game.active .hud-icon").count();
+  if (hudIconCount < 4) {
+    throw new Error(`Expected each HUD metric to have an icon, got ${hudIconCount}.`);
+  }
+  const hudTitleRowCount = await page.locator(".screen-game.active .hud-title-row").count();
+  if (hudTitleRowCount !== 4) {
+    throw new Error(`Expected each HUD metric to use a centered icon+label title row, got ${hudTitleRowCount}.`);
+  }
+
+  const toolButtons = page.locator(".screen-game.active .tool-button");
+  const toolButtonCount = await toolButtons.count();
+  if (toolButtonCount !== 3) {
+    throw new Error(`Expected 3 tool buttons, got ${toolButtonCount}.`);
+  }
+
+  for (let index = 0; index < toolButtonCount; index += 1) {
+    const button = toolButtons.nth(index);
+    const iconCount = await button.locator(".tool-art").count();
+    const labelCount = await button.locator(".tool-label").count();
+    if (iconCount !== 1 || labelCount !== 1) {
+      throw new Error(`Expected tool button ${index + 1} to include one icon and one label.`);
+    }
+  }
+}
+
+async function expectToastDoesNotCoverBoard(page) {
+  const boxes = await page.evaluate(() => {
+    const toast = document.querySelector(".screen-game.active .toast.show")?.getBoundingClientRect();
+    const board = document.querySelector(".screen-game.active .board")?.getBoundingClientRect();
+    if (!toast || !board) return null;
+    return {
+      toast: { top: toast.top, right: toast.right, bottom: toast.bottom, left: toast.left },
+      board: { top: board.top, right: board.right, bottom: board.bottom, left: board.left },
+    };
+  });
+  if (!boxes) throw new Error("Could not measure toast and board bounds.");
+  const overlaps =
+    boxes.toast.left < boxes.board.right &&
+    boxes.toast.right > boxes.board.left &&
+    boxes.toast.top < boxes.board.bottom &&
+    boxes.toast.bottom > boxes.board.top;
+  if (overlaps) {
+    throw new Error(
+      `Expected toast not to cover board, got toast=${JSON.stringify(boxes.toast)}, board=${JSON.stringify(
+        boxes.board,
+      )}.`,
+    );
+  }
+}
+
+async function expectUiCutAssets(page) {
+  const imageSources = await page
+    .locator(
+      ".screen-game.active .hud-icon, .screen-game.active .best-icon, .screen-game.active .best-star, .screen-game.active .tool-art, .screen-game.active .home-art",
+    )
+    .evaluateAll((nodes) => nodes.map((node) => node.getAttribute("src") ?? ""));
+  const badSource = imageSources.find((source) => !source.includes("./assets/ui-cut/"));
+  if (badSource) {
+    throw new Error(`Expected game UI to use independent ui-cut assets, got ${badSource}.`);
+  }
+
+  const bannerBackground = await page
+    .locator(".screen-game.active .stage-banner")
+    .evaluate((node) => getComputedStyle(node).backgroundImage);
+  if (!bannerBackground.includes("assets/ui-cut/title-plaque.png")) {
+    throw new Error(`Expected stage banner to use ui-cut title plaque, got ${bannerBackground}.`);
+  }
+}
+
+async function expectDraftThreeVisualSystem(page) {
+  const visualShell = await page.locator(".screen-game.active.draft-three-shell").count();
+  const organicHud = await page.locator(".screen-game.active .organic-hud-frame").count();
+  const glassBoard = await page.locator(".screen-game.active .glass-board-frame").count();
+  const creamToolbar = await page.locator(".screen-game.active .cream-tool-tray").count();
+  const targetPath = await page.locator(".screen-game.active").getAttribute("data-visual-target");
+
+  if (visualShell !== 1 || organicHud !== 1 || glassBoard !== 1 || creamToolbar !== 1) {
+    throw new Error(
+      `Expected draft-03 visual structure, got shell=${visualShell}, hud=${organicHud}, board=${glassBoard}, toolbar=${creamToolbar}.`,
+    );
+  }
+  if (!targetPath?.includes("ui-design-draft-03.png")) {
+    throw new Error(`Expected game screen to record draft-03 as visual target, got: ${targetPath}`);
+  }
+}
+
+async function expectModalHasIcon(page, selector) {
+  const modalIconCount = await page.locator(`${selector}:not(.hidden) .modal-icon`).count();
+  if (modalIconCount !== 1) {
+    throw new Error(`Expected ${selector} to render one modal icon, got ${modalIconCount}.`);
   }
 }
 
@@ -288,6 +400,10 @@ async function finishGameAndExpectStarsAndNoStaminaAgain(page) {
   await clearPairs(page, 80);
   await page.waitForSelector(".screen-result.active", { timeout: 3000 });
   await page.screenshot({ path: join(outputDir, "result-stars-mobile.png"), fullPage: true });
+  const resultBadgeCount = await page.locator(".screen-result.active .result-badge").count();
+  if (resultBadgeCount !== 1) {
+    throw new Error(`Expected result screen to show one result badge, got ${resultBadgeCount}.`);
+  }
   const stars = await page.locator("#resultStars .star.filled").count();
   if (stars < 1 || stars > 3) {
     throw new Error(`Expected completed level to show 1-3 filled stars, got ${stars}.`);

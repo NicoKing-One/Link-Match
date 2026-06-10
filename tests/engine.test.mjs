@@ -78,12 +78,12 @@ test("creates a paired board with an even tile count", () => {
   assert.equal(flat.filter((tile) => tile === "B").length % 2, 0);
 });
 
-test("easy level uses an 8x8 board", () => {
+test("easy level uses a 6x7 board", () => {
   const easy = LEVELS.find((level) => level.id === "easy");
 
-  assert.equal(easy.rows, 8);
-  assert.equal(easy.cols, 8);
-  assert.equal(easy.rows * easy.cols, 64);
+  assert.equal(easy.rows, 6);
+  assert.equal(easy.cols, 7);
+  assert.equal(easy.rows * easy.cols, 42);
 });
 
 test("finds available moves and preserves pairs when shuffling", () => {

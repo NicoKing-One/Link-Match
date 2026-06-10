@@ -3,6 +3,7 @@ export const START_STAMINA_COST = 3;
 export const STAMINA_RECOVERY_INTERVAL_MS = 3 * 60 * 1000;
 export const AD_STAMINA_REWARD = 30;
 export const MAX_AD_STAMINA_CLAIMS = 3;
+export const BEST_SCORE_STAR_COUNT = 3;
 
 export function calculateStarCount(remainingSeconds, level) {
   const ratio = remainingSeconds / level.durationSeconds;

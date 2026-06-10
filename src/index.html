@@ -29,51 +29,88 @@
         <button class="primary-button" id="startButton" type="button">开始游戏</button>
       </section>
 
-      <section class="screen screen-game" id="gameScreen">
-        <header class="top-panel">
+      <section
+        class="screen screen-game draft-three-shell"
+        id="gameScreen"
+        data-visual-target="docs/ui-design-drafts/ui-design-draft-03.png"
+      >
+        <header class="top-panel organic-hud-frame">
           <div class="stage-banner">
-            <strong id="levelName">第01关卡</strong>
-            <button class="icon-button" id="gameHomeButton" type="button" aria-label="返回首页">⌂</button>
+            <strong id="levelName">第01关</strong>
+            <button class="icon-button" id="gameHomeButton" type="button" aria-label="返回首页">
+              <img class="home-art" src="./assets/ui-cut/home-button.png" alt="" aria-hidden="true" />
+            </button>
           </div>
 
           <div class="hud">
-            <div class="hud-item">
-              <span>时间</span>
+            <div class="hud-item hud-item--time">
+              <span class="hud-title-row">
+                <img class="hud-icon" src="./assets/ui-cut/hud-clock.png" alt="" aria-hidden="true" />
+                <span class="hud-label">时间</span>
+              </span>
               <strong id="timeText">00:00</strong>
             </div>
-            <div class="hud-item">
-              <span>剩余</span>
+            <div class="hud-item hud-item--remaining">
+              <span class="hud-title-row">
+                <img class="hud-icon" src="./assets/ui-cut/hud-remaining.png" alt="" aria-hidden="true" />
+                <span class="hud-label">剩余</span>
+              </span>
               <strong id="remainingText">0</strong>
             </div>
-            <div class="hud-item">
-              <span>得分</span>
+            <div class="hud-item hud-item--score">
+              <span class="hud-title-row">
+                <img class="hud-icon" src="./assets/ui-cut/hud-score-star.png" alt="" aria-hidden="true" />
+                <span class="hud-label">得分</span>
+              </span>
               <strong id="scoreText">0</strong>
             </div>
-            <div class="hud-item stamina-hud">
-              <span>体力</span>
+            <div class="hud-item hud-item--stamina stamina-hud">
+              <span class="hud-title-row">
+                <img class="hud-icon" src="./assets/ui-cut/hud-heart.png" alt="" aria-hidden="true" />
+                <span class="hud-label">体力</span>
+              </span>
               <strong class="staminaText">50/50</strong>
-              <small class="staminaCountdown">恢复 03:00</small>
             </div>
           </div>
 
-          <div class="best-pill" id="bestText">最佳 0 · 0分 · ☆☆☆</div>
+          <div class="best-pill" id="bestText">
+            <img class="best-icon" src="./assets/ui-cut/best-crown.png" alt="" aria-hidden="true" />
+            <span>最佳3093分</span>
+            <span class="best-stars" aria-label="3 星">
+              <img class="best-star filled" src="./assets/ui-cut/best-star.png" alt="" aria-hidden="true" />
+              <img class="best-star filled" src="./assets/ui-cut/best-star.png" alt="" aria-hidden="true" />
+              <img class="best-star filled" src="./assets/ui-cut/best-star.png" alt="" aria-hidden="true" />
+            </span>
+          </div>
         </header>
 
-        <section class="board-wrap">
+        <section class="board-wrap glass-board-frame">
           <div class="toast" id="toast" role="status" aria-live="polite"></div>
           <div class="board" id="board" aria-label="连连看棋盘"></div>
           <svg class="link-layer" id="linkLayer" aria-hidden="true"></svg>
         </section>
 
-        <footer class="toolbar">
-          <button class="tool-button" id="hintButton" type="button">提示 <span id="hintCount">0</span></button>
-          <button class="tool-button" id="shuffleButton" type="button">洗牌 <span id="shuffleCount">0</span></button>
-          <button class="tool-button" id="pauseButton" type="button">暂停</button>
+        <footer class="toolbar cream-tool-tray">
+          <button class="tool-button tool-button--hint" id="hintButton" type="button">
+            <img class="tool-art" src="./assets/ui-cut/tool-hint.png" alt="" aria-hidden="true" />
+            <span class="tool-label">提示</span>
+            <span class="tool-count" id="hintCount">0</span>
+          </button>
+          <button class="tool-button tool-button--shuffle" id="shuffleButton" type="button">
+            <img class="tool-art" src="./assets/ui-cut/tool-shuffle.png" alt="" aria-hidden="true" />
+            <span class="tool-label">洗牌</span>
+            <span class="tool-count" id="shuffleCount">0</span>
+          </button>
+          <button class="tool-button tool-button--pause" id="pauseButton" type="button">
+            <img class="tool-art" src="./assets/ui-cut/tool-pause.png" alt="" aria-hidden="true" />
+            <span class="tool-label">暂停</span>
+          </button>
         </footer>
       </section>
 
       <section class="screen screen-result" id="resultScreen">
         <div class="result-card">
+          <div class="result-badge" aria-hidden="true"><span class="result-badge-mark"></span></div>
           <p class="eyebrow" id="resultEyebrow">完成</p>
           <h2 id="resultTitle">通关成功</h2>
           <p id="resultSummary">你的本局表现会显示在这里。</p>
@@ -98,6 +135,7 @@
 
     <div class="modal hidden" id="pauseModal" role="dialog" aria-modal="true" aria-labelledby="pauseTitle">
       <div class="modal-card">
+        <div class="modal-icon modal-icon--pause" aria-hidden="true"></div>
         <h2 id="pauseTitle">游戏暂停</h2>
         <p>棋盘状态已经保留，继续后倒计时恢复。</p>
         <button class="primary-button" id="resumeButton" type="button">继续游戏</button>
@@ -106,6 +144,7 @@
 
     <div class="modal hidden" id="toolModal" role="dialog" aria-modal="true" aria-labelledby="toolTitle">
       <div class="modal-card">
+        <div class="modal-icon modal-icon--tool" aria-hidden="true"></div>
         <h2 id="toolTitle">道具用完了</h2>
         <p id="toolMessage">可以看广告获取，或购买更多道具。</p>
         <div class="modal-actions">
@@ -118,6 +157,7 @@
 
     <div class="modal hidden" id="exitModal" role="dialog" aria-modal="true" aria-labelledby="exitTitle">
       <div class="modal-card">
+        <div class="modal-icon modal-icon--exit" aria-hidden="true"></div>
         <h2 id="exitTitle">离开本局？</h2>
         <p>当前棋盘会停止计时，你可以返回首页，也可以直接重新开始。</p>
         <div class="modal-actions">
@@ -130,6 +170,7 @@
 
     <div class="modal hidden" id="staminaModal" role="dialog" aria-modal="true" aria-labelledby="staminaTitle">
       <div class="modal-card">
+        <div class="modal-icon modal-icon--stamina" aria-hidden="true"></div>
         <h2 id="staminaTitle">体力不足</h2>
         <p id="staminaMessage">看广告或购买可以获取 30 点体力，广告最多获取 3 次。</p>
         <div class="modal-actions">

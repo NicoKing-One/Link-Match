@@ -14,7 +14,7 @@ export const DEFAULT_ICONS = [
 ];
 
 export const LEVELS = [
-  { id: "easy", name: "轻松", rows: 8, cols: 8, iconCount: 12, durationSeconds: 210, hints: 5, shuffles: 3 },
+  { id: "easy", name: "轻松", rows: 6, cols: 7, iconCount: 12, durationSeconds: 210, hints: 3, shuffles: 2 },
   { id: "normal", name: "标准", rows: 7, cols: 8, iconCount: 14, durationSeconds: 240, hints: 4, shuffles: 3 },
   { id: "hard", name: "挑战", rows: 8, cols: 9, iconCount: 18, durationSeconds: 300, hints: 3, shuffles: 2 },
 ];
