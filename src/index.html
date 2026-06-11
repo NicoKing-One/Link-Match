@@ -9,23 +9,49 @@
   <body>
     <main class="app-shell" aria-live="polite">
       <section class="screen screen-start active" id="startScreen">
-        <div class="brand-panel">
-          <p class="eyebrow">Link Match</p>
-          <h1>连连看</h1>
-        </div>
+        <header class="home-header">
+          <button class="round-menu-button" id="profileButton" type="button">个人</button>
+          <div class="home-header-spacer" aria-hidden="true"></div>
+          <button class="round-menu-button" id="settingsButton" type="button">设置</button>
+        </header>
 
-        <div class="level-list" id="levelList" aria-label="选择难度"></div>
-
-        <div class="stamina-panel">
-          <div>
+        <section class="home-stats" aria-label="玩家资源">
+          <div class="home-stat">
             <span>体力</span>
             <strong class="staminaText">50/50</strong>
             <small class="staminaCountdown">恢复 03:00</small>
           </div>
-          <button class="meta-button getStaminaButton" type="button">获取体力</button>
-        </div>
+          <div class="home-stat">
+            <span>金币</span>
+            <strong id="coinText">0</strong>
+            <small>通关获得</small>
+          </div>
+          <div class="home-stat">
+            <span>星星</span>
+            <strong id="starText">0/270</strong>
+            <small id="completedText">已通关 0</small>
+          </div>
+        </section>
 
-        <button class="primary-button" id="startButton" type="button">开始游戏</button>
+        <section class="chapter-shell" aria-label="章节关卡">
+          <div class="chapter-switcher">
+            <button class="chapter-arrow" id="prevChapterButton" type="button" aria-label="上一个主题">‹</button>
+            <div class="chapter-tabs" id="chapterTabs" role="tablist" aria-label="主题选择"></div>
+            <button class="chapter-arrow" id="nextChapterButton" type="button" aria-label="下一个主题">›</button>
+          </div>
+
+          <div class="chapter-summary" id="chapterSummary">水果森林 · 1-30</div>
+          <div class="map-panel">
+            <div class="chapter-lock hidden" id="chapterLockNotice"></div>
+            <div class="road-scroll" id="roadScroll" aria-label="关卡地图">
+              <div class="level-road" id="levelRoad"></div>
+            </div>
+          </div>
+        </section>
+        <div class="home-bottom-dock">
+          <button class="primary-button" id="startButton" type="button">开始闯关</button>
+        </div>
+        <div class="home-toast" id="homeToast" role="status" aria-live="polite"></div>
       </section>
 
       <section

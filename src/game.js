@@ -1,6 +1,5 @@
 import {
   DEFAULT_ICONS,
-  LEVELS,
   canConnect,
   countRemainingTiles,
   createBoard,
@@ -11,6 +10,7 @@ import {
   removePair,
   shuffleBoard,
 } from "./engine.js";
+import { CHAPTERS, LEVELS, getLevelsForChapter } from "./levels.js";
 import {
   AD_STAMINA_REWARD,
   MAX_AD_STAMINA_CLAIMS,
@@ -24,6 +24,15 @@ import {
   normalizeStaminaState,
   spendStartStamina,
 } from "./game-rules.js";
+import {
+  MAX_LEVEL_NUMBER,
+  applyLevelResult,
+  calculateCompletedLevels,
+  calculateTotalStars,
+  getChapterStatus,
+  getLevelStatus,
+  normalizeProgress,
+} from "./progression.js";
 
 const ICON_VIEW = {
   flower: { label: "草莓", src: "./assets/jelly-fruit/tiles/flower.png" },
@@ -41,7 +50,10 @@ const ICON_VIEW = {
 };
 
 const STAMINA_KEY = "lianliankan.stamina";
-const DEFAULT_BEST_SCORE = 3093;
+const PROGRESS_KEY = "lianliankan.progress";
+const ROAD_STEP_Y = 52;
+const ROAD_TOP_Y = 36;
+const ROAD_X_PATTERN = [18, 34, 62, 80, 66, 38];
 
 const screens = {
   start: document.querySelector("#startScreen"),
@@ -50,8 +62,20 @@ const screens = {
 };
 
 const elements = {
-  levelList: document.querySelector("#levelList"),
+  chapterTabs: document.querySelector("#chapterTabs"),
+  chapterSummary: document.querySelector("#chapterSummary"),
+  chapterLockNotice: document.querySelector("#chapterLockNotice"),
+  levelRoad: document.querySelector("#levelRoad"),
+  roadScroll: document.querySelector("#roadScroll"),
+  prevChapterButton: document.querySelector("#prevChapterButton"),
+  nextChapterButton: document.querySelector("#nextChapterButton"),
+  profileButton: document.querySelector("#profileButton"),
+  settingsButton: document.querySelector("#settingsButton"),
   startButton: document.querySelector("#startButton"),
+  coinText: document.querySelector("#coinText"),
+  starText: document.querySelector("#starText"),
+  completedText: document.querySelector("#completedText"),
+  homeToast: document.querySelector("#homeToast"),
   staminaTexts: document.querySelectorAll(".staminaText"),
   staminaCountdowns: document.querySelectorAll(".staminaCountdown"),
   getStaminaButtons: document.querySelectorAll(".getStaminaButton"),
@@ -101,7 +125,7 @@ const elements = {
 };
 
 const state = {
-  level: LEVELS[1],
+  level: LEVELS[0],
   board: [],
   selected: null,
   score: 0,
@@ -113,18 +137,30 @@ const state = {
   hints: 0,
   shuffles: 0,
   stamina: loadStaminaState(),
+  progress: loadProgressState(),
+  chapterIndex: 0,
   paused: false,
   busy: false,
 };
 
-renderLevelChoices();
+state.level = LEVELS[state.progress.highestUnlockedLevel - 1] ?? LEVELS[0];
+state.chapterIndex = CHAPTERS.findIndex(
+  (chapter) => state.level.number >= chapter.startLevel && state.level.number <= chapter.endLevel,
+);
+if (state.chapterIndex < 0) state.chapterIndex = 0;
+
 bindEvents();
 refreshStamina();
 startStaminaTimer();
+renderHome();
 showScreen("start");
 
 function bindEvents() {
-  elements.startButton.addEventListener("click", () => requestStartGame(state.level));
+  elements.startButton.addEventListener("click", () => requestStartGame(LEVELS[state.progress.highestUnlockedLevel - 1]));
+  elements.prevChapterButton.addEventListener("click", () => switchChapter(-1));
+  elements.nextChapterButton.addEventListener("click", () => switchChapter(1));
+  elements.profileButton.addEventListener("click", () => showHomeNotice("个人中心将在下一步接入"));
+  elements.settingsButton.addEventListener("click", () => showHomeNotice("设置入口已预留"));
   elements.getStaminaButtons.forEach((button) => {
     button.addEventListener("click", claimStaminaFromAd);
   });
@@ -147,29 +183,85 @@ function bindEvents() {
   elements.againButton.addEventListener("click", () => requestStartGame(state.level));
   elements.homeButton.addEventListener("click", () => {
     stopTimer();
+    renderHome();
     showScreen("start");
   });
 }
 
-function renderLevelChoices() {
-  elements.levelList.innerHTML = "";
-  LEVELS.forEach((level) => {
+function renderHome() {
+  const currentLevel = LEVELS[state.progress.highestUnlockedLevel - 1] ?? LEVELS[0];
+  elements.startButton.textContent = calculateCompletedLevels(state.progress) > 0 ? "继续闯关" : "开始闯关";
+  elements.coinText.textContent = state.progress.coins;
+  elements.starText.textContent = `${calculateTotalStars(state.progress)}/${MAX_LEVEL_NUMBER * 3}`;
+  elements.completedText.textContent = `已通关 ${calculateCompletedLevels(state.progress)}`;
+  renderChapterTabs();
+  renderRoadMap();
+}
+
+function renderChapterTabs() {
+  elements.chapterTabs.innerHTML = "";
+  CHAPTERS.forEach((chapter, index) => {
+    const status = getChapterStatus(chapter, state.progress);
     const button = document.createElement("button");
     button.type = "button";
-    button.className = `level-card${level.id === state.level.id ? " selected" : ""}`;
-    button.dataset.level = level.id;
-    button.innerHTML = `<strong>${level.name}</strong><span>${level.rows}×${level.cols}<br>${formatTime(
-      level.durationSeconds,
-    )}<br>提示 ${level.hints} · 洗牌 ${level.shuffles}</span>`;
+    button.className = `chapter-tab ${status}${index === state.chapterIndex ? " selected" : ""}`;
+    button.setAttribute("role", "tab");
+    button.setAttribute("aria-selected", index === state.chapterIndex ? "true" : "false");
+    button.innerHTML = `<strong>${chapter.name}</strong><span>${chapter.startLevel}-${chapter.endLevel}</span>`;
     button.addEventListener("click", () => {
-      state.level = level;
-      renderLevelChoices();
+      state.chapterIndex = index;
+      renderHome();
     });
-    elements.levelList.append(button);
+    elements.chapterTabs.append(button);
+  });
+  elements.prevChapterButton.disabled = state.chapterIndex === 0;
+  elements.nextChapterButton.disabled = state.chapterIndex === CHAPTERS.length - 1;
+}
+
+function renderRoadMap() {
+  const chapter = CHAPTERS[state.chapterIndex];
+  const chapterLevels = getLevelsForChapter(chapter.id);
+  const chapterStatus = getChapterStatus(chapter, state.progress);
+  const roadHeight = ROAD_TOP_Y * 2 + (chapterLevels.length - 1) * ROAD_STEP_Y;
+  const points = chapterLevels.map((level, index) => ({
+    level,
+    x: ROAD_X_PATTERN[index % ROAD_X_PATTERN.length],
+    y: roadHeight - ROAD_TOP_Y - index * ROAD_STEP_Y,
+  }));
+
+  elements.chapterSummary.textContent = `${chapter.name} · ${chapter.startLevel}-${chapter.endLevel}关`;
+  elements.chapterSummary.dataset.status = chapterStatus;
+  elements.chapterLockNotice.classList.toggle("hidden", chapterStatus !== "locked");
+  elements.chapterLockNotice.textContent =
+    chapter.id === "candy-garden" ? "通关第30关后解锁糖果花园" : "通关第60关后解锁果冻城堡";
+  elements.levelRoad.className = `level-road ${chapter.backgroundClass}`;
+  elements.levelRoad.style.height = `${roadHeight}px`;
+  elements.levelRoad.innerHTML = buildRoadSvg(points, roadHeight);
+
+  points.forEach(({ level, x, y }) => {
+    const status = getLevelStatus(level.number, state.progress);
+    const record = state.progress.records[String(level.number)] ?? { bestStars: 0 };
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `road-level ${status}`;
+    button.style.left = `calc(${x}% - 24px)`;
+    button.style.top = `${y - 24}px`;
+    button.disabled = status === "locked";
+    button.setAttribute("aria-label", `${formatLevelTitle(level)} ${getLevelStatusText(status)}`);
+    button.innerHTML = `<strong>${String(level.number).padStart(2, "0")}</strong>${renderMiniStars(record.bestStars)}`;
+    button.addEventListener("click", () => requestStartGame(level));
+    elements.levelRoad.append(button);
+  });
+  window.requestAnimationFrame(() => {
+    elements.roadScroll.scrollTop = elements.roadScroll.scrollHeight;
   });
 }
 
 function requestStartGame(level) {
+  if (getLevelStatus(level.number, state.progress) === "locked") {
+    showHomeNotice("先通关上一关才能挑战这里");
+    return;
+  }
   refreshStamina();
   const result = spendStartStamina(state.stamina);
   if (!result.ok) {
@@ -388,6 +480,7 @@ function returnHome() {
   clearLink();
   hideToast();
   hideModals();
+  renderHome();
   showScreen("start");
 }
 
@@ -398,21 +491,26 @@ function finishGame(won) {
 
   const remaining = countRemainingTiles(state.board);
   const finalScore = won ? state.score + state.remainingSeconds * 5 : state.score;
+  const stars = won ? calculateStarCount(state.remainingSeconds, state.level) : 0;
+  const result = applyLevelResult(state.progress, state.level, {
+    won,
+    score: finalScore,
+    stars,
+    remainingSeconds: state.remainingSeconds,
+  });
+  saveProgressState(result.progress);
   state.score = finalScore;
-  const best = getBestScore(state.level.id);
-  if (finalScore > best) {
-    localStorage.setItem(bestKey(state.level.id), String(finalScore));
-  }
+  const best = getBestScore(state.level.number);
 
   elements.resultTitle.textContent = won ? "通关成功" : "挑战失败";
   elements.resultBadgeArt.src = won ? "./assets/ui-cut/best-crown.png" : "./assets/ui-cut/hud-clock.png";
   screens.result.dataset.result = won ? "success" : "failure";
   elements.resultSummary.textContent = won
-    ? `用 ${state.moves} 步清空棋盘，剩余 ${formatTime(state.remainingSeconds)}。`
+    ? `用 ${state.moves} 步清空棋盘，获得 ${result.coinsAdded} 金币，新增 ${result.starsAdded} 星。`
     : `还剩 ${remaining} 个图案没有消除，可以调整策略再来一次。`;
-  renderResultStars(won ? calculateStarCount(state.remainingSeconds, state.level) : 0);
+  renderResultStars(stars);
   elements.resultScore.textContent = `得分 ${finalScore}`;
-  elements.resultBest.textContent = `最佳 ${Math.max(finalScore, best)}`;
+  elements.resultBest.textContent = `最佳 ${best}`;
   updateStaminaView();
   showScreen("result");
 }
@@ -567,6 +665,19 @@ function loadStaminaState() {
   }
 }
 
+function saveProgressState(nextState) {
+  state.progress = normalizeProgress(nextState);
+  localStorage.setItem(PROGRESS_KEY, JSON.stringify(state.progress));
+}
+
+function loadProgressState() {
+  try {
+    return normalizeProgress(JSON.parse(localStorage.getItem(PROGRESS_KEY)));
+  } catch {
+    return normalizeProgress(null);
+  }
+}
+
 function updateStaminaView() {
   elements.staminaTexts.forEach((text) => {
     text.textContent = `${state.stamina.stamina}/${MAX_STAMINA}`;
@@ -583,6 +694,31 @@ function updateStaminaView() {
     button.disabled = state.stamina.adClaims >= MAX_AD_STAMINA_CLAIMS;
     button.textContent = state.stamina.adClaims >= MAX_AD_STAMINA_CLAIMS ? "已领取完" : "获取体力";
   });
+}
+
+function switchChapter(direction) {
+  state.chapterIndex = Math.min(CHAPTERS.length - 1, Math.max(0, state.chapterIndex + direction));
+  renderHome();
+}
+
+function buildRoadSvg(points, height) {
+  const data = points.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`).join(" ");
+  return `<svg class="road-path" viewBox="0 0 100 ${height}" preserveAspectRatio="none" aria-hidden="true"><path d="${data}" /></svg>`;
+}
+
+function renderMiniStars(count) {
+  const stars = [];
+  for (let index = 1; index <= 3; index += 1) {
+    stars.push(`<span class="${index <= count ? "filled" : ""}"></span>`);
+  }
+  return `<span class="road-stars" aria-hidden="true">${stars.join("")}</span>`;
+}
+
+function getLevelStatusText(status) {
+  if (status === "completed") return "已通关";
+  if (status === "current") return "当前可挑战";
+  if (status === "available") return "可重玩";
+  return "未解锁";
 }
 
 function formatCountdown(milliseconds) {
@@ -664,14 +800,25 @@ function showToast(message) {
   window.clearTimeout(state.toastTimer);
   elements.toast.textContent = message;
   elements.toast.classList.add("show");
+  if (elements.homeToast) {
+    elements.homeToast.textContent = message;
+    elements.homeToast.classList.add("show");
+  }
   state.toastTimer = window.setTimeout(() => {
     hideToast();
   }, 1400);
 }
 
+function showHomeNotice(message) {
+  showToast(message);
+}
+
 function hideToast() {
   window.clearTimeout(state.toastTimer);
   elements.toast.classList.remove("show");
+  if (elements.homeToast) {
+    elements.homeToast.classList.remove("show");
+  }
 }
 
 function getMismatchMessage(first, second) {
@@ -707,16 +854,12 @@ function formatTime(seconds) {
 }
 
 function formatLevelTitle(level) {
-  const index = LEVELS.findIndex((item) => item.id === level.id);
-  return `第0${index + 1}关`;
+  return `第${String(level.number).padStart(2, "0")}关`;
 }
 
-function getBestScore(levelId) {
-  return Number(localStorage.getItem(bestKey(levelId)) || DEFAULT_BEST_SCORE);
-}
-
-function bestKey(levelId) {
-  return `lianliankan.best.${levelId}`;
+function getBestScore(levelNumber) {
+  const record = state.progress.records[String(levelNumber)];
+  return record?.bestScore ?? 0;
 }
 
 function samePoint(first, second) {

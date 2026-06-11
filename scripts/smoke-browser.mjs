@@ -81,20 +81,16 @@ try {
   if (!initialCountdown.includes("刷新")) {
     throw new Error(`Expected full stamina countdown to show reset time, got: ${initialCountdown}`);
   }
+  await expectHomeRoadMap(page);
+  await page.screenshot({ path: join(outputDir, "home-map-mobile.png"), fullPage: true });
   await expectStaleFullStaminaSpend(page);
   await page.evaluate(() => localStorage.clear());
   await page.reload({ waitUntil: "networkidle" });
-  await page.locator(".level-card").first().click();
-  await page.locator(".screen-start .getStaminaButton").click();
-  const bonusStamina = await page.locator(".screen-start .staminaText").innerText();
-  if (bonusStamina !== "80/50") {
-    throw new Error(`Expected ad stamina to exceed max as 80/50, got: ${bonusStamina}`);
-  }
   await page.locator("#startButton").click();
   await page.waitForSelector(".screen-game.active .tile:not(.empty)");
   const staminaAfterStart = await readStoredStamina(page);
   const gameStaminaText = await page.locator(".screen-game .staminaText").innerText();
-  if (staminaAfterStart.stamina !== 77 || gameStaminaText !== "77/50") {
+  if (staminaAfterStart.stamina !== 47 || gameStaminaText !== "47/50") {
     throw new Error(`Expected starting a level to cost 3 stamina, got: ${staminaAfterStart.stamina}`);
   }
   await page.waitForTimeout(1500);
@@ -108,8 +104,9 @@ try {
   const tileArtRatio = await getFirstTileArtRatio(page);
   const gameStaminaCountdownCount = await page.locator(".screen-game.active .staminaCountdown").count();
   const bestPillCount = await page.locator(".screen-game.active .best-pill").count();
-  if (tileCount !== 42) {
-    throw new Error(`Expected easy mode to render a 6x7 board with 42 tiles, got ${tileCount}.`);
+  const expectedTileCount = await readCurrentLevelTileCount(page);
+  if (tileCount !== expectedTileCount) {
+    throw new Error(`Expected current level to render ${expectedTileCount} tiles, got ${tileCount}.`);
   }
   if (tileImageCount !== tileCount) {
     throw new Error(`Expected every active tile to use fruit candy image art, got ${tileImageCount}/${tileCount}.`);
@@ -235,7 +232,6 @@ async function expectStaleFullStaminaSpend(page) {
     );
   });
   await page.reload({ waitUntil: "networkidle" });
-  await page.locator(".level-card").first().click();
   await page.locator("#startButton").click();
   await page.waitForSelector(".screen-game.active .tile:not(.empty)");
   await page.waitForTimeout(1200);
@@ -479,6 +475,88 @@ async function expectMobileModalDesignSystem(page, selector) {
     throw new Error(`Expected ${selector} title plaque to straddle the card top edge, got ${JSON.stringify(geometry)}.`);
   }
   await expectDesignedUiCutButtons(page, `${selector}:not(.hidden) .modal-actions button`);
+}
+
+async function expectHomeRoadMap(page) {
+  await page.waitForSelector(".screen-start.active .road-level", { timeout: 2000 });
+  const chapterTabCount = await page.locator(".screen-start.active .chapter-tab").count();
+  const bottomTabCount = await page.locator(".screen-start.active .bottom-tab").count();
+  const visibleRoadLevelCount = await page.locator(".screen-start.active .road-level").count();
+  const currentLevelText = await page.locator(".screen-start.active .road-level.current").innerText();
+  const lockedCount = await page.locator(".screen-start.active .road-level.locked").count();
+  const lockedTabCount = await page.locator(".screen-start.active .chapter-tab.locked").count();
+  const continueText = await page.locator("#startButton").innerText();
+  const homeTitleCount = await page.locator(".screen-start.active .home-brand h1, .screen-start.active .home-brand .eyebrow").count();
+  const homeStaminaButtonCount = await page.locator(".screen-start.active .getStaminaButton").count();
+  const scrollInfo = await page.locator("#roadScroll").evaluate((node) => ({
+    clientHeight: node.clientHeight,
+    scrollHeight: node.scrollHeight,
+  }));
+  const layoutInfo = await page.evaluate(() => {
+    const startButton = document.querySelector("#startButton");
+    const first = document.querySelector('.road-level strong');
+    const levelOne = [...document.querySelectorAll(".road-level")].find((node) => node.textContent.includes("01"));
+    const levelTwo = [...document.querySelectorAll(".road-level")].find((node) => node.textContent.includes("02"));
+    const dock = document.querySelector(".home-bottom-dock");
+    return {
+      buttonWidth: startButton.getBoundingClientRect().width,
+      viewportWidth: window.innerWidth,
+      buttonBottom: window.innerHeight - startButton.getBoundingClientRect().bottom,
+      levelOneTop: levelOne.getBoundingClientRect().top,
+      levelTwoTop: levelTwo.getBoundingClientRect().top,
+      hasDock: Boolean(dock),
+      dockPaddingBottom: dock ? getComputedStyle(dock).paddingBottom : "",
+      firstText: first?.textContent ?? "",
+    };
+  });
+
+  if (chapterTabCount !== 3) {
+    throw new Error(`Expected 3 chapter tabs, got ${chapterTabCount}.`);
+  }
+  if (bottomTabCount !== 0) {
+    throw new Error(`Expected no bottom tabs, got ${bottomTabCount}.`);
+  }
+  if (visibleRoadLevelCount !== 30) {
+    throw new Error(`Expected current chapter map to render 30 level nodes, got ${visibleRoadLevelCount}.`);
+  }
+  if (!currentLevelText.includes("01")) {
+    throw new Error(`Expected level 01 to be current, got: ${currentLevelText}.`);
+  }
+  if (lockedCount < 20 || lockedTabCount !== 2) {
+    throw new Error(`Expected most future levels and later chapters to be locked, got levels=${lockedCount}, tabs=${lockedTabCount}.`);
+  }
+  if (!continueText.includes("闯关")) {
+    throw new Error(`Expected start button to use start/continue challenge copy, got: ${continueText}.`);
+  }
+  if (homeTitleCount !== 0) {
+    throw new Error(`Expected home title text to be removed, got ${homeTitleCount} title nodes.`);
+  }
+  if (homeStaminaButtonCount !== 0) {
+    throw new Error(`Expected home stamina claim button to be removed, got ${homeStaminaButtonCount}.`);
+  }
+  if (
+    !layoutInfo.hasDock ||
+    Math.abs(layoutInfo.buttonWidth - layoutInfo.viewportWidth / 2) > 8 ||
+    layoutInfo.dockPaddingBottom !== "30px"
+  ) {
+    throw new Error(`Expected continue button to be half-width with 30px bottom padding, got ${JSON.stringify(layoutInfo)}.`);
+  }
+  if (layoutInfo.levelOneTop <= layoutInfo.levelTwoTop) {
+    throw new Error(`Expected level 01 to appear below level 02 in bottom-up map, got ${JSON.stringify(layoutInfo)}.`);
+  }
+  if (scrollInfo.scrollHeight <= scrollInfo.clientHeight) {
+    throw new Error(`Expected road map to scroll vertically, got ${JSON.stringify(scrollInfo)}.`);
+  }
+}
+
+async function readCurrentLevelTileCount(page) {
+  return page.evaluate(async () => {
+    const module = await import(new URL("./levels.js", window.location.href).href);
+    const levelName = document.querySelector("#levelName")?.textContent ?? "第01关";
+    const levelNumber = Number(levelName.replace(/\D/g, "")) || 1;
+    const level = module.LEVELS.find((item) => item.number === levelNumber) ?? module.LEVELS[0];
+    return level.rows * level.cols;
+  });
 }
 
 async function expectMobileResultDesignSystem(page) {
