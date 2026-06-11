@@ -51,6 +51,7 @@ function serveStatic() {
 const server = await serveStatic();
 const address = server.address();
 const url = `http://127.0.0.1:${address.port}`;
+const smokeUrl = `${url}?boardSeed=smoke-easy`;
 await mkdir(outputDir, { recursive: true });
 if (!existsSync(modalDesignDraft)) {
   throw new Error(`Expected mobile popup/result design draft to exist: ${modalDesignDraft}`);
@@ -65,7 +66,7 @@ const browser = await chromium.launch({
 });
 try {
   const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
-  await page.goto(url, { waitUntil: "networkidle" });
+  await page.goto(smokeUrl, { waitUntil: "networkidle" });
   await page.evaluate(() => localStorage.clear());
   await page.reload({ waitUntil: "networkidle" });
   const initialStamina = await page.locator(".screen-start .staminaText").innerText();

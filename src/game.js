@@ -4,6 +4,7 @@ import {
   canConnect,
   countRemainingTiles,
   createBoard,
+  createSeededRandom,
   findAvailablePair,
   findConnection,
   isBoardCleared,
@@ -209,13 +210,19 @@ function startGame(level) {
 
 function createPlayableBoard(level) {
   const icons = DEFAULT_ICONS.slice(0, level.iconCount);
-  let board = createBoard({ rows: level.rows, cols: level.cols, iconKinds: icons });
+  const rng = createBoardRandom(level);
+  let board = createBoard({ rows: level.rows, cols: level.cols, iconKinds: icons, rng });
   let guard = 0;
   while (!findAvailablePair(board) && guard < 20) {
-    board = shuffleBoard(board);
+    board = shuffleBoard(board, rng);
     guard += 1;
   }
   return board;
+}
+
+function createBoardRandom(level) {
+  const seed = new URLSearchParams(window.location.search).get("boardSeed");
+  return seed ? createSeededRandom(`${seed}:${level.id}`) : Math.random;
 }
 
 function renderBoard() {

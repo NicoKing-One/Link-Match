@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   canConnect,
   createBoard,
+  createSeededRandom,
   findAvailablePair,
   findConnection,
   hasAvailableMove,
@@ -76,6 +77,18 @@ test("creates a paired board with an even tile count", () => {
   assert.equal(flat.length, 8);
   assert.equal(flat.filter((tile) => tile === "A").length % 2, 0);
   assert.equal(flat.filter((tile) => tile === "B").length % 2, 0);
+});
+
+test("creates repeatable boards from the same seed", () => {
+  const icons = LEVELS.find((level) => level.id === "easy").iconCount;
+  const iconKinds = Array.from({ length: icons }, (_, index) => `icon-${index}`);
+
+  const first = createBoard({ rows: 6, cols: 7, iconKinds, rng: createSeededRandom("smoke-easy") });
+  const second = createBoard({ rows: 6, cols: 7, iconKinds, rng: createSeededRandom("smoke-easy") });
+  const third = createBoard({ rows: 6, cols: 7, iconKinds, rng: createSeededRandom("other-smoke-easy") });
+
+  assert.deepEqual(first, second);
+  assert.notDeepEqual(first, third);
 });
 
 test("easy level uses a 6x7 board", () => {
