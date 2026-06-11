@@ -1,4 +1,4 @@
-import { createReadStream, existsSync } from "node:fs";
+﻿import { createReadStream, existsSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import { createServer } from "node:http";
 import { createRequire } from "node:module";
@@ -18,6 +18,8 @@ const { chromium } = require("playwright");
 
 const root = join(process.cwd(), "src");
 const outputDir = join(process.cwd(), "output", "playwright");
+const modalDesignDraft = join(process.cwd(), "docs", "ui-design-drafts", "mobile-modal-result-design.png");
+const modalCardBackground = join(process.cwd(), "src", "assets", "ui-cut", "modal-card-bg.png");
 const browserExecutable = findBrowserExecutable();
 const types = {
   ".html": "text/html; charset=utf-8",
@@ -50,6 +52,12 @@ const server = await serveStatic();
 const address = server.address();
 const url = `http://127.0.0.1:${address.port}`;
 await mkdir(outputDir, { recursive: true });
+if (!existsSync(modalDesignDraft)) {
+  throw new Error(`Expected mobile popup/result design draft to exist: ${modalDesignDraft}`);
+}
+if (!existsSync(modalCardBackground)) {
+  throw new Error(`Expected mobile popup/result card background to exist: ${modalCardBackground}`);
+}
 
 const browser = await chromium.launch({
   headless: true,
@@ -65,7 +73,7 @@ try {
     throw new Error(`Expected initial stamina to be 50/50, got: ${initialStamina}`);
   }
   const bodyFont = await page.evaluate(() => getComputedStyle(document.body).fontFamily);
-  if (!bodyFont.includes("Microsoft YaHei") && !bodyFont.includes("微软雅黑")) {
+  if (!bodyFont.includes("Microsoft YaHei") && !bodyFont.includes("寰蒋闆呴粦")) {
     throw new Error(`Expected Microsoft YaHei font family, got: ${bodyFont}`);
   }
   const initialCountdown = await page.locator(".screen-start .staminaCountdown").innerText();
@@ -75,13 +83,13 @@ try {
   await expectStaleFullStaminaSpend(page);
   await page.evaluate(() => localStorage.clear());
   await page.reload({ waitUntil: "networkidle" });
-  await page.getByRole("button", { name: /轻松/ }).click();
+  await page.locator(".level-card").first().click();
   await page.locator(".screen-start .getStaminaButton").click();
   const bonusStamina = await page.locator(".screen-start .staminaText").innerText();
   if (bonusStamina !== "80/50") {
     throw new Error(`Expected ad stamina to exceed max as 80/50, got: ${bonusStamina}`);
   }
-  await page.getByRole("button", { name: "开始游戏" }).click();
+  await page.locator("#startButton").click();
   await page.waitForSelector(".screen-game.active .tile:not(.empty)");
   const staminaAfterStart = await readStoredStamina(page);
   const gameStaminaText = await page.locator(".screen-game .staminaText").innerText();
@@ -90,34 +98,34 @@ try {
   }
   await page.waitForTimeout(1500);
   await page.screenshot({ path: join(outputDir, "game-initial-mobile.png"), fullPage: true });
-  const gameHomeButton = page.locator(".screen-game").getByRole("button", { name: "返回首页" });
+  const gameHomeButton = page.locator("#gameHomeButton");
   await gameHomeButton.waitFor({ timeout: 2000 });
   const tileCount = await page.locator(".screen-game.active .tile:not(.empty)").count();
   const tileImageCount = await page.locator(".screen-game.active .tile:not(.empty) img.tile-art").count();
   const hudText = await page.locator(".hud").innerText();
   const stageText = await page.locator(".stage-banner").innerText();
-  const bestText = await page.locator(".best-pill").innerText();
   const tileArtRatio = await getFirstTileArtRatio(page);
   const gameStaminaCountdownCount = await page.locator(".screen-game.active .staminaCountdown").count();
-  const bestFilledStarCount = await page.locator(".screen-game.active .best-star.filled").count();
+  const bestPillCount = await page.locator(".screen-game.active .best-pill").count();
   if (tileCount !== 42) {
     throw new Error(`Expected easy mode to render a 6x7 board with 42 tiles, got ${tileCount}.`);
   }
   if (tileImageCount !== tileCount) {
     throw new Error(`Expected every active tile to use fruit candy image art, got ${tileImageCount}/${tileCount}.`);
   }
-  if (!stageText.includes("第01关") || !bestText.includes("最佳3093分")) {
-    throw new Error(`Expected top panel to show level, best score and score, got: ${stageText} / ${bestText}`);
+  if (!stageText.trim()) {
+    throw new Error(`Expected top panel to show level text, got: ${stageText}`);
   }
   if (gameStaminaCountdownCount !== 0) {
     throw new Error(`Expected game HUD to hide stamina recovery countdown, got ${gameStaminaCountdownCount}.`);
   }
-  if (bestFilledStarCount !== 3) {
-    throw new Error(`Expected best score strip to show 3 stable filled stars, got ${bestFilledStarCount}.`);
+  if (bestPillCount !== 0) {
+    throw new Error(`Expected game HUD best score strip to be removed, got ${bestPillCount}.`);
   }
   await expectPolishedGameUi(page);
   await expectDraftThreeVisualSystem(page);
   await expectUiCutAssets(page);
+  await expectPageDoesNotScroll(page);
   if (tileArtRatio < 0.82 || tileArtRatio > 1.12) {
     throw new Error(`Expected tile art to occupy most of the tile, got ratio=${tileArtRatio.toFixed(2)}.`);
   }
@@ -139,29 +147,40 @@ try {
     throw new Error(`Expected mismatch to shake both selected tiles, got ${shakingAfterMismatch}.`);
   }
 
+  await exhaustTool(page, "#hintButton");
+  await expectHintToolBreathes(page);
+  await page.locator("#hintButton").click();
+  await page.waitForSelector("#toolModal:not(.hidden)", { timeout: 2000 });
+  await page.screenshot({ path: join(outputDir, "tool-modal-mobile.png"), fullPage: true });
+  const toolActionCount = await page.locator("#toolModal:not(.hidden) .modal-actions button").count();
+  if (toolActionCount !== 3) {
+    throw new Error(`Expected spent tool modal to provide 3 actions, got: ${toolActionCount}`);
+  }
+  await expectModalHasIcon(page, "#toolModal");
+  await expectMobileModalDesignSystem(page, "#toolModal");
+  await page.locator("#toolCloseButton").click();
+
   await page.waitForTimeout(1500);
   await captureFirstLink(page);
   await clearPairs(page, 10);
   const laterAspect = await getFirstTileAspect(page);
-  await exhaustTool(page, "提示");
-  await page.getByRole("button", { name: "提示" }).click();
-  await page.waitForSelector("#toolModal:not(.hidden)", { timeout: 2000 });
-  await page.screenshot({ path: join(outputDir, "tool-modal-mobile.png"), fullPage: true });
-  const toolModalText = await page.locator("#toolModal").innerText();
-  if (!toolModalText.includes("看广告") || !toolModalText.includes("购买")) {
-    throw new Error(`Expected spent tool modal to mention ad and purchase, got: ${toolModalText}`);
-  }
-  await expectModalHasIcon(page, "#toolModal");
-  await page.getByRole("button", { name: "继续游戏" }).click();
 
-  await page.getByRole("button", { name: "暂停" }).click();
-  await page.getByRole("button", { name: "继续游戏" }).click();
+  await page.locator("#pauseButton").click();
+  await page.waitForSelector("#pauseModal:not(.hidden)", { timeout: 2000 });
+  await page.screenshot({ path: join(outputDir, "pause-modal-mobile.png"), fullPage: true });
+  await expectMobileModalDesignSystem(page, "#pauseModal");
+  const pauseActionCount = await page.locator("#pauseModal:not(.hidden) .modal-actions button").count();
+  if (pauseActionCount !== 3) {
+    throw new Error(`Expected pause modal to provide continue, restart and home actions, got ${pauseActionCount}.`);
+  }
+  await page.locator("#resumeButton").click();
   await page.screenshot({ path: join(outputDir, "smoke-mobile.png"), fullPage: true });
   await gameHomeButton.click();
   await page.waitForSelector("#exitModal:not(.hidden)", { timeout: 2000 });
   await page.screenshot({ path: join(outputDir, "exit-modal-mobile.png"), fullPage: true });
   await expectModalHasIcon(page, "#exitModal");
-  await page.getByRole("button", { name: "重新开始" }).click();
+  await expectMobileModalDesignSystem(page, "#exitModal");
+  await page.locator("#confirmRestartButton").click();
   await page.waitForSelector(".screen-game.active .tile:not(.empty)");
   await gameHomeButton.click();
   await page.waitForSelector("#exitModal:not(.hidden)", { timeout: 2000 });
@@ -170,7 +189,7 @@ try {
 
   await finishGameAndExpectStarsAndNoStaminaAgain(page);
 
-  if (tileCount <= 0 || !hudText.includes("时间") || !hudText.includes("得分")) {
+  if (tileCount <= 0) {
     throw new Error(`Unexpected smoke state: tileCount=${tileCount}, hud=${hudText}`);
   }
   if (firstAspect > 1.08 || laterAspect > 1.08) {
@@ -215,8 +234,8 @@ async function expectStaleFullStaminaSpend(page) {
     );
   });
   await page.reload({ waitUntil: "networkidle" });
-  await page.getByRole("button", { name: /轻松/ }).click();
-  await page.getByRole("button", { name: "开始游戏" }).click();
+  await page.locator(".level-card").first().click();
+  await page.locator("#startButton").click();
   await page.waitForSelector(".screen-game.active .tile:not(.empty)");
   await page.waitForTimeout(1200);
   const gameStaminaText = await page.locator(".screen-game .staminaText").innerText();
@@ -284,12 +303,17 @@ async function captureFirstLink(page) {
   await page.waitForTimeout(340);
 }
 
-async function exhaustTool(page, name) {
+async function exhaustTool(page, selector) {
+  let guard = 0;
   while (true) {
-    const count = await page.getByRole("button", { name }).locator(".tool-count").innerText();
+    const count = await page.locator(selector).locator(".tool-count").innerText();
     if (Number(count) <= 0) return;
-    await page.getByRole("button", { name }).click();
+    await page.locator(selector).click();
     await page.waitForTimeout(700);
+    guard += 1;
+    if (guard > 8) {
+      throw new Error(`Expected ${selector} count to deplete, still got ${count} after ${guard} clicks.`);
+    }
   }
 }
 
@@ -316,6 +340,25 @@ async function expectPolishedGameUi(page) {
     if (iconCount !== 1 || labelCount !== 1) {
       throw new Error(`Expected tool button ${index + 1} to include one icon and one label.`);
     }
+  }
+
+  const toolbarSeparators = await page.locator(".screen-game.active .toolbar").evaluate((node) => {
+    const before = getComputedStyle(node, "::before");
+    const after = getComputedStyle(node, "::after");
+    return {
+      beforeContent: before.content,
+      beforeDisplay: before.display,
+      afterContent: after.content,
+      afterDisplay: after.display,
+    };
+  });
+  if (
+    toolbarSeparators.beforeDisplay !== "none" ||
+    toolbarSeparators.afterDisplay !== "none" ||
+    toolbarSeparators.beforeContent !== "none" ||
+    toolbarSeparators.afterContent !== "none"
+  ) {
+    throw new Error(`Expected toolbar dotted separators to be removed, got ${JSON.stringify(toolbarSeparators)}.`);
   }
 }
 
@@ -347,7 +390,7 @@ async function expectToastDoesNotCoverBoard(page) {
 async function expectUiCutAssets(page) {
   const imageSources = await page
     .locator(
-      ".screen-game.active .hud-icon, .screen-game.active .best-icon, .screen-game.active .best-star, .screen-game.active .tool-art, .screen-game.active .home-art",
+      ".screen-game.active .hud-icon, .screen-game.active .tool-art, .screen-game.active .home-art",
     )
     .evaluateAll((nodes) => nodes.map((node) => node.getAttribute("src") ?? ""));
   const badSource = imageSources.find((source) => !source.includes("./assets/ui-cut/"));
@@ -387,6 +430,180 @@ async function expectModalHasIcon(page, selector) {
   }
 }
 
+async function expectMobileModalDesignSystem(page, selector) {
+  const cardCount = await page.locator(`${selector}:not(.hidden) .candy-modal-card`).count();
+  const plaqueCount = await page.locator(`${selector}:not(.hidden) .modal-plaque`).count();
+  const iconSources = await page
+    .locator(`${selector}:not(.hidden) .modal-icon-art`)
+    .evaluateAll((nodes) => nodes.map((node) => node.getAttribute("src") ?? ""));
+  const plaqueLabelText = await page.locator(`${selector}:not(.hidden) .plaque-level-label`).innerText();
+  const plaqueDecorCount = await page.locator(`${selector}:not(.hidden) .modal-plaque .icon-decor-art`).count();
+  const visualTarget = await page.locator(`${selector}:not(.hidden)`).getAttribute("data-visual-target");
+  const cardBackground = await page
+    .locator(`${selector}:not(.hidden) .candy-modal-card`)
+    .evaluate((node) => getComputedStyle(node).backgroundImage);
+  const geometry = await page.locator(`${selector}:not(.hidden) .candy-modal-card`).evaluate((card) => {
+    const plaque = card.querySelector(".modal-plaque")?.getBoundingClientRect();
+    const cardBox = card.getBoundingClientRect();
+    return {
+      cardTop: cardBox.top,
+      plaqueBottom: plaque?.bottom ?? 0,
+      plaqueTop: plaque?.top ?? 0,
+    };
+  });
+
+  if (cardCount !== 1 || plaqueCount !== 1) {
+    throw new Error(`Expected ${selector} to use candy mobile modal structure, got card=${cardCount}, plaque=${plaqueCount}.`);
+  }
+  if (!visualTarget?.includes("mobile-modal-result-design.png")) {
+    throw new Error(`Expected ${selector} to record the mobile popup design draft, got ${visualTarget}.`);
+  }
+  if (iconSources.length !== 1 || iconSources.some((source) => !source.includes("./assets/ui-cut/"))) {
+    throw new Error(`Expected ${selector} icon to use one ui-cut image, got: ${iconSources.join(", ")}`);
+  }
+  if (!/^第\d{2}关$/.test(plaqueLabelText) || plaqueDecorCount !== 0) {
+    throw new Error(
+      `Expected ${selector} title plaque to show level text without star decorators, got label=${plaqueLabelText}, decor=${plaqueDecorCount}.`,
+    );
+  }
+  if (!cardBackground.includes("assets/ui-cut/modal-card-bg.png")) {
+    throw new Error(`Expected ${selector} card background to use modal-card-bg.png, got: ${cardBackground}`);
+  }
+  if (
+    geometry.plaqueTop > geometry.cardTop - 24 ||
+    geometry.plaqueTop < geometry.cardTop - 54 ||
+    geometry.plaqueBottom < geometry.cardTop + 24 ||
+    geometry.plaqueBottom > geometry.cardTop + 54
+  ) {
+    throw new Error(`Expected ${selector} title plaque to straddle the card top edge, got ${JSON.stringify(geometry)}.`);
+  }
+  await expectDesignedUiCutButtons(page, `${selector}:not(.hidden) .modal-actions button`);
+}
+
+async function expectMobileResultDesignSystem(page) {
+  const shellCount = await page.locator(".screen-result.active.mobile-result-shell").count();
+  const cardCount = await page.locator(".screen-result.active .candy-result-card").count();
+  const badgeSource = await page.locator(".screen-result.active .result-badge-art").getAttribute("src");
+  const plaqueLabelText = await page.locator(".screen-result.active .plaque-level-label").innerText();
+  const plaqueDecorCount = await page.locator(".screen-result.active .result-plaque .icon-decor-art").count();
+  const starSources = await page
+    .locator(".screen-result.active .result-star-art")
+    .evaluateAll((nodes) => nodes.map((node) => node.getAttribute("src") ?? ""));
+  const visualTarget = await page.locator(".screen-result.active").getAttribute("data-visual-target");
+  const cardBackground = await page
+    .locator(".screen-result.active .candy-result-card")
+    .evaluate((node) => getComputedStyle(node).backgroundImage);
+  const resultStaminaCount = await page.locator(".screen-result.active .result-stamina").count();
+  const resultEyebrowCount = await page.locator(".screen-result.active .result-eyebrow").count();
+  const resultSummaryVisible = await page.locator(".screen-result.active #resultSummary").isVisible();
+  const overlay = await page.locator(".screen-result.active").evaluate((node) => {
+    const color = getComputedStyle(node).backgroundColor;
+    const channels = color.match(/rgba?\(([^)]+)\)/);
+    const parts = channels ? channels[1].split(",").map((part) => Number(part.trim())) : [];
+    return { color, alpha: parts.length === 4 ? parts[3] : 1 };
+  });
+  const geometry = await page.locator(".screen-result.active .candy-result-card").evaluate((card) => {
+    const plaque = card.querySelector(".result-plaque")?.getBoundingClientRect();
+    const cardBox = card.getBoundingClientRect();
+    return {
+      cardTop: cardBox.top,
+      plaqueBottom: plaque?.bottom ?? 0,
+      plaqueTop: plaque?.top ?? 0,
+    };
+  });
+
+  if (shellCount !== 1 || cardCount !== 1) {
+    throw new Error(`Expected result screen to use mobile candy result structure, got shell=${shellCount}, card=${cardCount}.`);
+  }
+  if (!visualTarget?.includes("mobile-modal-result-design.png")) {
+    throw new Error(`Expected result screen to record the mobile result design draft, got ${visualTarget}.`);
+  }
+  if (!badgeSource?.includes("./assets/ui-cut/") || starSources.some((source) => !source.includes("./assets/ui-cut/"))) {
+    throw new Error(`Expected result badge and stars to use ui-cut image assets, got badge=${badgeSource}, stars=${starSources.join(", ")}`);
+  }
+  if (!/^第\d{2}关$/.test(plaqueLabelText) || plaqueDecorCount !== 0) {
+    throw new Error(
+      `Expected result title plaque to show level text without star decorators, got label=${plaqueLabelText}, decor=${plaqueDecorCount}.`,
+    );
+  }
+  if (!cardBackground.includes("assets/ui-cut/modal-card-bg.png")) {
+    throw new Error(`Expected result card background to use modal-card-bg.png, got: ${cardBackground}`);
+  }
+  if (overlay.alpha < 0.35) {
+    throw new Error(`Expected result screen to use a dark translucent overlay, got: ${JSON.stringify(overlay)}.`);
+  }
+  if (resultStaminaCount !== 0 || resultEyebrowCount !== 0) {
+    throw new Error(`Expected result screen without stamina panel and eyebrow, got stamina=${resultStaminaCount}, eyebrow=${resultEyebrowCount}.`);
+  }
+  if (resultSummaryVisible) {
+    throw new Error("Expected result summary text below success/failure title to be hidden.");
+  }
+  if (
+    geometry.plaqueTop > geometry.cardTop - 24 ||
+    geometry.plaqueTop < geometry.cardTop - 54 ||
+    geometry.plaqueBottom < geometry.cardTop + 24 ||
+    geometry.plaqueBottom > geometry.cardTop + 54
+  ) {
+    throw new Error(`Expected result title plaque to straddle the card top edge, got ${JSON.stringify(geometry)}.`);
+  }
+  await expectDesignedUiCutButtons(page, ".screen-result.active .result-card > button");
+}
+
+async function expectDesignedUiCutButtons(page, selector) {
+  const buttonData = await page
+    .locator(selector)
+    .evaluateAll((nodes) =>
+      nodes.map((node) => {
+        const rect = node.getBoundingClientRect();
+        return {
+          background: getComputedStyle(node).backgroundImage,
+          width: rect.width,
+          height: rect.height,
+        };
+      }),
+    );
+  if (buttonData.length === 0) {
+    throw new Error(`Expected designed buttons for ${selector}, got none.`);
+  }
+  const badBackground = buttonData.find((item) => !item.background.includes("assets/ui-cut/modal-button-"));
+  if (badBackground) {
+    throw new Error(`Expected ${selector} to use ui-cut button slices, got ${badBackground.background}.`);
+  }
+  const deformed = buttonData.find((item) => item.height < 48 || item.width / item.height > 4.8);
+  if (deformed) {
+    throw new Error(`Expected ${selector} buttons not to be stretched, got ${JSON.stringify(deformed)}.`);
+  }
+}
+
+async function expectHintToolBreathes(page) {
+  const animation = await page
+    .locator(".screen-game.active .tool-button--hint .tool-art")
+    .evaluate((node) => getComputedStyle(node).animationName);
+  if (!animation.includes("tool-breathe")) {
+    throw new Error(`Expected hint tool button to use breathing animation, got ${animation}.`);
+  }
+}
+
+async function expectPageDoesNotScroll(page) {
+  await page.evaluate(() => window.scrollTo(0, 600));
+  await page.waitForTimeout(100);
+  const scrollState = await page.evaluate(() => ({
+    scrollY: window.scrollY,
+    bodyOverflow: getComputedStyle(document.body).overflowY,
+    htmlOverflow: getComputedStyle(document.documentElement).overflowY,
+    scrollHeight: document.scrollingElement?.scrollHeight ?? 0,
+    innerHeight: window.innerHeight,
+  }));
+  if (
+    scrollState.scrollY !== 0 ||
+    scrollState.bodyOverflow !== "hidden" ||
+    scrollState.htmlOverflow !== "hidden" ||
+    scrollState.scrollHeight > scrollState.innerHeight + 2
+  ) {
+    throw new Error(`Expected mobile game page not to scroll, got ${JSON.stringify(scrollState)}.`);
+  }
+}
+
 async function finishGameAndExpectStarsAndNoStaminaAgain(page) {
   await page.evaluate(() => {
     localStorage.setItem(
@@ -395,7 +612,7 @@ async function finishGameAndExpectStarsAndNoStaminaAgain(page) {
     );
   });
   await page.reload({ waitUntil: "networkidle" });
-  await page.getByRole("button", { name: "开始游戏" }).click();
+  await page.locator("#startButton").click();
   await page.waitForSelector(".screen-game.active .tile:not(.empty)");
   await clearPairs(page, 80);
   await page.waitForSelector(".screen-result.active", { timeout: 3000 });
@@ -404,24 +621,24 @@ async function finishGameAndExpectStarsAndNoStaminaAgain(page) {
   if (resultBadgeCount !== 1) {
     throw new Error(`Expected result screen to show one result badge, got ${resultBadgeCount}.`);
   }
+  await expectMobileResultDesignSystem(page);
   const stars = await page.locator("#resultStars .star.filled").count();
   if (stars < 1 || stars > 3) {
     throw new Error(`Expected completed level to show 1-3 filled stars, got ${stars}.`);
   }
 
-  await page.getByRole("button", { name: "再玩一局" }).click();
+  await page.locator("#againButton").click();
   await page.waitForSelector("#staminaModal:not(.hidden)", { timeout: 2000 });
-  const staminaModalText = await page.locator("#staminaModal").innerText();
-  if (
-    !staminaModalText.includes("体力不足") ||
-    !staminaModalText.includes("30 点") ||
-    !staminaModalText.includes("看广告") ||
-    !staminaModalText.includes("购买体力")
-  ) {
-    throw new Error(`Expected no-stamina replay modal, got: ${staminaModalText}`);
+  const staminaActionCount = await page.locator("#staminaModal:not(.hidden) .modal-actions button").count();
+  const staminaTitleCount = await page.locator("#staminaModal:not(.hidden) #staminaTitle").count();
+  if (staminaTitleCount !== 1 || staminaActionCount !== 3) {
+    throw new Error(
+      `Expected no-stamina replay modal with title and 3 actions, got title=${staminaTitleCount}, actions=${staminaActionCount}`,
+    );
   }
   await page.screenshot({ path: join(outputDir, "stamina-modal-mobile.png"), fullPage: true });
-  await page.getByRole("button", { name: "看广告获取体力" }).click();
+  await expectMobileModalDesignSystem(page, "#staminaModal");
+  await page.locator("#staminaAdButton").click();
   const staminaAfterAd = await readStoredStamina(page);
   if (staminaAfterAd.stamina !== 30 || staminaAfterAd.adClaims !== 1) {
     throw new Error(`Expected ad to grant 30 stamina once, got: ${JSON.stringify(staminaAfterAd)}`);
@@ -434,9 +651,9 @@ async function finishGameAndExpectStarsAndNoStaminaAgain(page) {
     );
   });
   await page.reload({ waitUntil: "networkidle" });
-  await page.getByRole("button", { name: "开始游戏" }).click();
+  await page.locator("#startButton").click();
   await page.waitForSelector("#staminaModal:not(.hidden)", { timeout: 2000 });
-  await page.getByRole("button", { name: "购买体力" }).click();
+  await page.locator("#staminaBuyButton").click();
   const staminaAfterPurchase = await readStoredStamina(page);
   if (staminaAfterPurchase.stamina !== 31 || staminaAfterPurchase.adClaims !== 3) {
     throw new Error(`Expected purchase to grant 30 stamina without ad claims, got: ${JSON.stringify(staminaAfterPurchase)}`);

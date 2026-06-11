@@ -12,7 +12,6 @@ import {
 } from "./engine.js";
 import {
   AD_STAMINA_REWARD,
-  BEST_SCORE_STAR_COUNT,
   MAX_AD_STAMINA_CLAIMS,
   MAX_STAMINA,
   START_STAMINA_COST,
@@ -62,7 +61,7 @@ const elements = {
   remainingText: document.querySelector("#remainingText"),
   scoreText: document.querySelector("#scoreText"),
   levelName: document.querySelector("#levelName"),
-  bestText: document.querySelector("#bestText"),
+  plaqueLevelLabels: document.querySelectorAll(".plaque-level-label"),
   gameHomeButton: document.querySelector("#gameHomeButton"),
   hintButton: document.querySelector("#hintButton"),
   shuffleButton: document.querySelector("#shuffleButton"),
@@ -71,7 +70,10 @@ const elements = {
   shuffleCount: document.querySelector("#shuffleCount"),
   pauseModal: document.querySelector("#pauseModal"),
   resumeButton: document.querySelector("#resumeButton"),
+  pauseRestartButton: document.querySelector("#pauseRestartButton"),
+  pauseHomeButton: document.querySelector("#pauseHomeButton"),
   toolModal: document.querySelector("#toolModal"),
+  toolModalIcon: document.querySelector("#toolModalIcon"),
   toolTitle: document.querySelector("#toolTitle"),
   toolMessage: document.querySelector("#toolMessage"),
   watchAdButton: document.querySelector("#watchAdButton"),
@@ -87,7 +89,7 @@ const elements = {
   staminaAdButton: document.querySelector("#staminaAdButton"),
   staminaBuyButton: document.querySelector("#staminaBuyButton"),
   staminaCloseButton: document.querySelector("#staminaCloseButton"),
-  resultEyebrow: document.querySelector("#resultEyebrow"),
+  resultBadgeArt: document.querySelector("#resultBadgeArt"),
   resultTitle: document.querySelector("#resultTitle"),
   resultSummary: document.querySelector("#resultSummary"),
   resultStars: document.querySelector("#resultStars"),
@@ -130,6 +132,8 @@ function bindEvents() {
   elements.pauseButton.addEventListener("click", pauseGame);
   elements.gameHomeButton.addEventListener("click", openExitModal);
   elements.resumeButton.addEventListener("click", resumeGame);
+  elements.pauseRestartButton.addEventListener("click", () => requestStartGame(state.level));
+  elements.pauseHomeButton.addEventListener("click", returnHome);
   elements.watchAdButton.addEventListener("click", () => closeToolModal("广告功能待接入"));
   elements.buyToolButton.addEventListener("click", () => closeToolModal("购买功能待接入"));
   elements.toolCloseButton.addEventListener("click", () => closeToolModal());
@@ -196,7 +200,7 @@ function startGame(level) {
   hideModals();
 
   elements.levelName.textContent = formatLevelTitle(level);
-  updateBestText();
+  updatePlaqueLevelLabels();
   renderBoard();
   updateHud();
   showScreen("game");
@@ -393,8 +397,9 @@ function finishGame(won) {
     localStorage.setItem(bestKey(state.level.id), String(finalScore));
   }
 
-  elements.resultEyebrow.textContent = won ? "完成" : "时间到";
   elements.resultTitle.textContent = won ? "通关成功" : "挑战失败";
+  elements.resultBadgeArt.src = won ? "./assets/ui-cut/best-crown.png" : "./assets/ui-cut/hud-clock.png";
+  screens.result.dataset.result = won ? "success" : "failure";
   elements.resultSummary.textContent = won
     ? `用 ${state.moves} 步清空棋盘，剩余 ${formatTime(state.remainingSeconds)}。`
     : `还剩 ${remaining} 个图案没有消除，可以调整策略再来一次。`;
@@ -411,15 +416,14 @@ function updateHud() {
   elements.scoreText.textContent = state.score;
   elements.hintCount.textContent = state.hints;
   elements.shuffleCount.textContent = state.shuffles;
-  updateBestText();
+  elements.hintButton.classList.toggle("guide-pulse", state.hints <= 0);
 }
 
-function updateBestText() {
-  elements.bestText.innerHTML = `<img class="best-icon" src="./assets/ui-cut/best-crown.png" alt="" aria-hidden="true" /><span>最佳${getBestScore(
-    state.level.id,
-  )}分</span><span class="best-stars" aria-label="${BEST_SCORE_STAR_COUNT} 星">${renderBestStars(
-    BEST_SCORE_STAR_COUNT,
-  )}</span>`;
+function updatePlaqueLevelLabels() {
+  const label = formatLevelTitle(state.level);
+  elements.plaqueLevelLabels.forEach((node) => {
+    node.textContent = label;
+  });
 }
 
 function updateSelection() {
@@ -447,6 +451,7 @@ function shakeTile(point) {
 
 function openToolModal(toolName) {
   state.paused = true;
+  elements.toolModalIcon.src = toolName === "洗牌" ? "./assets/ui-cut/tool-shuffle.png" : "./assets/ui-cut/tool-hint.png";
   elements.toolTitle.textContent = `${toolName}用完了`;
   elements.toolMessage.textContent = `${toolName}次数已经用完，可以看广告获取，或购买更多道具。`;
   elements.toolModal.classList.remove("hidden");
@@ -513,12 +518,17 @@ function hideModals() {
 }
 
 function renderResultStars(count) {
-  elements.resultStars.classList.toggle("hidden", count === 0);
+  elements.resultStars.classList.remove("hidden");
   elements.resultStars.innerHTML = "";
   for (let index = 1; index <= 3; index += 1) {
     const star = document.createElement("span");
-    star.className = `star${index <= count ? " filled" : ""}`;
-    star.textContent = "★";
+    star.className = `star result-star${index <= count ? " filled" : ""}`;
+    const art = document.createElement("img");
+    art.className = `result-star-art${index <= count ? " filled" : ""}`;
+    art.src = "./assets/ui-cut/best-star.png";
+    art.alt = "";
+    art.setAttribute("aria-hidden", "true");
+    star.append(art);
     elements.resultStars.append(star);
   }
 }
@@ -692,14 +702,6 @@ function formatTime(seconds) {
 function formatLevelTitle(level) {
   const index = LEVELS.findIndex((item) => item.id === level.id);
   return `第0${index + 1}关`;
-}
-
-function renderBestStars(count) {
-  return Array.from(
-    { length: 3 },
-    (_, index) =>
-      `<img class="best-star${index < count ? " filled" : ""}" src="./assets/ui-cut/best-star.png" alt="" aria-hidden="true" />`,
-  ).join("");
 }
 
 function getBestScore(levelId) {

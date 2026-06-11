@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
@@ -12,7 +12,6 @@
         <div class="brand-panel">
           <p class="eyebrow">Link Match</p>
           <h1>连连看</h1>
-          <p class="subtitle">在倒计时结束前消除所有配对图案。最多两次转弯，外侧边界也能连线。</p>
         </div>
 
         <div class="level-list" id="levelList" aria-label="选择难度"></div>
@@ -73,15 +72,6 @@
             </div>
           </div>
 
-          <div class="best-pill" id="bestText">
-            <img class="best-icon" src="./assets/ui-cut/best-crown.png" alt="" aria-hidden="true" />
-            <span>最佳3093分</span>
-            <span class="best-stars" aria-label="3 星">
-              <img class="best-star filled" src="./assets/ui-cut/best-star.png" alt="" aria-hidden="true" />
-              <img class="best-star filled" src="./assets/ui-cut/best-star.png" alt="" aria-hidden="true" />
-              <img class="best-star filled" src="./assets/ui-cut/best-star.png" alt="" aria-hidden="true" />
-            </span>
-          </div>
         </header>
 
         <section class="board-wrap glass-board-frame">
@@ -108,24 +98,24 @@
         </footer>
       </section>
 
-      <section class="screen screen-result" id="resultScreen">
-        <div class="result-card">
-          <div class="result-badge" aria-hidden="true"><span class="result-badge-mark"></span></div>
-          <p class="eyebrow" id="resultEyebrow">完成</p>
+      <section
+        class="screen screen-result mobile-result-shell"
+        id="resultScreen"
+        data-visual-target="docs/ui-design-drafts/mobile-modal-result-design.png"
+      >
+        <div class="result-card candy-result-card">
+          <div class="result-plaque" aria-hidden="true">
+            <span class="plaque-level-label">第01关</span>
+          </div>
+          <div class="result-badge" aria-hidden="true">
+            <img class="result-badge-art" id="resultBadgeArt" src="./assets/ui-cut/best-crown.png" alt="" />
+          </div>
           <h2 id="resultTitle">通关成功</h2>
-          <p id="resultSummary">你的本局表现会显示在这里。</p>
-          <div class="result-stars" id="resultStars" aria-label="获得星星"></div>
+          <p id="resultSummary" aria-hidden="true"></p>
+          <div class="result-stars" id="resultStars" aria-label="鑾峰緱鏄熸槦"></div>
           <div class="result-stats">
             <span id="resultScore">得分 0</span>
             <span id="resultBest">最佳 0</span>
-          </div>
-          <div class="stamina-panel result-stamina">
-            <div>
-              <span>体力</span>
-              <strong class="staminaText">50/50</strong>
-              <small class="staminaCountdown">恢复 03:00</small>
-            </div>
-            <button class="meta-button getStaminaButton" type="button">获取体力</button>
           </div>
           <button class="primary-button" id="againButton" type="button">再玩一局</button>
           <button class="ghost-button" id="homeButton" type="button">返回首页</button>
@@ -133,18 +123,46 @@
       </section>
     </main>
 
-    <div class="modal hidden" id="pauseModal" role="dialog" aria-modal="true" aria-labelledby="pauseTitle">
-      <div class="modal-card">
-        <div class="modal-icon modal-icon--pause" aria-hidden="true"></div>
+    <div
+      class="modal hidden mobile-modal"
+      id="pauseModal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="pauseTitle"
+      data-visual-target="docs/ui-design-drafts/mobile-modal-result-design.png"
+    >
+      <div class="modal-card candy-modal-card">
+        <div class="modal-plaque" aria-hidden="true">
+          <span class="plaque-level-label">第01关</span>
+        </div>
+        <div class="modal-icon modal-icon--pause" aria-hidden="true">
+          <img class="modal-icon-art" src="./assets/ui-cut/tool-pause.png" alt="" />
+        </div>
         <h2 id="pauseTitle">游戏暂停</h2>
         <p>棋盘状态已经保留，继续后倒计时恢复。</p>
-        <button class="primary-button" id="resumeButton" type="button">继续游戏</button>
+        <div class="modal-actions">
+          <button class="primary-button" id="resumeButton" type="button">继续游戏</button>
+          <button class="ghost-button" id="pauseRestartButton" type="button">重新开始</button>
+          <button class="ghost-button" id="pauseHomeButton" type="button">返回首页</button>
+        </div>
       </div>
     </div>
 
-    <div class="modal hidden" id="toolModal" role="dialog" aria-modal="true" aria-labelledby="toolTitle">
-      <div class="modal-card">
-        <div class="modal-icon modal-icon--tool" aria-hidden="true"></div>
+    <div
+      class="modal hidden mobile-modal"
+      id="toolModal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="toolTitle"
+      data-visual-target="docs/ui-design-drafts/mobile-modal-result-design.png"
+    >
+      <div class="modal-card candy-modal-card">
+        <div class="modal-plaque" aria-hidden="true">
+          <span class="plaque-level-label">第01关</span>
+        </div>
+        <div class="modal-icon modal-icon--tool" aria-hidden="true">
+          <img class="modal-icon-art" id="toolModalIcon" src="./assets/ui-cut/tool-hint.png" alt="" />
+        </div>
         <h2 id="toolTitle">道具用完了</h2>
         <p id="toolMessage">可以看广告获取，或购买更多道具。</p>
         <div class="modal-actions">
@@ -155,9 +173,21 @@
       </div>
     </div>
 
-    <div class="modal hidden" id="exitModal" role="dialog" aria-modal="true" aria-labelledby="exitTitle">
-      <div class="modal-card">
-        <div class="modal-icon modal-icon--exit" aria-hidden="true"></div>
+    <div
+      class="modal hidden mobile-modal"
+      id="exitModal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="exitTitle"
+      data-visual-target="docs/ui-design-drafts/mobile-modal-result-design.png"
+    >
+      <div class="modal-card candy-modal-card">
+        <div class="modal-plaque" aria-hidden="true">
+          <span class="plaque-level-label">第01关</span>
+        </div>
+        <div class="modal-icon modal-icon--exit" aria-hidden="true">
+          <img class="modal-icon-art" src="./assets/ui-cut/home-button.png" alt="" />
+        </div>
         <h2 id="exitTitle">离开本局？</h2>
         <p>当前棋盘会停止计时，你可以返回首页，也可以直接重新开始。</p>
         <div class="modal-actions">
@@ -168,11 +198,23 @@
       </div>
     </div>
 
-    <div class="modal hidden" id="staminaModal" role="dialog" aria-modal="true" aria-labelledby="staminaTitle">
-      <div class="modal-card">
-        <div class="modal-icon modal-icon--stamina" aria-hidden="true"></div>
+    <div
+      class="modal hidden mobile-modal"
+      id="staminaModal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="staminaTitle"
+      data-visual-target="docs/ui-design-drafts/mobile-modal-result-design.png"
+    >
+      <div class="modal-card candy-modal-card">
+        <div class="modal-plaque" aria-hidden="true">
+          <span class="plaque-level-label">第01关</span>
+        </div>
+        <div class="modal-icon modal-icon--stamina" aria-hidden="true">
+          <img class="modal-icon-art" src="./assets/ui-cut/hud-heart.png" alt="" />
+        </div>
         <h2 id="staminaTitle">体力不足</h2>
-        <p id="staminaMessage">看广告或购买可以获取 30 点体力，广告最多获取 3 次。</p>
+        <p id="staminaMessage">看广告或购买可以获得 30 点体力，广告最多获取 3 次。</p>
         <div class="modal-actions">
           <button class="primary-button" id="staminaAdButton" type="button">看广告获取体力</button>
           <button class="ghost-button" id="staminaBuyButton" type="button">购买体力</button>

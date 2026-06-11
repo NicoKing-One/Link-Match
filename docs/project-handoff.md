@@ -1,233 +1,130 @@
-# Link Match 连连看项目交接总结
+# Link Match 连连看项目交接文档
+
+更新时间：2026-06-11
 
 ## 1. 项目定位
 
-项目名：Link Match 连连看  
-路径：`D:\工作文件\游戏\连连看`  
-类型：移动端竖屏优先的 H5 单机连连看 MVP  
-当前阶段：`demo1.0.4--设计稿对齐` 已完成本地开发，进入“按选定高保真设计稿继续精修、试玩验收、关卡节奏调参”阶段
+- 项目名称：Link Match 连连看
+- 项目路径：`D:\工作文件\游戏\连连看`
+- 项目类型：移动端竖屏 H5 单机连连看 MVP
+- 当前阶段：主游戏页和全部核心弹框 UI 已按水果糖果果冻风完成一轮高保真对齐，进入细节验收、试玩调参和平台适配前准备阶段。
 
-## 2. 当前开发进度
+## 2. 当前进度
 
-一句话状态：**H5 单机 demo1.0.4 玩法、经济系统和水果糖果风 UI 已具备；本轮已按用户最新要求调整为 6x7 棋盘、第01关标题、最佳3093分、图片星星，并把标题牌、HUD、首页按钮、最佳分图标、底部工具按钮替换为独立 `ui-cut` 切图资产，不再使用截图裁片。最新一轮还完成了棋盘/工具栏整体下移、移除最佳分区底部额外果冻层、HUD 上下居中结构、道具角标贴到图标右上、去掉游戏页体力恢复倒计时、修复最佳分条星星随倒计时变化的问题，并取消无可连时自动洗牌，改为提示玩家使用洗牌道具。**
+当前已完成 H5 单机 demo 的核心玩法、体力系统、道具占位、结算流程和移动端 UI。最新一轮重点完成了所有弹框和结果页的糖果果冻风统一设计，不再只做主游戏页。
 
-本次本地提交备注：`demo1.0.3--bug和UI优化`。提交范围包含主游戏页 UI 切图化、6x7 棋盘、HUD/标题/最佳分/工具栏细化、提示条避让棋盘、最佳分条星星稳定显示、无可连时保留洗牌道具入口，以及对应自动化验收更新。
+已完成内容：
 
-已完成：
+- 主游戏页面：
+  - 移动端竖屏布局，页面禁止滚动。
+  - 顶部 HUD、棋盘区域、底部工具栏三段式布局。
+  - 顶部显示关卡、时间、剩余、得分、体力。
+  - 已移除主页顶部“最佳分 + 星星”横条。
+  - 底部工具栏已去掉绿色虚线分隔线。
+  - 提示次数为 0 时，提示按钮图标有循环放大缩小动画，引导用户看广告获取道具。
 
-- `docs/0-to-1-workflow.md`：保存完整“想法到上线”的流程文档。
-- `docs/PRD.md`：保存 MVP 产品需求。
-- `docs/design.md`：保存当前 UI 和交互设计说明。
-- `docs/release-checklist.md`：保存微信/抖音发布检查清单。
-- H5 单机游戏：可以开始、消除、提示、洗牌、暂停、返回主页确认、重新开始、结算。
-- 核心规则：相同图案、最多两次转弯、允许外侧绕线。
-- 错误提示：错误匹配后有文字提示，两个选中方块会抖动，并清空选中状态。
-- 布局修复：后期剩余方块不会被拉长。
-- 道具耗尽弹框：提示/洗牌用完后，再点会弹出看广告获取或购买的占位弹框。
-- 离局弹框：右上主页按钮会先弹出确认框，可选择返回首页、重新开始或继续游戏。
-- 星级结算：通关成功后展示 1-3 颗星，星星按剩余时间比例计算。
-- 体力系统：
-  - 初始体力 `50/50`。
-  - 开始一关消耗 3 点体力。
-  - 低于 50 时每 3 分钟自然恢复 1 点。
-  - 看广告获取体力：每次 +30，最多 3 次。
-  - 购买体力占位：点击后直接 +30，不占广告领取次数。
-  - 广告/购买可让体力超过 50，例如 `80/50`。
-  - 次日凌晨按本地日期自动刷新为 `50/50`，广告领取次数重置。
-  - 首页、游戏页、结算页均展示体力和倒计时。
-- 自动化验证：规则单测、构建、浏览器 smoke 均可运行。
-- Git：本地仓库已初始化，远程仓库已配置并推送到 GitHub。
-- 本轮 UI/布局修改：
-  - 主题方向确定为水果糖果风，参考图保存在 `docs/fea087d1-5071-4155-9224-59bc0ea52572.jpeg`，视觉参考保存在 `docs/visual-references/jelly-fruit-direction.png`。
-  - 生成并接入水果糖果背景图 `src/assets/jelly-fruit/page-bg.png`。
-  - 生成并处理水果图标资源，图标位于 `src/assets/jelly-fruit/tiles/`，原始图集保存在 `src/assets/jelly-fruit/tile-sheet.png`。
-  - 棋盘方块换成浅蓝果冻底，水果图标约占格子 90%，居中显示。
-  - “轻松”关卡从 6x6 调整为 6x7，共 42 个格子。
-  - 游戏主页面按参考图调整为三段：顶部信息面板、棋盘区域、底部道具栏。
-  - 顶部信息面板包含关卡标题、首页 icon、时间/剩余/得分/体力、最佳分/当前分/星星。
-  - 棋盘容器顶部空白已去掉，提示 toast 改成浮层，不占位且不拦截点击。
-  - 连线从旧折线改成圆角柔和线条，浏览器 smoke 已增加连线截图和断言。
-  - 修复体力 bug：满体力但恢复时间戳过旧时，开局扣体力后不会被立即恢复回 50；开局扣体力会刷新恢复计时起点。
-- 本轮 UI 统一修改：
-  - HUD 四项信息补齐独立图片图标：时间、剩余、得分、体力。
-  - 底部提示、洗牌、暂停改成大圆果冻按钮，提示/洗牌次数改成角标。
-  - 暂停、道具耗尽、离局确认、体力不足弹窗统一为果冻卡片和顶部徽章图标。
-  - 成功/失败结算页增加统一结果徽章，并保持得分、最佳分、星级、体力入口。
-  - 浏览器 smoke 增加 HUD 图标、道具按钮结构、弹窗图标、结算徽章断言。
-- 本轮设计稿对齐修改：
-  - 高保真 UI 设计稿保存到 `docs/ui-design-drafts/`，用户选定第三张：`docs/ui-design-drafts/ui-design-draft-03.png`。
-  - 游戏页 `screen-game` 增加 `data-visual-target="docs/ui-design-drafts/ui-design-draft-03.png"`，明确后续对齐源。
-  - 顶部 HUD 改成更接近第三张的有机奶油大面板、绿色果冻标题牌、奶油数据卡。
-  - 棋盘区域改成透明玻璃托盘，tile 改成奶油陶瓷质感，水果图标视觉放大。
-  - 底部工具栏改成奶油托盘和三枚大彩色圆按钮，提示/洗牌次数保留红色角标。
-  - 游戏标题按用户要求显示关卡编号并加“第”：第一关为 `第01关`，第二关为 `第02关`，第十关为 `第010关`。
-  - 默认最佳分显示为 `最佳3093分`，前面使用皇冠图片，后面使用图片星星，不再使用 CSS/字符星星。
-  - HUD 时间/剩余/得分/体力图标改用独立 `ui-cut` 图片资源。
-  - 底部提示/洗牌/暂停按钮改用独立 `ui-cut` 按钮图片，文字放在图片下方。
-  - 全局字体改为微软雅黑。
-  - 浏览器 smoke 增加 draft-03 结构断言：`draft-three-shell`、`organic-hud-frame`、`glass-board-frame`、`cream-tool-tray`。
+- 弹框和结果页：
+  - 暂停弹框、离开本局弹框、道具用完弹框、体力不足弹框、通关成功、挑战失败均已统一为水果糖果果冻风。
+  - 所有弹框背景使用独立切图 `src/assets/ui-cut/modal-card-bg.png`，不是截图直接贴上去。
+  - 所有弹框按钮使用独立切图：
+    - `src/assets/ui-cut/modal-button-primary.png`
+    - `src/assets/ui-cut/modal-button-secondary.png`
+  - 所有弹框顶部胶囊图压在弹框上边框上，位置为一半在弹框外、一半在弹框内。
+  - 胶囊图内已去掉星星装饰，改为动态显示当前关卡，例如 `第01关`。
+  - 成功/失败结果页已加黑灰色蒙版。
+  - 成功/失败结果页已去掉体力栏。
+  - 成功/失败结果页已去掉标题下方说明文字。
 
-当前未做：
+- 玩法和系统：
+  - 棋盘核心规则可用：相同图案、最多两次转弯、允许棋盘外侧绕线。
+  - 轻松模式为 6x7，共 42 个格子。
+  - 提示、洗牌、暂停、返回首页确认、重新开始、再玩一局流程可用。
+  - 错误匹配会提示并抖动选中方块。
+  - 无可连接组合时不再自动洗牌，而是提示玩家使用洗牌道具。
+  - 星级结算按剩余时间比例计算。
+  - 体力系统可用：开局扣 3 点，低于上限时自然恢复，看广告和购买均为占位流程。
 
-- 正式美术资源、背景、图标、音效。
-- 微信/抖音小游戏适配工程。
-- 后端登录、云存档、排行榜、每日挑战。
-- 真实广告 SDK、真实支付、皮肤系统。
-- 真实平台审核资料。
-- 正式隐私政策、用户协议、广告/支付合规文案。
+## 3. 关键文件
 
-下次如果问“现在到什么进度了”，回答应是：
+- `src/index.html`：页面结构、弹框结构、结果页结构。
+- `src/styles.css`：移动端布局、果冻糖果风 UI、弹框、按钮、胶囊标题、滚动锁定。
+- `src/game.js`：游戏状态、点击逻辑、弹框流程、关卡标题同步、道具和结算逻辑。
+- `src/game-rules.js`：体力、星级、广告/购买占位规则。
+- `src/engine.js`：连连看棋盘生成、连线判断、洗牌和可消除对检查。
+- `src/assets/ui-cut/modal-card-bg.png`：弹框/结果页背景切图。
+- `src/assets/ui-cut/modal-button-primary.png`：主按钮切图。
+- `src/assets/ui-cut/modal-button-secondary.png`：副按钮切图。
+- `docs/ui-design-drafts/mobile-modal-result-design.png`：移动端弹框/结果页设计稿。
+- `scripts/smoke-browser.mjs`：浏览器自动化验收脚本，包含移动端截图和 UI 断言。
 
-```text
-当前完成了 H5 单机 demo1.0.4，并按用户最新参考局部图完成主游戏页二次对齐。核心玩法、体力、星级结算、广告/购买占位、6x7 轻松关卡、第01关标题、最佳3093分、图片星星、HUD 图片图标、底部图片道具按钮、弹窗和结算页均可本地运行和自动测试；本轮已把截图裁片替换为独立 `ui-cut` 切图，并按最新批注调整了主游戏页局部布局。游戏页体力恢复倒计时已移除，最佳分条固定展示 3 颗星，不再跟随倒计时变化。无可连时不再自动洗牌，会提示玩家使用洗牌道具，以保留广告道具入口。下一步建议继续做像素级 UI 精修，再做完整试玩调参数。
+## 4. 最近验证
+
+最新验证命令均已通过：
+
+```powershell
+& 'C:\Users\youzi\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe' --test tests/*.test.mjs
+& 'C:\Users\youzi\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe' scripts/build.mjs
+& 'C:\Users\youzi\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe' scripts/smoke-browser.mjs
 ```
 
-## 3. 当前功能
+验证结果：
 
-- 首页：游戏说明、三档难度选择、体力显示、体力倒计时、获取体力、开始游戏。
-- 游戏页：顶部信息面板、关卡标题、首页 icon、倒计时、剩余数量、得分、体力、体力倒计时、最佳分、当前分、星星、棋盘。
-- 操作：提示、洗牌、暂停、右上主页确认、弹框内重新开始。
-- 匹配规则：相同图案，最多两次转弯，允许棋盘外侧绕线。
-- 错误反馈：
-  - 两个图案不同：提示“不能连接：两个图案不一样”。
-  - 图案相同但被挡住：提示“不能连接：中间被挡住了”。
-  - 错误后两个方块会抖动，并失去选中状态，可重新选择。
-- 道具反馈：
-  - 提示/洗牌次数用完后，再次点击弹出看广告或购买道具占位弹框。
-- 体力系统：
-  - 开始一关扣 3 点体力。
-  - 体力不足时弹出“看广告获取体力 / 购买体力 / 稍后再说”。
-  - 看广告获取体力每次 +30，最多 3 次。
-  - 购买体力占位每次 +30。
-  - 获取/购买可突破 50 上限，次日凌晨刷新回 50。
-- 结算：
-  - 通关成功：展示剩余时间、得分、最佳分、1-3 星。
-  - 挑战失败：标题显示“挑战失败”，保留再玩一局和返回首页。
-- 布局修复：消除到后期方块保持接近正方形，不会被拉长。
-- 本地最高分：按难度保存到 `localStorage`。
-- 水果糖果风主棋盘：
-  - 背景图使用 `src/assets/jelly-fruit/page-bg.png`。
-  - 方块为浅蓝果冻底。
-  - 水果图标约 90% 尺寸，居中显示。
-  - 当前轻松模式为 6x7、42 格。
-  - 顶部信息面板和底部道具栏位置按参考图重新排版。
-  - HUD、底部道具按钮、弹窗、结算页已统一为果冻糖果风视觉组件。
-  - 当前主游戏页视觉目标为 `docs/ui-design-drafts/ui-design-draft-03.png`。
+- 单元测试：16/16 通过。
+- 构建：成功输出到 `dist/`。
+- 浏览器 smoke：通过。
+- 最新截图输出目录：`output/playwright/`。
 
-## 4. 关键文件
+重点截图：
 
-- `docs/0-to-1-workflow.md`：完整项目流程文档，记录想法、UI、PRD、开发、测试、上线、发布平台的顺序。
-- `src/index.html`：页面结构。
-- `src/styles.css`：移动端 UI 样式、棋盘布局、提示样式。
-- `src/game.js`：游戏状态、点击逻辑、提示/洗牌/暂停/主页/结算。
-- `src/game-rules.js`：星级、体力恢复、体力消耗、广告/购买体力、次日刷新等纯规则。
-- `src/engine.js`：核心连线规则、棋盘生成、查找可消除配对、洗牌。
-- `src/assets/jelly-fruit/page-bg.png`：水果糖果风页面背景。
-- `src/assets/jelly-fruit/tile-sheet.png`：水果图标原始图集。
-- `src/assets/jelly-fruit/tiles/`：当前棋盘使用的水果图标。
-- `docs/visual-references/jelly-fruit-direction.png`：水果糖果风方向参考图。
-- `docs/ui-design-drafts/ui-design-draft-03.png`：当前选定的主游戏页高保真 UI 设计稿。
-- `docs/fea087d1-5071-4155-9224-59bc0ea52572.jpeg`：用户提供的游戏主界面布局参考图。
-- `design-qa.md`：当前设计 QA 记录。
-- `tests/engine.test.mjs`：规则层单元测试。
-- `tests/game-rules.test.mjs`：星级和体力规则单元测试。
-- `scripts/dev-server.mjs`：本地静态服务。
-- `scripts/build.mjs`：构建到 `dist/`。
-- `scripts/smoke-browser.mjs`：浏览器自动化验收。
-- `docs/PRD.md`：产品需求。
-- `docs/design.md`：设计说明。
-- `docs/release-checklist.md`：发布检查清单。
-- `AGENTS.md`：项目规则，所有生成图片必须使用 `gpt-image-2`。
+- `output/playwright/smoke-mobile.png`
+- `output/playwright/result-stars-mobile.png`
+- `output/playwright/pause-modal-mobile.png`
+- `output/playwright/tool-modal-mobile.png`
+- `output/playwright/exit-modal-mobile.png`
+- `output/playwright/stamina-modal-mobile.png`
 
-## 5. 运行方式
+## 5. 当前 Git 状态
 
-最简单：双击 `start-game.bat`，然后打开：
+- 当前分支：`main`
+- 远程仓库：`https://github.com/NicoKing-One/Link-Match.git`
+- 本次待提交内容：
+  - 全部弹框和结果页 UI 对齐。
+  - 新增弹框背景、按钮切图和移动端弹框设计稿。
+  - 首页最佳分横条移除。
+  - 弹框顶部胶囊改为动态关卡文字。
+  - smoke 自动化补充移动端弹框、结果页、按钮、滚动锁定和胶囊位置断言。
 
-```text
-http://127.0.0.1:4173
-```
+## 6. 运行方式
 
-PowerShell 方式：
+推荐使用本地服务运行，不要直接双击 `src/index.html`。
 
 ```powershell
 Set-Location 'D:\工作文件\游戏\连连看'
 & 'C:\Users\youzi\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe' .\scripts\dev-server.mjs
 ```
 
-不要直接双击 `src/index.html`，浏览器会限制本地 ES module 加载。
-
-## 6. 验证命令
-
-```powershell
-Set-Location 'D:\工作文件\游戏\连连看'
-& 'C:\Users\youzi\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe' --test tests/*.test.mjs
-& 'C:\Users\youzi\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe' scripts/build.mjs
-& 'C:\Users\youzi\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe' scripts/smoke-browser.mjs
-```
-
-最近一次验证结果：
-
-- 单元测试：16/16 通过。
-- 构建：成功输出到 `dist/`。
-- 浏览器测试：通过。
-- 浏览器 smoke：确认轻松模式渲染 6x7、42 个水果格子。
-- 方块比例：消除前后 `1.000`，保持正方形。
-- 体力回归：旧时间戳满体力开局后正确显示 `47/50`，不会立即恢复到 `50/50`。
-- 视觉回归：水果图标占满格子主体、`第01关` 标题、`最佳3093分`、固定 3 颗图片星星、圆角连线、HUD 图片图标、道具按钮图片结构、弹窗图标、结算徽章、draft-03 结构类均有浏览器断言；新增断言要求主游戏页 UI 图片必须来自 `src/assets/ui-cut/`，HUD 四格必须使用居中的 icon+文字标题行，游戏 HUD 不显示体力恢复倒计时，错误提示不遮挡棋盘。
-
-## 7. Git 状态
-
-Git 可执行文件位置：
+然后打开：
 
 ```text
-D:\Git\Git\cmd\git.exe
+http://127.0.0.1:4173
 ```
 
-当前仓库：
+也可以直接双击项目里的 `start-game.bat`。
 
-- 分支：`main`
-- 初始提交：`2463416 Initial Link Match MVP`
-- 交接文档提交：`6d15640 Add project handoff summary`
-- demo1.0 提交：`1fc1451 demo1.0完成`
-- demo1.0.2 远程提交：`965ae0e demo1.0.2`
-- demo1.0.2 交接文档提交：`9bd1edb Update project handoff for demo1.0.2`
-- 本轮提交备注：`demo1.0.3--bug和UI优化`
-- 远程仓库：`https://github.com/NicoKing-One/Link-Match.git`
+## 7. 下一步建议
 
-常用命令：
+建议下一轮按这个顺序继续：
 
-```powershell
-& 'D:\Git\Git\cmd\git.exe' status
-& 'D:\Git\Git\cmd\git.exe' log --oneline --decorate -3
-```
+1. 真机或移动端模拟器完整试玩 3-5 局，确认棋盘密度、时间、星级和道具次数是否合理。
+2. 继续微调弹框内部间距，尤其是标题、圆形图标、按钮组之间的垂直节奏。
+3. 检查所有动态中文是否需要统一从乱码历史状态恢复为正常中文源码。
+4. 增加按钮点击动效、消除动效、通关动效和音效。
+5. 做微信/抖音小游戏适配工程前，先确认当前 H5 版本体验稳定。
 
-## 8. 下一个线程建议先做什么
+## 8. 新线程接手提示
 
-新线程开始时，可以直接说：
+新线程开始时可直接说：
 
 ```text
-请先阅读 D:\工作文件\游戏\连连看\docs\project-handoff.md，
-然后继续开发 Link Match 连连看项目。
+请先阅读 D:\工作文件\游戏\连连看\docs\project-handoff.md，然后继续开发 Link Match 连连看项目。
 ```
-
-推荐后续任务顺序：
-
-1. 继续按用户最新局部参考图做像素级精修：标题牌、HUD 四格尺寸、最佳分条、底部工具栏与背景位置。
-2. 做一次完整试玩，记录 6x7 轻松模式是否太密、时间是否合适、星级是否合理。
-3. 调整关卡节奏、难度、时间、星级阈值、体力消耗和体力恢复节奏。
-4. 补正式音效和动效。
-5. 再考虑微信/抖音小游戏适配，以及真实广告 SDK/支付接入。
-6. V2 再接后端：登录、云存档、排行榜、每日挑战。
-
-更具体的下一步：
-
-- 先玩 3 局：轻松、标准、挑战各 1 局。
-- 记录是否太难、太简单、时间是否合适、星级是否合理、提示/洗牌次数是否合适。
-- 额外测试体力流程：
-  - 50 体力连续开局是否太宽松。
-  - 每局 3 点体力是否合理。
-  - 3 分钟恢复 1 点是否太慢或太快。
-  - 广告 +30、最多 3 次是否需要调整。
-  - 次日凌晨刷新回 50 是否符合预期。
-- 决定美术方向：水果、动物、宝石、国潮、节日主题或其他。
-- 再让我基于反馈修改 `LEVELS` 难度配置、星级阈值、体力参数和视觉风格。
