@@ -103,11 +103,7 @@ export function calculateCompletedLevels(progress) {
 }
 
 function calculateCoinReward(level, result) {
-  const base = clampInteger(level.coinReward, 10, 999, 30);
-  const clearReward = result.firstClear ? base + 40 : Math.max(10, Math.floor(base * 0.42));
-  const starBonus = result.stars * 8;
-  const timeBonus = Math.floor(clampInteger(result.remainingSeconds, 0, 999, 0) / 15);
-  return clearReward + starBonus + timeBonus;
+  return clampInteger(level.coinReward, 1, 999, 20);
 }
 
 function normalizeRecord(record) {

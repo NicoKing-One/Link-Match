@@ -92,10 +92,11 @@ button:disabled {
 }
 
 .screen-game {
+  position: relative;
   flex-direction: column;
   justify-content: flex-start;
   gap: 10px;
-  padding: 18px 8px 10px;
+  padding: 18px 8px 192px;
   min-height: 0;
 }
 
@@ -1000,7 +1001,7 @@ h2 {
   position: relative;
   flex: 0 0 auto;
   padding: 11px;
-  margin-top: 22px;
+  margin: auto 0;
   isolation: isolate;
   border-radius: 30px;
   border: 2px solid rgba(255, 255, 255, 0.74);
@@ -1178,13 +1179,16 @@ h2 {
 }
 
 .toolbar {
-  position: relative;
+  position: absolute;
+  right: 0;
+  bottom: 50px;
+  left: 0;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 14px;
   width: min(84%, 410px);
   min-height: 118px;
-  margin: clamp(16px, 2.2vh, 24px) auto 0;
+  margin: 0 auto;
   padding: 12px 24px 10px;
   border-radius: 34px;
   border-color: rgba(255, 255, 255, 0.92);
@@ -1386,6 +1390,25 @@ h2 {
   object-fit: contain;
 }
 
+.screen-result[data-result="success"] .result-badge,
+.screen-result[data-result="failure"] .result-badge {
+  width: 136px;
+  height: 136px;
+  margin: -40px auto -6px;
+  background: transparent;
+  box-shadow: none;
+}
+
+.screen-result[data-result="failure"] .result-badge {
+  transform: translateY(-30px);
+}
+
+.screen-result[data-result="success"] .result-badge-art,
+.screen-result[data-result="failure"] .result-badge-art {
+  width: 132px;
+  height: 132px;
+}
+
 .icon-decor-art {
   position: absolute;
   z-index: 2;
@@ -1431,6 +1454,42 @@ h2 {
   font-weight: 900;
   line-height: 1.05;
   text-shadow: 0 2px 0 rgba(255, 255, 255, 0.72);
+}
+
+.result-card h2.result-title--compact {
+  max-width: 300px;
+  margin-right: auto;
+  margin-left: auto;
+  font-size: 1.08rem;
+  line-height: 1.3;
+  text-align: center;
+}
+
+.result-card h2.result-title--coin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+.result-coin-count {
+  display: inline-block;
+  margin-left: 2px;
+  color: #ff8a22;
+  font-size: 1.42em;
+  font-weight: 1000;
+  line-height: 1;
+  text-shadow:
+    0 2px 0 rgba(255, 255, 255, 0.76),
+    0 4px 8px rgba(255, 138, 34, 0.2);
+}
+
+.result-coin-icon {
+  display: inline-block;
+  width: 1.42em;
+  height: 1.42em;
+  margin-left: 2px;
+  object-fit: contain;
 }
 
 .result-card p {
@@ -1564,6 +1623,22 @@ h2 {
   object-fit: contain;
 }
 
+.modal-icon--pause,
+.modal-icon--exit {
+  width: 118px;
+  height: 126px;
+  margin: -40px auto 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+
+.modal-icon--pause .modal-icon-art,
+.modal-icon--exit .modal-icon-art {
+  width: 118px;
+  height: 126px;
+}
+
 .modal-card h2 {
   margin: 0 0 8px;
   color: #00776e;
@@ -1571,6 +1646,12 @@ h2 {
   font-weight: 900;
   line-height: 1.08;
   text-shadow: 0 2px 0 rgba(255, 255, 255, 0.72);
+}
+
+#pauseModal .modal-card h2,
+#exitModal .modal-card h2 {
+  font-size: 1.08rem;
+  line-height: 1.3;
 }
 
 .modal-card p {
@@ -1615,8 +1696,19 @@ h2 {
 .result-card > .primary-button,
 .result-card > .ghost-button {
   display: block;
+  margin-top: 0;
   margin-right: auto;
   margin-left: auto;
+}
+
+.result-card > button + button {
+  margin-top: 12px;
+}
+
+.result-card > .primary-button + .primary-button,
+.result-card > .primary-button + .ghost-button,
+.result-card > .ghost-button + .ghost-button {
+  margin-top: 12px;
 }
 
 .modal-actions .primary-button,

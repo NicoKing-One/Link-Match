@@ -120,6 +120,7 @@ const elements = {
   resultStars: document.querySelector("#resultStars"),
   resultScore: document.querySelector("#resultScore"),
   resultBest: document.querySelector("#resultBest"),
+  nextLevelButton: document.querySelector("#nextLevelButton"),
   againButton: document.querySelector("#againButton"),
   homeButton: document.querySelector("#homeButton"),
 };
@@ -180,6 +181,7 @@ function bindEvents() {
   elements.staminaAdButton.addEventListener("click", claimStaminaFromAd);
   elements.staminaBuyButton.addEventListener("click", buyStamina);
   elements.staminaCloseButton.addEventListener("click", closeStaminaModal);
+  elements.nextLevelButton.addEventListener("click", requestNextLevel);
   elements.againButton.addEventListener("click", () => requestStartGame(state.level));
   elements.homeButton.addEventListener("click", () => {
     stopTimer();
@@ -276,6 +278,15 @@ function requestStartGame(level) {
 
   saveStaminaState(result.state);
   startGame(level);
+}
+
+function requestNextLevel() {
+  const nextLevel = LEVELS[state.level.number];
+  if (!nextLevel) {
+    showToast("已经通关全部关卡");
+    return;
+  }
+  requestStartGame(nextLevel);
 }
 
 function startGame(level) {
@@ -502,15 +513,20 @@ function finishGame(won) {
   state.score = finalScore;
   const best = getBestScore(state.level.number);
 
-  elements.resultTitle.textContent = won ? "通关成功" : "挑战失败";
-  elements.resultBadgeArt.src = won ? "./assets/ui-cut/best-crown.png" : "./assets/ui-cut/hud-clock.png";
+  elements.resultTitle.classList.add("result-title--compact");
+  elements.resultTitle.classList.toggle("result-title--coin", won);
+  elements.resultTitle.innerHTML = won
+    ? `通关成功，获得<span class="result-coin-count">${result.coinsAdded}</span><img class="result-coin-icon" src="./assets/ui-cut/result-coin.png" alt="金币" />`
+    : "挑战失败，再来一次吧。";
+  elements.resultBadgeArt.src = won ? "./assets/ui-cut/result-pass-badge.png" : "./assets/ui-cut/result-fail-badge.png";
   screens.result.dataset.result = won ? "success" : "failure";
   elements.resultSummary.textContent = won
-    ? `用 ${state.moves} 步清空棋盘，获得 ${result.coinsAdded} 金币，新增 ${result.starsAdded} 星。`
+    ? `用 ${state.moves} 步清空棋盘，新增 ${result.starsAdded} 星。`
     : `还剩 ${remaining} 个图案没有消除，可以调整策略再来一次。`;
   renderResultStars(stars);
   elements.resultScore.textContent = `得分 ${finalScore}`;
   elements.resultBest.textContent = `最佳 ${best}`;
+  elements.nextLevelButton.classList.toggle("hidden", !won || state.level.number >= MAX_LEVEL_NUMBER);
   updateStaminaView();
   showScreen("result");
 }
@@ -864,4 +880,10 @@ function getBestScore(levelNumber) {
 
 function samePoint(first, second) {
   return first.row === second.row && first.col === second.col;
+}
+
+if (new URLSearchParams(window.location.search).has("boardSeed")) {
+  window.__linkMatchSmoke = {
+    finishGameForSmoke: finishGame,
+  };
 }

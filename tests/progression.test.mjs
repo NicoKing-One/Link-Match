@@ -86,6 +86,7 @@ test("stars record the historical best while coins are awarded on every win", ()
   });
 
   assert.equal(firstWin.starsAdded, 1);
+  assert.equal(firstWin.coinsAdded, 20);
   assert.equal(secondWin.starsAdded, 2);
   assert.equal(thirdWin.starsAdded, 0);
   assert.equal(thirdWin.progress.records["1"].bestStars, 3);

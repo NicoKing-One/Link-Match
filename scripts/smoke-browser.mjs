@@ -167,6 +167,7 @@ try {
   await page.waitForSelector("#pauseModal:not(.hidden)", { timeout: 2000 });
   await page.screenshot({ path: join(outputDir, "pause-modal-mobile.png"), fullPage: true });
   await expectMobileModalDesignSystem(page, "#pauseModal");
+  await expectModalIconAsset(page, "#pauseModal", "modal-pause-badge.png");
   const pauseActionCount = await page.locator("#pauseModal:not(.hidden) .modal-actions button").count();
   if (pauseActionCount !== 3) {
     throw new Error(`Expected pause modal to provide continue, restart and home actions, got ${pauseActionCount}.`);
@@ -178,6 +179,7 @@ try {
   await page.screenshot({ path: join(outputDir, "exit-modal-mobile.png"), fullPage: true });
   await expectModalHasIcon(page, "#exitModal");
   await expectMobileModalDesignSystem(page, "#exitModal");
+  await expectModalIconAsset(page, "#exitModal", "modal-exit-badge.png");
   await page.locator("#confirmRestartButton").click();
   await page.waitForSelector(".screen-game.active .tile:not(.empty)");
   await gameHomeButton.click();
@@ -185,6 +187,7 @@ try {
   await page.locator("#confirmHomeButton").click();
   await page.waitForSelector(".screen-start.active");
 
+  await finishGameAndExpectFailureBadge(page);
   await finishGameAndExpectStarsAndNoStaminaAgain(page);
 
   if (tileCount <= 0) {
@@ -349,6 +352,28 @@ async function expectPolishedGameUi(page) {
       afterDisplay: after.display,
     };
   });
+  const toolbarGeometry = await page.locator(".screen-game.active .toolbar").evaluate((node) => {
+    const box = node.getBoundingClientRect();
+    const screen = node.closest(".screen-game")?.getBoundingClientRect();
+    const style = getComputedStyle(node);
+    return {
+      bottomGap: Math.round((screen?.bottom ?? window.innerHeight) - box.bottom),
+      position: style.position,
+    };
+  });
+  const boardCentering = await page.locator(".screen-game.active .board-wrap").evaluate((node) => {
+    const boardBox = node.getBoundingClientRect();
+    const screen = node.closest(".screen-game");
+    const topPanel = screen?.querySelector(".top-panel")?.getBoundingClientRect();
+    const toolbar = screen?.querySelector(".toolbar")?.getBoundingClientRect();
+    const availableCenter = ((topPanel?.bottom ?? 0) + (toolbar?.top ?? window.innerHeight)) / 2;
+    const boardCenter = (boardBox.top + boardBox.bottom) / 2;
+    return {
+      centerDelta: Math.round(boardCenter - availableCenter),
+      gapBelow: Math.round((toolbar?.top ?? 0) - boardBox.bottom),
+      gapAbove: Math.round(boardBox.top - (topPanel?.bottom ?? 0)),
+    };
+  });
   if (
     toolbarSeparators.beforeDisplay !== "none" ||
     toolbarSeparators.afterDisplay !== "none" ||
@@ -356,6 +381,12 @@ async function expectPolishedGameUi(page) {
     toolbarSeparators.afterContent !== "none"
   ) {
     throw new Error(`Expected toolbar dotted separators to be removed, got ${JSON.stringify(toolbarSeparators)}.`);
+  }
+  if (toolbarGeometry.position !== "absolute" || Math.abs(toolbarGeometry.bottomGap - 50) > 2) {
+    throw new Error(`Expected toolbar to be fixed 50px above game screen bottom, got ${JSON.stringify(toolbarGeometry)}.`);
+  }
+  if (Math.abs(boardCentering.centerDelta) > 10 || boardCentering.gapAbove < 0 || boardCentering.gapBelow < 0) {
+    throw new Error(`Expected board frame to be centered between HUD and toolbar, got ${JSON.stringify(boardCentering)}.`);
   }
 }
 
@@ -477,6 +508,21 @@ async function expectMobileModalDesignSystem(page, selector) {
   await expectDesignedUiCutButtons(page, `${selector}:not(.hidden) .modal-actions button`);
 }
 
+async function expectModalIconAsset(page, selector, fileName) {
+  const iconData = await page.locator(`${selector}:not(.hidden) .modal-icon-art`).evaluate((node) => {
+    const rect = node.getBoundingClientRect();
+    return {
+      tagName: node.tagName,
+      src: node.getAttribute("src") ?? "",
+      width: rect.width,
+      height: rect.height,
+    };
+  });
+  if (iconData.tagName !== "IMG" || !iconData.src.includes(fileName) || iconData.width < 100 || iconData.height < 100) {
+    throw new Error(`Expected ${selector} to use ${fileName} as a sliced image icon, got ${JSON.stringify(iconData)}.`);
+  }
+}
+
 async function expectHomeRoadMap(page) {
   await page.waitForSelector(".screen-start.active .road-level", { timeout: 2000 });
   const chapterTabCount = await page.locator(".screen-start.active .chapter-tab").count();
@@ -563,6 +609,67 @@ async function expectMobileResultDesignSystem(page) {
   const shellCount = await page.locator(".screen-result.active.mobile-result-shell").count();
   const cardCount = await page.locator(".screen-result.active .candy-result-card").count();
   const badgeSource = await page.locator(".screen-result.active .result-badge-art").getAttribute("src");
+  const badgeGeometry = await page.locator(".screen-result.active .result-badge-art").evaluate((node) => {
+    const badge = node.closest(".result-badge");
+    const badgeBox = badge?.getBoundingClientRect();
+    const artBox = node.getBoundingClientRect();
+    return {
+      artWidth: Math.round(artBox.width),
+      artHeight: Math.round(artBox.height),
+      badgeWidth: Math.round(badgeBox?.width ?? 0),
+      badgeBackground: badge ? getComputedStyle(badge).backgroundImage : "",
+    };
+  });
+  const badgeCheckColor = await page.locator(".screen-result.active .result-badge-art").evaluate(async (node) => {
+    if (!node.complete) {
+      await new Promise((resolve) => node.addEventListener("load", resolve, { once: true }));
+    }
+
+    const canvas = document.createElement("canvas");
+    canvas.width = node.naturalWidth;
+    canvas.height = node.naturalHeight;
+    const context = canvas.getContext("2d");
+    context.drawImage(node, 0, 0);
+
+    const sampleBox = {
+      x: Math.round(canvas.width * 0.38),
+      y: Math.round(canvas.height * 0.36),
+      width: Math.round(canvas.width * 0.28),
+      height: Math.round(canvas.height * 0.22),
+    };
+    const pixels = context.getImageData(sampleBox.x, sampleBox.y, sampleBox.width, sampleBox.height).data;
+    let visiblePixels = 0;
+    let greenPixels = 0;
+    let redTotal = 0;
+    let greenTotal = 0;
+    let blueTotal = 0;
+
+    for (let index = 0; index < pixels.length; index += 4) {
+      const red = pixels[index];
+      const green = pixels[index + 1];
+      const blue = pixels[index + 2];
+      const alpha = pixels[index + 3];
+      if (alpha < 48) {
+        continue;
+      }
+      visiblePixels += 1;
+      if (green > red + 45 && green > blue + 18) {
+        greenPixels += 1;
+        redTotal += red;
+        greenTotal += green;
+        blueTotal += blue;
+      }
+    }
+
+    return {
+      averageBlue: greenPixels > 0 ? Math.round(blueTotal / greenPixels) : 0,
+      averageGreen: greenPixels > 0 ? Math.round(greenTotal / greenPixels) : 0,
+      averageRed: greenPixels > 0 ? Math.round(redTotal / greenPixels) : 0,
+      greenPixels,
+      visiblePixels,
+      greenRatio: visiblePixels > 0 ? Number((greenPixels / visiblePixels).toFixed(3)) : 0,
+    };
+  });
   const plaqueLabelText = await page.locator(".screen-result.active .plaque-level-label").innerText();
   const plaqueDecorCount = await page.locator(".screen-result.active .result-plaque .icon-decor-art").count();
   const starSources = await page
@@ -574,7 +681,43 @@ async function expectMobileResultDesignSystem(page) {
     .evaluate((node) => getComputedStyle(node).backgroundImage);
   const resultStaminaCount = await page.locator(".screen-result.active .result-stamina").count();
   const resultEyebrowCount = await page.locator(".screen-result.active .result-eyebrow").count();
-  const resultSummaryVisible = await page.locator(".screen-result.active #resultSummary").isVisible();
+  const resultTitle = page.locator(".screen-result.active #resultTitle");
+  const resultTitleText = await resultTitle.innerText();
+  const resultCoinCount = page.locator(".screen-result.active #resultTitle .result-coin-count");
+  const resultCoinCountText = await resultCoinCount.innerText().catch(() => "");
+  const resultCoinIcon = page.locator(".screen-result.active #resultTitle .result-coin-icon");
+  const resultCoinStyle = await resultCoinCount
+    .evaluate((node) => {
+      const style = getComputedStyle(node);
+      const parentStyle = getComputedStyle(node.parentElement);
+      return {
+        color: style.color,
+        fontSize: Number.parseFloat(style.fontSize),
+        fontWeight: Number(style.fontWeight),
+        parentFontSize: Number.parseFloat(parentStyle.fontSize),
+        parentAlign: parentStyle.textAlign,
+      };
+    })
+    .catch(() => null);
+  const resultCoinIconData = await resultCoinIcon
+    .evaluate((node) => {
+      const rect = node.getBoundingClientRect();
+      const style = getComputedStyle(node);
+      return {
+        background: style.backgroundImage,
+        height: Number(rect.height.toFixed(1)),
+        src: node.getAttribute("src") ?? "",
+        tagName: node.tagName,
+        width: Number(rect.width.toFixed(1)),
+      };
+    })
+    .catch(() => null);
+  const nextLevelButtonCount = await page.locator(".screen-result.active #nextLevelButton").count();
+  const nextLevelButtonText = await page.locator(".screen-result.active #nextLevelButton").innerText().catch(() => "");
+  const resultButtonGaps = await page.locator(".screen-result.active .result-card > button:not(.hidden)").evaluateAll((nodes) => {
+    const boxes = nodes.map((node) => node.getBoundingClientRect());
+    return boxes.slice(1).map((box, index) => Math.round(box.top - boxes[index].bottom));
+  });
   const overlay = await page.locator(".screen-result.active").evaluate((node) => {
     const color = getComputedStyle(node).backgroundColor;
     const channels = color.match(/rgba?\(([^)]+)\)/);
@@ -600,6 +743,28 @@ async function expectMobileResultDesignSystem(page) {
   if (!badgeSource?.includes("./assets/ui-cut/") || starSources.some((source) => !source.includes("./assets/ui-cut/"))) {
     throw new Error(`Expected result badge and stars to use ui-cut image assets, got badge=${badgeSource}, stars=${starSources.join(", ")}`);
   }
+  if (!badgeSource.includes("result-pass-badge.png")) {
+    throw new Error(`Expected success result badge to use generated pass badge icon, got badge=${badgeSource}.`);
+  }
+  if (
+    badgeGeometry.artWidth < 120 ||
+    badgeGeometry.artHeight < 120 ||
+    badgeGeometry.badgeWidth < 128 ||
+    badgeGeometry.badgeBackground !== "none"
+  ) {
+    throw new Error(`Expected success result badge to render as a larger standalone asset, got ${JSON.stringify(badgeGeometry)}.`);
+  }
+  if (
+    badgeCheckColor.greenRatio < 0.12 ||
+    badgeCheckColor.averageRed < 25 ||
+    badgeCheckColor.averageRed > 80 ||
+    badgeCheckColor.averageGreen < 185 ||
+    badgeCheckColor.averageGreen > 225 ||
+    badgeCheckColor.averageBlue < 110 ||
+    badgeCheckColor.averageBlue > 160
+  ) {
+    throw new Error(`Expected success result badge checkmark to keep the original teal-green color, got ${JSON.stringify(badgeCheckColor)}.`);
+  }
   if (!/^第\d{2}关$/.test(plaqueLabelText) || plaqueDecorCount !== 0) {
     throw new Error(
       `Expected result title plaque to show level text without star decorators, got label=${plaqueLabelText}, decor=${plaqueDecorCount}.`,
@@ -614,8 +779,33 @@ async function expectMobileResultDesignSystem(page) {
   if (resultStaminaCount !== 0 || resultEyebrowCount !== 0) {
     throw new Error(`Expected result screen without stamina panel and eyebrow, got stamina=${resultStaminaCount}, eyebrow=${resultEyebrowCount}.`);
   }
-  if (resultSummaryVisible) {
-    throw new Error("Expected result summary text below success/failure title to be hidden.");
+  if (resultTitleText.replace(/\s+/g, "") !== "通关成功，获得20") {
+    throw new Error(`Expected success title to read 通关成功，获得20, got text=${resultTitleText}.`);
+  }
+  if (
+    resultCoinCountText !== "20" ||
+    !resultCoinStyle ||
+    resultCoinStyle.parentAlign !== "center" ||
+    resultCoinStyle.fontSize <= resultCoinStyle.parentFontSize ||
+    resultCoinStyle.fontWeight < 700
+  ) {
+    throw new Error(`Expected highlighted larger bold coin number 20, got text=${resultCoinCountText}, style=${JSON.stringify(resultCoinStyle)}.`);
+  }
+  if (
+    !resultCoinIconData ||
+    resultCoinIconData.tagName !== "IMG" ||
+    !resultCoinIconData.src.includes("result-coin.png") ||
+    resultCoinIconData.background !== "none" ||
+    Math.abs(resultCoinIconData.height - resultCoinStyle.fontSize) > 3 ||
+    Math.abs(resultCoinIconData.width - resultCoinStyle.fontSize) > 3
+  ) {
+    throw new Error(`Expected coin reward to use a sliced image icon matching the number size, got ${JSON.stringify(resultCoinIconData)}.`);
+  }
+  if (nextLevelButtonCount !== 1 || nextLevelButtonText !== "下一关") {
+    throw new Error(`Expected result screen to include 下一关 action, got count=${nextLevelButtonCount}, text=${nextLevelButtonText}.`);
+  }
+  if (resultButtonGaps.length !== 2 || resultButtonGaps.some((gap) => Math.abs(gap - 12) > 2)) {
+    throw new Error(`Expected result action buttons to have 12px vertical gaps, got ${JSON.stringify(resultButtonGaps)}.`);
   }
   if (
     geometry.plaqueTop > geometry.cardTop - 24 ||
@@ -737,6 +927,108 @@ async function finishGameAndExpectStarsAndNoStaminaAgain(page) {
   if (staminaAfterPurchase.stamina !== 31 || staminaAfterPurchase.adClaims !== 3) {
     throw new Error(`Expected purchase to grant 30 stamina without ad claims, got: ${JSON.stringify(staminaAfterPurchase)}`);
   }
+}
+
+async function finishGameAndExpectFailureBadge(page) {
+  await page.evaluate(() => {
+    localStorage.setItem(
+      "lianliankan.stamina",
+      JSON.stringify({ stamina: 50, updatedAt: Date.now(), adClaims: 0 }),
+    );
+  });
+  await page.reload({ waitUntil: "networkidle" });
+  await page.locator("#startButton").click();
+  await page.waitForSelector(".screen-game.active .tile:not(.empty)");
+
+  const hasSmokeHook = await page.evaluate(() => typeof window.__linkMatchSmoke?.finishGameForSmoke === "function");
+  if (!hasSmokeHook) {
+    throw new Error("Expected boardSeed smoke URL to expose finishGameForSmoke hook.");
+  }
+
+  await page.evaluate(() => window.__linkMatchSmoke.finishGameForSmoke(false));
+  await page.waitForSelector('.screen-result.active[data-result="failure"]', { timeout: 2000 });
+  await page.screenshot({ path: join(outputDir, "result-failure-mobile.png"), fullPage: true });
+
+  const failureData = await page.locator(".screen-result.active").evaluate(async (screen) => {
+    const badge = screen.querySelector(".result-badge");
+    const badgeArt = screen.querySelector(".result-badge-art");
+    const title = screen.querySelector("#resultTitle");
+    const nextLevelButton = screen.querySelector("#nextLevelButton");
+    if (!badge || !badgeArt || !title || !nextLevelButton) {
+      return null;
+    }
+    if (!badgeArt.complete) {
+      await new Promise((resolve) => badgeArt.addEventListener("load", resolve, { once: true }));
+    }
+
+    const canvas = document.createElement("canvas");
+    canvas.width = badgeArt.naturalWidth;
+    canvas.height = badgeArt.naturalHeight;
+    const context = canvas.getContext("2d");
+    context.drawImage(badgeArt, 0, 0);
+    const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+    let redPixels = 0;
+    let redX = 0;
+    let redY = 0;
+
+    for (let index = 0; index < pixels.length; index += 4) {
+      const red = pixels[index];
+      const green = pixels[index + 1];
+      const blue = pixels[index + 2];
+      const alpha = pixels[index + 3];
+      if (alpha < 80 || red < 170 || green > 100 || blue > 100 || red < green + 70 || red < blue + 70) {
+        continue;
+      }
+      const pixelIndex = index / 4;
+      redPixels += 1;
+      redX += pixelIndex % canvas.width;
+      redY += Math.floor(pixelIndex / canvas.width);
+    }
+
+    const badgeBox = badge.getBoundingClientRect();
+    const artBox = badgeArt.getBoundingClientRect();
+    const titleStyle = getComputedStyle(title);
+    const badgeStyle = getComputedStyle(badge);
+    return {
+      artHeight: Math.round(artBox.height),
+      artWidth: Math.round(artBox.width),
+      badgeBackground: getComputedStyle(badge).backgroundImage,
+      badgeTransform: badgeStyle.transform,
+      centerX: redPixels > 0 ? Number((redX / redPixels / canvas.width).toFixed(3)) : 0,
+      centerY: redPixels > 0 ? Number((redY / redPixels / canvas.height).toFixed(3)) : 0,
+      redRatio: Number((redPixels / (canvas.width * canvas.height)).toFixed(4)),
+      src: badgeArt.getAttribute("src") ?? "",
+      titleFontSize: Number.parseFloat(titleStyle.fontSize),
+      titleTextAlign: titleStyle.textAlign,
+      title: title.innerText,
+      nextLevelHidden: nextLevelButton.classList.contains("hidden"),
+      badgeWidth: Math.round(badgeBox.width),
+    };
+  });
+
+  if (
+    !failureData ||
+    !failureData.src.includes("result-fail-badge.png") ||
+    failureData.title !== "挑战失败，再来一次吧。" ||
+    failureData.titleFontSize < 16 ||
+    failureData.titleFontSize > 19 ||
+    failureData.titleTextAlign !== "center" ||
+    !failureData.nextLevelHidden ||
+    failureData.artWidth < 120 ||
+    failureData.artHeight < 120 ||
+    failureData.badgeWidth < 128 ||
+    failureData.badgeBackground !== "none" ||
+    !failureData.badgeTransform.includes("-30") ||
+    failureData.redRatio < 0.008 ||
+    failureData.redRatio > 0.04 ||
+    Math.abs(failureData.centerX - 0.5) > 0.06 ||
+    Math.abs(failureData.centerY - 0.47) > 0.08
+  ) {
+    throw new Error(`Expected failure result to use centered medium red-X badge, got ${JSON.stringify(failureData)}.`);
+  }
+
+  await page.locator("#homeButton").click();
+  await page.waitForSelector(".screen-start.active");
 }
 
 async function readStoredStamina(page) {
