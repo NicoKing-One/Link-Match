@@ -71,7 +71,7 @@ try {
   await page.reload({ waitUntil: "networkidle" });
   const initialStamina = await page.locator(".screen-start .staminaText").innerText();
   if (initialStamina !== "50/50") {
-    throw new Error(`Expected initial stamina to be 50/50, got: ${initialStamina}`);
+    throw new Error(`Expected reset stamina to be 50/50, got: ${initialStamina}`);
   }
   const bodyFont = await page.evaluate(() => getComputedStyle(document.body).fontFamily);
   if (!bodyFont.includes("Microsoft YaHei") && !bodyFont.includes("寰蒋闆呴粦")) {
@@ -85,7 +85,7 @@ try {
   await page.screenshot({ path: join(outputDir, "home-map-mobile.png"), fullPage: true });
   await expectStaleFullStaminaSpend(page);
   await page.evaluate(() => localStorage.clear());
-  await page.reload({ waitUntil: "networkidle" });
+  await seedPlayableFreshState(page);
   await page.locator("#startButton").click();
   await page.waitForSelector(".screen-game.active .tile:not(.empty)");
   const staminaAfterStart = await readStoredStamina(page);
@@ -146,7 +146,7 @@ try {
   }
 
   await exhaustTool(page, "#hintButton");
-  await expectHintToolBreathes(page);
+  await expectHintToolDoesNotBreathe(page);
   await page.locator("#hintButton").click();
   await page.waitForSelector("#toolModal:not(.hidden)", { timeout: 2000 });
   await page.screenshot({ path: join(outputDir, "tool-modal-mobile.png"), fullPage: true });
@@ -189,6 +189,7 @@ try {
 
   await finishGameAndExpectFailureBadge(page);
   await finishGameAndExpectStarsAndNoStaminaAgain(page);
+  await finishCompletedLevelAndExpectNoCoinMessage(page);
 
   if (tileCount <= 0) {
     throw new Error(`Unexpected smoke state: tileCount=${tileCount}, hud=${hudText}`);
@@ -315,6 +316,21 @@ async function exhaustTool(page, selector) {
       throw new Error(`Expected ${selector} count to deplete, still got ${count} after ${guard} clicks.`);
     }
   }
+}
+
+async function seedPlayableFreshState(page, stamina = 50) {
+  await page.evaluate((nextStamina) => {
+    localStorage.setItem("lianliankan.dataResetVersion", "2026-06-13-full-stamina-baseline");
+    localStorage.setItem(
+      "lianliankan.progress",
+      JSON.stringify({ highestUnlockedLevel: 1, coins: 0, records: {} }),
+    );
+    localStorage.setItem(
+      "lianliankan.stamina",
+      JSON.stringify({ stamina: nextStamina, updatedAt: Date.now(), adClaims: 0 }),
+    );
+  }, stamina);
+  await page.reload({ waitUntil: "networkidle" });
 }
 
 async function expectPolishedGameUi(page) {
@@ -779,17 +795,17 @@ async function expectMobileResultDesignSystem(page) {
   if (resultStaminaCount !== 0 || resultEyebrowCount !== 0) {
     throw new Error(`Expected result screen without stamina panel and eyebrow, got stamina=${resultStaminaCount}, eyebrow=${resultEyebrowCount}.`);
   }
-  if (resultTitleText.replace(/\s+/g, "") !== "通关成功，获得20") {
-    throw new Error(`Expected success title to read 通关成功，获得20, got text=${resultTitleText}.`);
+  if (resultTitleText.replace(/\s+/g, "") !== "通关成功，获得2") {
+    throw new Error(`Expected success title to read 通关成功，获得2, got text=${resultTitleText}.`);
   }
   if (
-    resultCoinCountText !== "20" ||
+    resultCoinCountText !== "2" ||
     !resultCoinStyle ||
     resultCoinStyle.parentAlign !== "center" ||
     resultCoinStyle.fontSize <= resultCoinStyle.parentFontSize ||
     resultCoinStyle.fontWeight < 700
   ) {
-    throw new Error(`Expected highlighted larger bold coin number 20, got text=${resultCoinCountText}, style=${JSON.stringify(resultCoinStyle)}.`);
+    throw new Error(`Expected highlighted larger bold coin number 2, got text=${resultCoinCountText}, style=${JSON.stringify(resultCoinStyle)}.`);
   }
   if (
     !resultCoinIconData ||
@@ -844,12 +860,12 @@ async function expectDesignedUiCutButtons(page, selector) {
   }
 }
 
-async function expectHintToolBreathes(page) {
+async function expectHintToolDoesNotBreathe(page) {
   const animation = await page
     .locator(".screen-game.active .tool-button--hint .tool-art")
     .evaluate((node) => getComputedStyle(node).animationName);
-  if (!animation.includes("tool-breathe")) {
-    throw new Error(`Expected hint tool button to use breathing animation, got ${animation}.`);
+  if (animation.includes("tool-breathe")) {
+    throw new Error(`Expected empty hint tool button not to breathe, got ${animation}.`);
   }
 }
 
@@ -926,6 +942,54 @@ async function finishGameAndExpectStarsAndNoStaminaAgain(page) {
   const staminaAfterPurchase = await readStoredStamina(page);
   if (staminaAfterPurchase.stamina !== 31 || staminaAfterPurchase.adClaims !== 3) {
     throw new Error(`Expected purchase to grant 30 stamina without ad claims, got: ${JSON.stringify(staminaAfterPurchase)}`);
+  }
+}
+
+async function finishCompletedLevelAndExpectNoCoinMessage(page) {
+  await page.evaluate(() => {
+    localStorage.setItem(
+      "lianliankan.stamina",
+      JSON.stringify({ stamina: 50, updatedAt: Date.now(), adClaims: 0 }),
+    );
+    localStorage.setItem(
+      "lianliankan.progress",
+      JSON.stringify({
+        highestUnlockedLevel: 2,
+        coins: 2,
+        records: {
+          1: { completed: true, bestScore: 1200, bestStars: 2 },
+        },
+      }),
+    );
+  });
+  await page.reload({ waitUntil: "networkidle" });
+  await page.waitForSelector(".screen-start.active .road-level.completed", { timeout: 2000 });
+  await page.locator(".screen-start.active .road-level.completed").first().click();
+  await page.waitForSelector(".screen-game.active .tile:not(.empty)");
+
+  const hasSmokeHook = await page.evaluate(() => typeof window.__linkMatchSmoke?.finishGameForSmoke === "function");
+  if (!hasSmokeHook) {
+    throw new Error("Expected boardSeed smoke URL to expose finishGameForSmoke hook.");
+  }
+
+  await page.evaluate(() => window.__linkMatchSmoke.finishGameForSmoke(true));
+  await page.waitForSelector('.screen-result.active[data-result="success"]', { timeout: 2000 });
+
+  const repeatResult = await page.locator(".screen-result.active #resultTitle").evaluate((title) => ({
+    coinCount: title.querySelectorAll(".result-coin-count").length,
+    iconCount: title.querySelectorAll(".result-coin-icon").length,
+    text: title.innerText,
+  }));
+  if (repeatResult.text.replace(/\s+/g, "") !== "恭喜通关，重复关卡无法获得金币。") {
+    throw new Error(`Expected replay clear no-coin message, got: ${repeatResult.text}.`);
+  }
+  if (repeatResult.coinCount !== 0 || repeatResult.iconCount !== 0) {
+    throw new Error(`Expected replay clear title without coin number or icon, got ${JSON.stringify(repeatResult)}.`);
+  }
+
+  const storedProgress = await page.evaluate(() => JSON.parse(localStorage.getItem("lianliankan.progress")));
+  if (storedProgress.coins !== 2) {
+    throw new Error(`Expected replay clear to keep coin balance at 2, got ${storedProgress.coins}.`);
   }
 }
 

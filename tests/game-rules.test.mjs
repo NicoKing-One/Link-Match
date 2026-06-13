@@ -12,6 +12,7 @@ import {
   calculateStarCount,
   claimAdStamina,
   claimPurchasedStamina,
+  normalizeStaminaState,
   spendStartStamina,
 } from "../src/game-rules.js";
 
@@ -25,6 +26,14 @@ test("awards stars from remaining time instead of score", () => {
 
 test("best score display uses a stable full star count", () => {
   assert.equal(BEST_SCORE_STAR_COUNT, 3);
+});
+
+test("new or reset stamina data starts at full stamina", () => {
+  assert.deepEqual(normalizeStaminaState(null, 1_000), {
+    stamina: MAX_STAMINA,
+    updatedAt: 1_000,
+    adClaims: 0,
+  });
 });
 
 test("recovers one stamina every three minutes and caps at max stamina", () => {

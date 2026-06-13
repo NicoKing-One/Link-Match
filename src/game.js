@@ -29,6 +29,7 @@ import {
   applyLevelResult,
   calculateCompletedLevels,
   calculateTotalStars,
+  createInitialProgress,
   getChapterStatus,
   getLevelStatus,
   normalizeProgress,
@@ -51,9 +52,13 @@ const ICON_VIEW = {
 
 const STAMINA_KEY = "lianliankan.stamina";
 const PROGRESS_KEY = "lianliankan.progress";
+const DATA_RESET_KEY = "lianliankan.dataResetVersion";
+const DATA_RESET_VERSION = "2026-06-13-full-stamina-baseline";
 const ROAD_STEP_Y = 52;
 const ROAD_TOP_Y = 36;
 const ROAD_X_PATTERN = [18, 34, 62, 80, 66, 38];
+
+resetStoredPlayerDataIfNeeded();
 
 const screens = {
   start: document.querySelector("#startScreen"),
@@ -512,12 +517,15 @@ function finishGame(won) {
   saveProgressState(result.progress);
   state.score = finalScore;
   const best = getBestScore(state.level.number);
+  const showCoinReward = won && result.firstClear;
 
   elements.resultTitle.classList.add("result-title--compact");
-  elements.resultTitle.classList.toggle("result-title--coin", won);
-  elements.resultTitle.innerHTML = won
+  elements.resultTitle.classList.toggle("result-title--coin", showCoinReward);
+  elements.resultTitle.innerHTML = showCoinReward
     ? `通关成功，获得<span class="result-coin-count">${result.coinsAdded}</span><img class="result-coin-icon" src="./assets/ui-cut/result-coin.png" alt="金币" />`
-    : "挑战失败，再来一次吧。";
+    : won
+      ? "恭喜通关，重复关卡无法获得金币。"
+      : "挑战失败，再来一次吧。";
   elements.resultBadgeArt.src = won ? "./assets/ui-cut/result-pass-badge.png" : "./assets/ui-cut/result-fail-badge.png";
   screens.result.dataset.result = won ? "success" : "failure";
   elements.resultSummary.textContent = won
@@ -537,7 +545,6 @@ function updateHud() {
   elements.scoreText.textContent = state.score;
   elements.hintCount.textContent = state.hints;
   elements.shuffleCount.textContent = state.shuffles;
-  elements.hintButton.classList.toggle("guide-pulse", state.hints <= 0);
 }
 
 function updatePlaqueLevelLabels() {
@@ -691,6 +698,17 @@ function loadProgressState() {
     return normalizeProgress(JSON.parse(localStorage.getItem(PROGRESS_KEY)));
   } catch {
     return normalizeProgress(null);
+  }
+}
+
+function resetStoredPlayerDataIfNeeded() {
+  try {
+    if (localStorage.getItem(DATA_RESET_KEY) === DATA_RESET_VERSION) return;
+    localStorage.setItem(PROGRESS_KEY, JSON.stringify(createInitialProgress()));
+    localStorage.setItem(STAMINA_KEY, JSON.stringify({ stamina: MAX_STAMINA, updatedAt: Date.now(), adClaims: 0 }));
+    localStorage.setItem(DATA_RESET_KEY, DATA_RESET_VERSION);
+  } catch {
+    // Ignore storage failures; normal loaders still fall back to zeroed defaults.
   }
 }
 

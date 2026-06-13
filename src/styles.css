@@ -1235,11 +1235,6 @@ h2 {
   color: #8b6813;
 }
 
-.tool-button--hint.guide-pulse .tool-art {
-  animation: tool-breathe 1.18s ease-in-out infinite;
-  transform-origin: center;
-}
-
 .tool-button--shuffle {
   color: #075c8f;
 }
@@ -1733,17 +1728,6 @@ h2 {
   }
   to {
     box-shadow: 0 0 0 5px rgba(255, 107, 95, 0.58), 0 12px 24px rgba(26, 45, 60, 0.2);
-  }
-}
-
-@keyframes tool-breathe {
-  0%,
-  100% {
-    transform: scale(1);
-  }
-
-  50% {
-    transform: scale(1.08);
   }
 }
 

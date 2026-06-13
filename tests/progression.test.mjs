@@ -27,6 +27,26 @@ test("builds three 30-level chapters with global level numbers", () => {
   assert.equal(getChapterForLevel(61).name, "果冻城堡");
 });
 
+test("each chapter awards 100 coins across first clears", () => {
+  for (const chapter of CHAPTERS) {
+    const levels = LEVELS.filter((level) => level.chapterId === chapter.id);
+    assert.equal(levels.length, 30);
+    assert.equal(levels.every((level) => level.hints === 0 && level.shuffles === 0), true);
+    assert.deepEqual(
+      levels.map((level) => level.coinReward),
+      [
+        ...Array(10).fill(2),
+        ...Array(10).fill(3),
+        ...Array(10).fill(5),
+      ],
+    );
+    assert.equal(
+      levels.reduce((total, level) => total + level.coinReward, 0),
+      100,
+    );
+  }
+});
+
 test("starts with only level 1 playable and later chapters locked", () => {
   const progress = createInitialProgress();
 
@@ -65,7 +85,7 @@ test("winning unlocks the next level and chapter gates unlock at 31 and 61", () 
   assert.equal(getChapterStatus(CHAPTERS[2], afterLevel60), "active");
 });
 
-test("stars record the historical best while coins are awarded on every win", () => {
+test("stars record the historical best while replay clears award no coins", () => {
   const firstWin = applyLevelResult(createInitialProgress(), getLevelByNumber(1), {
     won: true,
     score: 1000,
@@ -86,14 +106,52 @@ test("stars record the historical best while coins are awarded on every win", ()
   });
 
   assert.equal(firstWin.starsAdded, 1);
-  assert.equal(firstWin.coinsAdded, 20);
+  assert.equal(firstWin.coinsAdded, 2);
+  assert.equal(firstWin.firstClear, true);
   assert.equal(secondWin.starsAdded, 2);
+  assert.equal(secondWin.coinsAdded, 0);
+  assert.equal(secondWin.firstClear, false);
   assert.equal(thirdWin.starsAdded, 0);
+  assert.equal(thirdWin.coinsAdded, 0);
+  assert.equal(thirdWin.firstClear, false);
   assert.equal(thirdWin.progress.records["1"].bestStars, 3);
   assert.equal(thirdWin.progress.records["1"].bestScore, 1400);
   assert.equal(calculateTotalStars(thirdWin.progress), 3);
-  assert.ok(thirdWin.coinsAdded > 0);
-  assert.ok(thirdWin.progress.coins > secondWin.progress.coins);
+  assert.equal(thirdWin.progress.coins, 2);
+});
+
+test("first clear uses chapter-local reward tiers while replay clear awards no coins", () => {
+  const firstWin = applyLevelResult({ highestUnlockedLevel: 11, coins: 0, records: {} }, getLevelByNumber(11), {
+    won: true,
+    score: 1800,
+    stars: 3,
+    remainingSeconds: 120,
+  });
+  const replayWin = applyLevelResult(firstWin.progress, getLevelByNumber(11), {
+    won: true,
+    score: 1600,
+    stars: 2,
+    remainingSeconds: 80,
+  });
+
+  const chapterTwoFirst = applyLevelResult({ highestUnlockedLevel: 31, coins: 0, records: {} }, getLevelByNumber(31), {
+    won: true,
+    score: 1800,
+    stars: 3,
+    remainingSeconds: 120,
+  });
+  const chapterTwoLate = applyLevelResult({ highestUnlockedLevel: 51, coins: 0, records: {} }, getLevelByNumber(51), {
+    won: true,
+    score: 2400,
+    stars: 3,
+    remainingSeconds: 140,
+  });
+
+  assert.equal(firstWin.coinsAdded, 3);
+  assert.equal(replayWin.coinsAdded, 0);
+  assert.equal(replayWin.progress.coins, 3);
+  assert.equal(chapterTwoFirst.coinsAdded, 2);
+  assert.equal(chapterTwoLate.coinsAdded, 5);
 });
 
 test("normalizes old or partial progress safely", () => {

@@ -58,15 +58,17 @@ export function applyLevelResult(progress, level, result) {
 
   let starsAdded = 0;
   let coinsAdded = 0;
+  let firstClear = false;
   let highestUnlockedLevel = safeProgress.highestUnlockedLevel;
 
   if (result.won) {
     const resultStars = clampInteger(result.stars, 0, MAX_STARS_PER_LEVEL, 0);
     starsAdded = Math.max(0, resultStars - previousRecord.bestStars);
+    firstClear = !previousRecord.completed;
     nextRecord.completed = true;
     nextRecord.bestStars = Math.max(previousRecord.bestStars, resultStars);
     coinsAdded = calculateCoinReward(level, {
-      firstClear: !previousRecord.completed,
+      firstClear,
       stars: resultStars,
       remainingSeconds: result.remainingSeconds,
     });
@@ -88,6 +90,7 @@ export function applyLevelResult(progress, level, result) {
     progress: nextProgress,
     starsAdded,
     coinsAdded,
+    firstClear,
     record: nextRecord,
   };
 }
@@ -103,7 +106,8 @@ export function calculateCompletedLevels(progress) {
 }
 
 function calculateCoinReward(level, result) {
-  return clampInteger(level.coinReward, 1, 999, 20);
+  if (!result.firstClear) return 0;
+  return clampInteger(level.coinReward, 0, 999, 0);
 }
 
 function normalizeRecord(record) {
