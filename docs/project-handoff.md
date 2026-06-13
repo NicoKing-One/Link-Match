@@ -7,11 +7,11 @@
 - 项目名称：Link Match 连连看
 - 项目路径：`D:\工作文件\游戏\连连看`
 - 项目类型：移动端竖屏 H5 单机连连看 MVP
-- 当前阶段：`demo1.0.7--金币系统优化` 已完成。项目在 `demo1.0.6-UI布局更新` 基础上完成金币经济规则、重复通关结算文案、初始数据重置和道具 0 状态处理。主游戏页和核心弹框 UI 保持水果糖果果冻风，首页已接入 90 关章节地图、线性解锁、星星记录和金币资源。
+- 当前阶段：`demo1.0.8-首页UI` 设计稿已完成。项目在 `demo1.0.7--金币系统优化` 基础上补齐首页三主题高保真 UI 方向：水果森林、糖果花园、果冻城堡均已有首选视觉稿；同时补充统一布局校验稿，明确资源卡 10px 间距、三主题按钮同尺寸同位置、地图开放式无竖向边框等实现规则。
 
 ## 2. 当前进度
 
-当前已完成 H5 单机 demo 的核心玩法、体力系统、道具占位、结算流程、移动端游戏 UI、第一版章节闯关首页布局、`demo1.0.6-UI布局更新`，以及 `demo1.0.7--金币系统优化`。最新一轮重点调整了金币获得规则、重复关卡通关文案、清档后初始状态和 0 道具按钮表现。
+当前已完成 H5 单机 demo 的核心玩法、体力系统、道具占位、结算流程、移动端游戏 UI、第一版章节闯关首页布局、`demo1.0.6-UI布局更新`、`demo1.0.7--金币系统优化`，以及 `demo1.0.8-首页UI` 设计稿。最新一轮重点产出首页三主题高保真视觉稿，并整理后续开发取用规则。
 
 已完成内容：
 
@@ -24,6 +24,17 @@
   - 首页底部居中显示“开始闯关/继续闯关”按钮，按钮宽度为屏幕宽度一半，底部 `padding-bottom: 30px`。
   - 首页不再显示右侧“获取体力/已领取完”按钮，也不保留底部 4 个 tab。
   - 最新首页截图：`output/playwright/home-map-mobile.png`。
+  - 首页三主题高保真首选视觉稿已完成：
+    - `docs/ui-design-drafts/home-map-ui-design-fruit-forest-preferred.png`
+    - `docs/ui-design-drafts/home-map-ui-design-candy-garden-preferred.png`
+    - `docs/ui-design-drafts/home-map-ui-design-jelly-castle-preferred.png`
+  - 首页三主题对齐校验稿已完成：
+    - `docs/ui-design-drafts/home-map-ui-design-fruit-forest-aligned.png`
+    - `docs/ui-design-drafts/home-map-ui-design-candy-garden-aligned.png`
+    - `docs/ui-design-drafts/home-map-ui-design-jelly-castle-aligned.png`
+  - 首页视觉取用规则已记录在 `docs/ui-design-drafts/home-map-ui-design-preferred-notes.md`：美术质感以 `preferred` 三张为准；资源卡 10px 间距、按钮同尺寸同位置等布局参数参考 `aligned` 与模板。
+  - 已明确首页地图采用开放式背景，不再使用中部地图左右竖向奶油边框。
+  - 已删除旧的临时视觉参考图 `docs/fea087d1-5071-4155-9224-59bc0ea52572.jpeg`。
 
 - 主游戏页面：
   - 移动端竖屏布局，页面禁止滚动。
@@ -91,6 +102,13 @@
 - `src/assets/ui-cut/modal-pause-badge.png`：暂停弹框顶部徽章切图。
 - `src/assets/ui-cut/modal-exit-badge.png`：离开本局弹框顶部徽章切图。
 - `docs/ui-design-drafts/mobile-modal-result-design.png`：移动端弹框/结果页设计稿。
+- `docs/ui-design-drafts/home-map-ui-design-fruit-forest-preferred.png`：水果森林首页首选高保真视觉稿。
+- `docs/ui-design-drafts/home-map-ui-design-candy-garden-preferred.png`：糖果花园首页首选高保真视觉稿。
+- `docs/ui-design-drafts/home-map-ui-design-jelly-castle-preferred.png`：果冻城堡首页首选高保真视觉稿。
+- `docs/ui-design-drafts/home-map-ui-design-preferred-notes.md`：首页首选视觉稿取用规则。
+- `docs/ui-design-drafts/home-map-ui-design-aligned-notes.md`：首页三主题统一布局参数说明。
+- `docs/ui-design-drafts/home-map-theme-template.html`：首页三主题对齐校验稿导出模板。
+- `scripts/render-home-map-designs.mjs`：首页三主题对齐校验稿导出脚本，会校验资源卡间距为 `10px`。
 - `scripts/smoke-browser.mjs`：浏览器自动化验收脚本，使用固定 `boardSeed`，包含首页地图、移动端截图和 UI 断言。
 
 ## 4. 最近验证
@@ -98,6 +116,7 @@
 最新验证命令均已通过：
 
 ```powershell
+& 'C:\Users\youzi\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe' scripts/render-home-map-designs.mjs
 & 'C:\Users\youzi\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe' --test tests/*.test.mjs
 & 'C:\Users\youzi\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe' scripts/build.mjs
 & 'C:\Users\youzi\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe' scripts/smoke-browser.mjs
@@ -108,6 +127,7 @@
 - 单元测试：25/25 通过。
 - 构建：成功输出到 `dist/`。
 - 浏览器 smoke：使用固定 seed 通过，覆盖首页地图、游戏页、弹框、结果页、体力流程、首通金币、重复通关无金币文案和 0 道具不呼吸状态。
+- 首页三主题对齐校验稿导出：通过。三张资源卡坐标均为 `24 / 142 / 260`，资源卡间距均为 `10px`，章节 tab 与底部按钮坐标一致。
 - 最新截图输出目录：`output/playwright/`。
 
 重点截图：
@@ -120,13 +140,16 @@
 - `output/playwright/tool-modal-mobile.png`
 - `output/playwright/exit-modal-mobile.png`
 - `output/playwright/stamina-modal-mobile.png`
+- `docs/ui-design-drafts/home-map-ui-design-fruit-forest-preferred.png`
+- `docs/ui-design-drafts/home-map-ui-design-candy-garden-preferred.png`
+- `docs/ui-design-drafts/home-map-ui-design-jelly-castle-preferred.png`
 
 ## 5. 当前 Git 状态
 
 - 当前分支：`main`
 - 远程仓库：`https://github.com/NicoKing-One/Link-Match.git`
-- 本轮提交备注：`demo1.0.7--金币系统优化`。
-- 本轮提交内容：金币系统改为每主题 100 金币首通总量、重复通关不再发金币、结果页重复关卡文案、清档基线、道具初始 0、移除 0 道具呼吸动画、相关单测和 smoke 断言、交接文档更新。
+- 本轮提交备注：`首页UI`。
+- 本轮提交内容：首页三主题首选高保真视觉稿、首页三主题对齐校验稿、主题背景图、统一导出模板与脚本、首页 UI 取用规则说明、旧临时参考图清理、交接文档更新。
 
 ## 6. 运行方式
 
@@ -149,13 +172,13 @@ http://127.0.0.1:4173
 
 建议下一轮按这个顺序继续：
 
-1. 开始做个人中心页面：头像昵称占位、当前进度、总星数、金币、已通关数、三星关卡数。
-2. 做金币兑换资源入口：先定义金币兑换体力、提示、洗牌的兑换比例和确认弹框。
-3. 做设置入口：音效/音乐开关、振动开关、清除本地进度的确认弹框。
-4. 继续细化首页地图视觉：关卡点状态、当前关动效、已通关星星表现、锁定主题提示。
-5. 调整 90 关难度曲线，试玩前 10-15 关确认时间、棋盘密度、提示和洗牌次数。
-6. 增加按钮点击动效、消除动效、通关动效和音效。
-7. 做微信/抖音小游戏适配工程前，先确认当前 H5 版本体验稳定。
+1. 按首页首选视觉稿落地当前 H5 首页 UI：优先参考 `home-map-ui-design-*-preferred.png` 的美术质感，同时遵守 `home-map-ui-design-preferred-notes.md` 的布局规则。
+2. 首页实现时先固定三主题共同布局：资源卡 10px 间距、个人/设置/资源卡/章节 tab/左右箭头/底部按钮同尺寸同坐标。
+3. 将三主题背景、关卡节点、章节 tab、底部按钮拆成可复用资源或 CSS/图片组合，避免直接整张截图贴进游戏。
+4. 首页 UI 落地后补 smoke 断言：检查三主题切换、资源卡间距、当前主题高亮、地图无左右竖向边框、底部按钮位置。
+5. 首页 UI 稳定后再开始做个人中心页面：头像昵称占位、当前进度、总星数、金币、已通关数、三星关卡数。
+6. 做金币兑换资源入口：先定义金币兑换体力、提示、洗牌的兑换比例和确认弹框。
+7. 做设置入口：音效/音乐开关、振动开关、清除本地进度的确认弹框。
 
 ## 8. 新线程接手提示
 
