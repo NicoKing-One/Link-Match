@@ -609,6 +609,27 @@ async function expectHomeRoadMap(page) {
   if (scrollInfo.scrollHeight <= scrollInfo.clientHeight) {
     throw new Error(`Expected road map to scroll vertically, got ${JSON.stringify(scrollInfo)}.`);
   }
+  await expectHomeBackgroundImageRemoved(page);
+}
+
+async function expectHomeBackgroundImageRemoved(page) {
+  const background = await page.locator(".screen-start.active").evaluate((node) => {
+    const bodyStyle = getComputedStyle(document.body);
+    const style = getComputedStyle(node);
+    const color = style.backgroundColor.match(/rgba?\(([^)]+)\)/);
+    const parts = color ? color[1].split(",").map((part) => Number(part.trim())) : [];
+    return {
+      bodyImage: bodyStyle.backgroundImage,
+      image: style.backgroundImage,
+      color: style.backgroundColor,
+      alpha: parts.length === 4 ? parts[3] : 1,
+    };
+  });
+  if (background.bodyImage !== "none" || background.image !== "none" || background.alpha < 0.95) {
+    throw new Error(
+      `Expected home screen and page chrome to use an opaque non-image background, got ${JSON.stringify(background)}.`,
+    );
+  }
 }
 
 async function readCurrentLevelTileCount(page) {
