@@ -105,6 +105,11 @@ export function calculateCompletedLevels(progress) {
   return Object.values(safeProgress.records).filter((record) => record.completed).length;
 }
 
+export function calculateThreeStarLevels(progress) {
+  const safeProgress = normalizeProgress(progress);
+  return Object.values(safeProgress.records).filter((record) => record.bestStars >= MAX_STARS_PER_LEVEL).length;
+}
+
 function calculateCoinReward(level, result) {
   if (!result.firstClear) return 0;
   return clampInteger(level.coinReward, 0, 999, 0);

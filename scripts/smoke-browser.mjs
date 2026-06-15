@@ -83,7 +83,9 @@ try {
   }
   await expectHomeRoadMap(page);
   await page.screenshot({ path: join(outputDir, "home-map-mobile.png"), fullPage: true });
+  await seedProfileThreeStarState(page);
   await expectSecondaryPageNavigation(page);
+  await seedPlayableFreshState(page);
   await expectStaleFullStaminaSpend(page);
   await page.evaluate(() => localStorage.clear());
   await seedPlayableFreshState(page);
@@ -331,6 +333,26 @@ async function seedPlayableFreshState(page, stamina = 50) {
       JSON.stringify({ stamina: nextStamina, updatedAt: Date.now(), adClaims: 0 }),
     );
   }, stamina);
+  await page.reload({ waitUntil: "networkidle" });
+}
+
+async function seedProfileThreeStarState(page) {
+  await page.evaluate(() => {
+    localStorage.setItem("lianliankan.dataResetVersion", "2026-06-13-full-stamina-baseline");
+    localStorage.setItem(
+      "lianliankan.progress",
+      JSON.stringify({
+        highestUnlockedLevel: 4,
+        coins: 6,
+        records: {
+          1: { completed: true, bestScore: 1200, bestStars: 3 },
+          2: { completed: true, bestScore: 900, bestStars: 2 },
+          3: { completed: true, bestScore: 1500, bestStars: 3 },
+        },
+      }),
+    );
+    localStorage.setItem("lianliankan.stamina", JSON.stringify({ stamina: 50, updatedAt: Date.now(), adClaims: 0 }));
+  });
   await page.reload({ waitUntil: "networkidle" });
 }
 
@@ -621,6 +643,7 @@ async function expectSecondaryPageNavigation(page) {
   }
   await expectSecondaryPageBuiltFromLayout(page, "#profileScreen", ".profile-layout");
   await expectProfilePageOptimizedLayout(page);
+  await expectProfileThreeStarDataMatchesHome(page);
   await page.screenshot({ path: join(outputDir, "profile-mobile.png"), fullPage: true });
   await page.locator("#profileBackButton").click();
   await page.waitForSelector(".screen-start.active", { timeout: 1200 });
@@ -807,6 +830,31 @@ async function expectProfilePageOptimizedLayout(page) {
   }
   if (layout.homeButtonCount !== 0) {
     throw new Error(`Expected profile bottom home button to be removed, got ${JSON.stringify(layout)}.`);
+  }
+}
+
+async function expectProfileThreeStarDataMatchesHome(page) {
+  const profileData = await page.locator("#profileScreen.active .profile-layout").evaluate(() => {
+    const progress = JSON.parse(localStorage.getItem("lianliankan.progress") ?? "{}");
+    const records = Object.values(progress.records ?? {});
+    const expectedThreeStarLevels = records.filter((record) => record.bestStars >= 3).length;
+    const homeThreeStarNodes = [...document.querySelectorAll(".screen-start .road-level")].filter(
+      (node) => node.querySelectorAll(".road-stars .filled").length === 3,
+    ).length;
+
+    return {
+      expectedThreeStarLevels,
+      expectedText: `${expectedThreeStarLevels}关`,
+      homeThreeStarNodes,
+      profileText: document.querySelector("#profileThreeStarText")?.textContent ?? "",
+    };
+  });
+
+  if (
+    profileData.profileText !== profileData.expectedText ||
+    profileData.homeThreeStarNodes !== profileData.expectedThreeStarLevels
+  ) {
+    throw new Error(`Expected profile three-star count to match home map bestStars, got ${JSON.stringify(profileData)}.`);
   }
 }
 

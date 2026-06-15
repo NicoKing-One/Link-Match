@@ -4,6 +4,7 @@ import test from "node:test";
 import { CHAPTERS, LEVELS, getChapterForLevel, getLevelByNumber } from "../src/levels.js";
 import {
   applyLevelResult,
+  calculateThreeStarLevels,
   calculateTotalStars,
   createInitialProgress,
   getChapterStatus,
@@ -118,6 +119,21 @@ test("stars record the historical best while replay clears award no coins", () =
   assert.equal(thirdWin.progress.records["1"].bestScore, 1400);
   assert.equal(calculateTotalStars(thirdWin.progress), 3);
   assert.equal(thirdWin.progress.coins, 2);
+});
+
+test("counts three-star levels from each level's historical best stars", () => {
+  const progress = {
+    highestUnlockedLevel: 5,
+    coins: 0,
+    records: {
+      1: { completed: true, bestScore: 1200, bestStars: 3 },
+      2: { completed: true, bestScore: 900, bestStars: 2 },
+      3: { completed: true, bestScore: 1500, bestStars: 3 },
+      4: { completed: false, bestScore: 0, bestStars: 3 },
+    },
+  };
+
+  assert.equal(calculateThreeStarLevels(progress), 3);
 });
 
 test("first clear uses chapter-local reward tiers while replay clear awards no coins", () => {

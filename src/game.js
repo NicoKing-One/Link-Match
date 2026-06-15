@@ -28,6 +28,7 @@ import {
   MAX_LEVEL_NUMBER,
   applyLevelResult,
   calculateCompletedLevels,
+  calculateThreeStarLevels,
   calculateTotalStars,
   createInitialProgress,
   getChapterStatus,
@@ -260,7 +261,7 @@ function renderHome() {
 function renderSecondaryPages(currentLevel) {
   const totalStars = calculateTotalStars(state.progress);
   const completedLevels = calculateCompletedLevels(state.progress);
-  const threeStarLevels = Object.values(state.progress.records).filter((record) => record?.stars >= 3).length;
+  const threeStarLevels = calculateThreeStarLevels(state.progress);
 
   elements.profileCurrentLevelText.textContent = `第${String(currentLevel.number).padStart(2, "0")}关`;
   elements.profileStarText.textContent = `${totalStars}/${MAX_LEVEL_NUMBER * 3}`;
