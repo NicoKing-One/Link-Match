@@ -142,7 +142,6 @@
           </header>
 
           <section class="settings-panel" aria-label="开关设置">
-            <div class="settings-flower" aria-hidden="true"></div>
             <article class="settings-row">
               <img class="settings-icon" src="./assets/UI-ICON/settings-page/icon-music.png" alt="" aria-hidden="true" />
               <strong>音乐</strong>
@@ -159,13 +158,6 @@
               <button class="settings-toggle is-on" id="vibrationToggle" type="button" aria-pressed="true"><span>开</span></button>
             </article>
           </section>
-
-          <section class="settings-clear-card" aria-label="清除进度">
-            <div class="settings-warning" aria-hidden="true">!</div>
-            <button class="settings-clear-button" id="clearProgressButton" type="button">清除进度</button>
-          </section>
-
-          <button class="secondary-home-button" id="settingsHomeButton" type="button">返回首页</button>
         </div>
       </section>
 
@@ -183,7 +175,11 @@
           <section class="exchange-coin-card" aria-label="金币数量">
             <img src="./assets/UI-ICON/exchange-page/icon-coin.png" alt="" aria-hidden="true" />
             <div>
-              <span>金币</span>
+              <div class="secondary-label-row">
+                <img src="./assets/UI-ICON/text-side-leaf-left.png" alt="" aria-hidden="true" />
+                <span>金币</span>
+                <img src="./assets/UI-ICON/text-side-leaf-right.png" alt="" aria-hidden="true" />
+              </div>
               <strong id="exchangeCoinText">0</strong>
             </div>
           </section>
@@ -192,7 +188,11 @@
             <article class="exchange-item">
               <img class="exchange-item-icon" src="./assets/UI-ICON/exchange-page/icon-stamina.png" alt="" aria-hidden="true" />
               <div class="exchange-item-copy">
-                <strong>体力 +30</strong>
+                <div class="secondary-label-row">
+                  <img src="./assets/UI-ICON/text-side-leaf-left.png" alt="" aria-hidden="true" />
+                  <strong>体力 +30</strong>
+                  <img src="./assets/UI-ICON/text-side-leaf-right.png" alt="" aria-hidden="true" />
+                </div>
                 <span><img src="./assets/UI-ICON/exchange-page/icon-coin.png" alt="" aria-hidden="true" />20 金币</span>
               </div>
               <button class="exchange-button" type="button" data-exchange="stamina">兑换</button>
@@ -200,7 +200,11 @@
             <article class="exchange-item">
               <img class="exchange-item-icon" src="./assets/UI-ICON/exchange-page/icon-hint.png" alt="" aria-hidden="true" />
               <div class="exchange-item-copy">
-                <strong>提示 +1</strong>
+                <div class="secondary-label-row">
+                  <img src="./assets/UI-ICON/text-side-leaf-left.png" alt="" aria-hidden="true" />
+                  <strong>提示 +1</strong>
+                  <img src="./assets/UI-ICON/text-side-leaf-right.png" alt="" aria-hidden="true" />
+                </div>
                 <span><img src="./assets/UI-ICON/exchange-page/icon-coin.png" alt="" aria-hidden="true" />15 金币</span>
               </div>
               <button class="exchange-button" type="button" data-exchange="hint">兑换</button>
@@ -208,14 +212,16 @@
             <article class="exchange-item">
               <img class="exchange-item-icon" src="./assets/UI-ICON/exchange-page/icon-shuffle.png" alt="" aria-hidden="true" />
               <div class="exchange-item-copy">
-                <strong>洗牌 +1</strong>
+                <div class="secondary-label-row">
+                  <img src="./assets/UI-ICON/text-side-leaf-left.png" alt="" aria-hidden="true" />
+                  <strong>洗牌 +1</strong>
+                  <img src="./assets/UI-ICON/text-side-leaf-right.png" alt="" aria-hidden="true" />
+                </div>
                 <span><img src="./assets/UI-ICON/exchange-page/icon-coin.png" alt="" aria-hidden="true" />15 金币</span>
               </div>
               <button class="exchange-button" type="button" data-exchange="shuffle">兑换</button>
             </article>
           </section>
-
-          <button class="secondary-home-button" id="exchangeHomeButton" type="button">返回首页</button>
         </div>
       </section>
 

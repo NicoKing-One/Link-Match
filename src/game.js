@@ -202,7 +202,7 @@ function bindEvents() {
   elements.settingToggles.forEach((button) => {
     button.addEventListener("click", () => toggleSettingButton(button));
   });
-  elements.clearProgressButton.addEventListener("click", () => {
+  elements.clearProgressButton?.addEventListener("click", () => {
     showHomeNotice("清除进度功能待接入");
   });
   elements.exchangeButtons.forEach((button) => {

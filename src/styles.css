@@ -391,10 +391,8 @@ button:disabled {
 .settings-clear-card,
 .exchange-coin-card,
 .exchange-item {
-  border: 2px solid rgba(255, 255, 255, 0.86);
-  box-shadow:
-    inset 0 5px 0 rgba(255, 255, 255, 0.52),
-    0 12px 22px rgba(93, 131, 74, 0.2);
+  border: 0;
+  box-shadow: 0 10px 18px rgba(93, 131, 74, 0.18);
 }
 
 .profile-identity-card,
@@ -557,19 +555,60 @@ button:disabled {
 }
 
 .settings-layout {
-  gap: 20px;
+  gap: 10px;
+  padding-top: 14px;
+  padding-bottom: 8px;
+  overflow: hidden;
+}
+
+.settings-layout .secondary-back-button,
+.exchange-layout .secondary-back-button {
+  top: 18px;
+  left: 14px;
+  width: 59px;
+}
+
+.settings-layout .secondary-title,
+.exchange-layout .secondary-title {
+  width: min(64%, 288px);
+  min-height: 77px;
+  margin: 8px auto 0;
+}
+
+.settings-layout .secondary-title h2,
+.exchange-layout .secondary-title h2 {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+  font-size: 24px;
+  line-height: 1;
+  text-align: center;
+  transform: translateY(-7px);
+  text-shadow:
+    0 3px 0 #086d66,
+    0 6px 12px rgba(2, 69, 71, 0.24);
+}
+
+.exchange-layout .secondary-label-row {
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.exchange-layout .secondary-label-row img {
+  width: 20px;
+  height: 16px;
 }
 
 .settings-panel {
   position: relative;
   display: grid;
-  width: min(88%, 430px);
-  padding: 68px 28px 28px;
-  gap: 20px;
-  border-radius: 38px;
-  background:
-    url("./assets/UI-ICON/settings-page/module-settings-panel-bg.png") center / 100% 100% no-repeat,
-    rgba(255, 248, 218, 0.94);
+  width: min(79.2%, 378px);
+  margin-top: 50px;
+  padding: 60px 20px 40px;
+  gap: 10px;
+  border-radius: 31px;
+  background: url("./assets/UI-ICON/settings-page/module-settings-panel-bg.png") center / 100% 100% no-repeat;
 }
 
 .settings-flower {
@@ -591,42 +630,45 @@ button:disabled {
 
 .settings-row {
   display: grid;
-  min-height: 108px;
-  padding: 12px 18px;
-  grid-template-columns: 86px minmax(0, 1fr) 122px;
+  min-height: 80px;
+  padding: 0 16px;
+  grid-template-columns: 70px minmax(0, 1fr) 120px;
   align-items: center;
-  gap: 14px;
-  border-radius: 26px;
-  background:
-    url("./assets/UI-ICON/settings-page/module-settings-row-bg.png") center / 100% 100% no-repeat,
-    rgba(255, 252, 234, 0.9);
+  justify-items: center;
+  gap: 8px;
+  border-radius: 22px;
+  background: url("./assets/UI-ICON/settings-page/module-settings-row-bg.png") center / 100% 100% no-repeat;
 }
 
 .settings-icon {
-  width: 72px;
-  height: 72px;
+  width: 40px;
+  height: 40px;
+  margin-left: 20px;
   object-fit: contain;
 }
 
 .settings-row strong {
+  min-width: 3em;
   color: #086d66;
-  font-size: 1.65rem;
+  font-size: 1.2rem;
   font-weight: 950;
+  line-height: 1;
   text-align: center;
+  white-space: nowrap;
 }
 
 .settings-toggle {
   position: relative;
-  min-height: 54px;
-  padding: 0 42px 0 20px;
+  min-height: 42px;
+  padding: 0 50px 0 20px;
   border-radius: 999px;
   color: #ffffff;
-  font-size: 1.35rem;
+  font-size: 1.05rem;
   font-weight: 950;
   text-align: left;
   text-shadow: 0 3px 0 #086d66;
   background: linear-gradient(180deg, #31e4d0, #049c94);
-  border: 3px solid rgba(255, 226, 149, 0.86);
+  border: 2px solid rgba(255, 226, 149, 0.86);
   box-shadow:
     inset 0 4px 0 rgba(255, 255, 255, 0.42),
     0 5px 0 rgba(5, 107, 103, 0.38);
@@ -635,18 +677,17 @@ button:disabled {
 .settings-toggle::after {
   content: "";
   position: absolute;
-  top: 5px;
-  right: 6px;
-  width: 40px;
-  height: 40px;
+  top: 7px;
+  right: 10px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
   background: linear-gradient(180deg, #fffdf5, #f0e6cf);
   box-shadow: 0 3px 8px rgba(42, 87, 77, 0.22);
 }
 
 .settings-toggle:not(.is-on) {
-  padding-right: 20px;
-  padding-left: 42px;
+  padding: 0 20px 0 50px;
   background: linear-gradient(180deg, #b8c6bd, #78948a);
 }
 
@@ -655,106 +696,61 @@ button:disabled {
   left: 6px;
 }
 
-.settings-clear-card {
-  display: grid;
-  width: min(82%, 400px);
-  min-height: 190px;
-  padding: 28px 30px;
-  align-items: center;
-  justify-items: center;
-  border-radius: 28px;
-  background:
-    url("./assets/UI-ICON/settings-page/module-settings-clear-bg.png") center / 100% 100% no-repeat,
-    rgba(255, 248, 218, 0.94);
-}
-
-.settings-warning {
-  display: grid;
-  width: 54px;
-  height: 54px;
-  place-items: center;
-  border-radius: 50%;
-  color: rgba(255, 255, 255, 0.95);
-  font-size: 2rem;
-  font-weight: 950;
-  background: rgba(255, 199, 103, 0.5);
-}
-
-.settings-clear-button {
-  width: min(86%, 280px);
-  min-height: 70px;
-  border-radius: 999px;
-  color: #ffffff;
-  font-size: 1.6rem;
-  font-weight: 950;
-  text-shadow: 0 4px 0 #a51f43;
-  background: linear-gradient(180deg, #ff7d96, #e62961);
-  border: 4px solid rgba(255, 221, 150, 0.9);
-  box-shadow:
-    inset 0 5px 0 rgba(255, 255, 255, 0.45),
-    0 8px 0 rgba(166, 81, 44, 0.32);
-}
-
 .exchange-layout {
-  gap: 18px;
+  gap: 10px;
+  padding-top: 14px;
+  padding-bottom: 8px;
+  overflow: hidden;
 }
 
 .exchange-coin-card {
   display: grid;
-  width: min(54%, 280px);
-  min-height: 110px;
-  padding: 12px 22px;
-  grid-template-columns: 82px minmax(0, 1fr);
+  width: min(79.2%, 378px);
+  min-height: 119px;
+  margin-top: 50px;
+  padding: 14px 24px;
+  grid-template-columns: 36% minmax(0, 1fr);
   align-items: center;
-  gap: 10px;
-  border-radius: 26px;
-  background:
-    url("./assets/UI-ICON/exchange-page/coin-exchange-resource-bg.png") center / 100% 100% no-repeat,
-    rgba(255, 248, 218, 0.94);
+  gap: 0;
+  border-radius: 22px;
+  background: url("./assets/UI-ICON/exchange-page/coin-exchange-resource-bg.png") center / 100% 100% no-repeat;
 }
 
-.exchange-coin-card img {
-  width: 74px;
-  height: 74px;
+.exchange-coin-card > img {
+  width: 69px;
+  height: 69px;
   object-fit: contain;
-}
-
-.exchange-coin-card span {
-  display: block;
-  color: #7b3b25;
-  font-size: 1.2rem;
-  font-weight: 950;
 }
 
 .exchange-coin-card strong {
   display: block;
   color: #086d66;
-  font-size: 2rem;
+  font-size: 1.8rem;
   font-weight: 950;
+  line-height: 1.1;
+  text-align: center;
 }
 
 .exchange-list {
   display: grid;
-  width: min(92%, 460px);
-  gap: 18px;
+  width: min(79.2%, 378px);
+  gap: 10px;
 }
 
 .exchange-item {
   display: grid;
-  min-height: 150px;
-  padding: 18px 20px;
-  grid-template-columns: 116px minmax(0, 1fr) 116px;
+  min-height: 125px;
+  padding: 14px 14px;
+  grid-template-columns: 74px minmax(0, 1fr) 78px;
   align-items: center;
-  gap: 12px;
-  border-radius: 28px;
-  background:
-    url("./assets/UI-ICON/exchange-page/module-exchange-item-bg.png") center / 100% 100% no-repeat,
-    rgba(255, 248, 218, 0.94);
+  gap: 8px;
+  border-radius: 22px;
+  background: url("./assets/UI-ICON/exchange-page/module-exchange-item-bg.png") center / 100% 100% no-repeat;
 }
 
 .exchange-item-icon {
-  width: 98px;
-  height: 98px;
+  width: 61px;
+  height: 61px;
   object-fit: contain;
 }
 
@@ -765,23 +761,24 @@ button:disabled {
   min-width: 0;
 }
 
-.exchange-item-copy strong {
+.exchange-item-copy .secondary-label-row strong {
   color: #086d66;
-  font-size: 1.55rem;
+  font-size: 1.1rem;
   font-weight: 950;
+  line-height: 1.1;
 }
 
 .exchange-item-copy span {
   display: inline-flex;
-  min-width: 132px;
-  min-height: 42px;
-  padding: 5px 14px;
+  min-width: 104px;
+  min-height: 34px;
+  padding: 4px 9px;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 5px;
   border-radius: 999px;
   color: #dc6a20;
-  font-size: 1.05rem;
+  font-size: 0.9rem;
   font-weight: 950;
   background: rgba(255, 252, 235, 0.94);
   box-shadow:
@@ -790,15 +787,15 @@ button:disabled {
 }
 
 .exchange-item-copy span img {
-  width: 30px;
-  height: 30px;
+  width: 24px;
+  height: 24px;
   object-fit: contain;
 }
 
 .exchange-button {
-  min-height: 66px;
+  min-height: 48px;
   color: #ffffff;
-  font-size: 1.45rem;
+  font-size: 1.05rem;
   font-weight: 950;
   text-shadow: 0 4px 0 #086d66;
   background: url("./assets/UI-ICON/exchange-page/button-exchange-bg.png") center / 100% 100% no-repeat;
@@ -829,11 +826,11 @@ button:disabled {
   }
 
   .settings-row {
-    min-height: 92px;
+    min-height: 80px;
   }
 
   .exchange-item {
-    min-height: 126px;
+    min-height: 104px;
   }
 }
 

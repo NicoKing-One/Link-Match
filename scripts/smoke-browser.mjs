@@ -654,6 +654,9 @@ async function expectSecondaryPageNavigation(page) {
     throw new Error("Expected settings entry to open the settings page.");
   }
   await expectSecondaryPageBuiltFromLayout(page, "#settingsScreen", ".settings-layout");
+  await expectSecondaryPageOptimizedLikeProfile(page, "#settingsScreen", ".settings-layout", ".settings-panel, .settings-row");
+  await expectSettingsPageRefinements(page);
+  await page.screenshot({ path: join(outputDir, "settings-mobile.png"), fullPage: true });
   await page.locator("#settingsBackButton").click();
   await page.waitForSelector(".screen-start.active", { timeout: 1200 });
 
@@ -663,6 +666,8 @@ async function expectSecondaryPageNavigation(page) {
     throw new Error("Expected coin resource entry to open the coin exchange page.");
   }
   await expectSecondaryPageBuiltFromLayout(page, "#exchangeScreen", ".exchange-layout");
+  await expectSecondaryPageOptimizedLikeProfile(page, "#exchangeScreen", ".exchange-layout", ".exchange-coin-card, .exchange-item");
+  await page.screenshot({ path: join(outputDir, "exchange-mobile.png"), fullPage: true });
   await page.locator("#exchangeBackButton").click();
   await page.waitForSelector(".screen-start.active", { timeout: 1200 });
 }
@@ -675,6 +680,181 @@ async function expectSecondaryPageBuiltFromLayout(page, screenSelector, layoutSe
   const hasLayout = await page.locator(`${screenSelector} ${layoutSelector}`).count();
   if (hasLayout !== 1) {
     throw new Error(`${screenSelector} should render exactly one layout root ${layoutSelector}.`);
+  }
+}
+
+async function expectSecondaryPageOptimizedLikeProfile(page, screenSelector, layoutSelector, cardSelector) {
+  const layout = await page.locator(`${screenSelector}.active ${layoutSelector}`).evaluate((node, cardSelector) => {
+    const backButton = node.querySelector(".secondary-back-button")?.getBoundingClientRect();
+    const title = node.querySelector(".secondary-title")?.getBoundingClientRect();
+    const titleText = node.querySelector(".secondary-title h2");
+    const titleStyle = titleText ? getComputedStyle(titleText) : null;
+    const titleTransform = titleStyle?.transform ?? "none";
+    const cards = [...node.querySelectorAll(cardSelector)];
+    const cardData = cards.map((card) => {
+      const style = getComputedStyle(card);
+      return {
+        background: style.backgroundImage,
+        borderWidth: Number.parseFloat(style.borderTopWidth),
+        color: style.backgroundColor,
+      };
+    });
+
+    return {
+      backWidth: Math.round(backButton?.width ?? 0),
+      cardData,
+      cardCount: cards.length,
+      clientHeight: node.clientHeight,
+      homeButtonCount: node.querySelectorAll(".secondary-home-button").length,
+      layoutOverflowY: getComputedStyle(node).overflowY,
+      scrollHeight: node.scrollHeight,
+      titleFontSize: titleStyle ? Number.parseFloat(titleStyle.fontSize) : 0,
+      titleHeight: Math.round(title?.height ?? 0),
+      titleTranslateY: titleTransform === "none" ? 0 : Math.round(new DOMMatrixReadOnly(titleTransform).m42),
+    };
+  }, cardSelector);
+
+  if (layout.backWidth < 58 || layout.backWidth > 61) {
+    throw new Error(`Expected ${screenSelector} back button to match profile page size, got ${JSON.stringify(layout)}.`);
+  }
+  if (layout.titleHeight < 75 || layout.titleHeight > 78 || Math.abs(layout.titleFontSize - 24) > 0.5) {
+    throw new Error(`Expected ${screenSelector} title to match profile page scale, got ${JSON.stringify(layout)}.`);
+  }
+  if (layout.titleTranslateY > -6 || layout.titleTranslateY < -8) {
+    throw new Error(`Expected ${screenSelector} title text to match profile page alignment, got ${JSON.stringify(layout)}.`);
+  }
+  if (layout.cardCount === 0) {
+    throw new Error(`Expected ${screenSelector} to render optimized middle cards, got ${JSON.stringify(layout)}.`);
+  }
+  const cardWithColor = layout.cardData.find((card) => card.color !== "rgba(0, 0, 0, 0)" || card.background === "none");
+  if (cardWithColor) {
+    throw new Error(`Expected ${screenSelector} cards to use transparent image-backed panels, got ${JSON.stringify(layout)}.`);
+  }
+  const cardWithBorder = layout.cardData.find((card) => card.borderWidth !== 0);
+  if (cardWithBorder) {
+    throw new Error(`Expected ${screenSelector} cards to remove white borders, got ${JSON.stringify(layout)}.`);
+  }
+  if (layout.homeButtonCount !== 0) {
+    throw new Error(`Expected ${screenSelector} bottom home button to be removed, got ${JSON.stringify(layout)}.`);
+  }
+  if (layout.scrollHeight > layout.clientHeight || layout.layoutOverflowY !== "hidden") {
+    throw new Error(`Expected ${screenSelector} page not to scroll, got ${JSON.stringify(layout)}.`);
+  }
+}
+
+async function expectSettingsPageRefinements(page) {
+  const layout = await page.locator("#settingsScreen.active .settings-layout").evaluate((node) => {
+    const panel = node.querySelector(".settings-panel");
+    const panelStyle = panel ? getComputedStyle(panel) : null;
+    const rows = [...node.querySelectorAll(".settings-row")];
+    const rowData = rows.map((row) => {
+      const rowBox = row.getBoundingClientRect();
+      const icon = row.querySelector(".settings-icon");
+      const iconStyle = icon ? getComputedStyle(icon) : null;
+      const label = row.querySelector("strong");
+      const labelBox = label?.getBoundingClientRect();
+      const labelStyle = label ? getComputedStyle(label) : null;
+      const toggle = row.querySelector(".settings-toggle");
+      const toggleStyle = toggle ? getComputedStyle(toggle) : null;
+      const toggleAfter = toggle ? getComputedStyle(toggle, "::after") : null;
+      const childCenters = [...row.children].map((child) => {
+        const box = child.getBoundingClientRect();
+        return Math.round(Math.abs((box.top + box.bottom) / 2 - (rowBox.top + rowBox.bottom) / 2));
+      });
+      return {
+        childCenterMaxDelta: Math.max(...childCenters),
+        iconHeight: iconStyle ? Number.parseFloat(iconStyle.height) : 0,
+        iconMarginLeft: iconStyle ? Number.parseFloat(iconStyle.marginLeft) : 0,
+        iconWidth: iconStyle ? Number.parseFloat(iconStyle.width) : 0,
+        labelFontSize: labelStyle ? Number.parseFloat(labelStyle.fontSize) : 0,
+        labelHeight: Math.round(labelBox?.height ?? 0),
+        labelText: label?.textContent ?? "",
+        labelWhiteSpace: labelStyle?.whiteSpace ?? "",
+        leafIconCount: row.querySelectorAll(".secondary-label-row img").length,
+        rowMinHeight: Number.parseFloat(getComputedStyle(row).minHeight),
+        rowColumns: getComputedStyle(row).gridTemplateColumns,
+        toggleAfterHeight: toggleAfter ? Number.parseFloat(toggleAfter.height) : 0,
+        toggleAfterRight: toggleAfter ? Number.parseFloat(toggleAfter.right) : 0,
+        toggleAfterTop: toggleAfter ? Number.parseFloat(toggleAfter.top) : 0,
+        toggleAfterWidth: toggleAfter ? Number.parseFloat(toggleAfter.width) : 0,
+        togglePaddingLeft: toggleStyle ? Number.parseFloat(toggleStyle.paddingLeft) : 0,
+        togglePaddingRight: toggleStyle ? Number.parseFloat(toggleStyle.paddingRight) : 0,
+      };
+    });
+
+    return {
+      clearProgressCount: node.querySelectorAll("#clearProgressButton, .settings-clear-card").length,
+      panelPaddingBottom: panelStyle ? Number.parseFloat(panelStyle.paddingBottom) : 0,
+      panelPaddingLeft: panelStyle ? Number.parseFloat(panelStyle.paddingLeft) : 0,
+      panelPaddingRight: panelStyle ? Number.parseFloat(panelStyle.paddingRight) : 0,
+      panelPaddingTop: panelStyle ? Number.parseFloat(panelStyle.paddingTop) : 0,
+      rowData,
+      rowCount: rows.length,
+    };
+  });
+
+  if (layout.rowCount !== 3) {
+    throw new Error(`Expected settings page to keep exactly three setting rows, got ${JSON.stringify(layout)}.`);
+  }
+  if (
+    Math.abs(layout.panelPaddingTop - 60) > 0.5 ||
+    Math.abs(layout.panelPaddingRight - 20) > 0.5 ||
+    Math.abs(layout.panelPaddingBottom - 40) > 0.5 ||
+    Math.abs(layout.panelPaddingLeft - 20) > 0.5
+  ) {
+    throw new Error(`Expected settings panel padding to be 60px 20px 40px, got ${JSON.stringify(layout)}.`);
+  }
+  const rowWithLeaves = layout.rowData.find((row) => row.leafIconCount !== 0);
+  if (rowWithLeaves) {
+    throw new Error(`Expected settings row labels to remove side leaf icons, got ${JSON.stringify(layout)}.`);
+  }
+  const offCenterRow = layout.rowData.find((row) => row.childCenterMaxDelta > 3);
+  if (offCenterRow) {
+    throw new Error(`Expected settings row content to be vertically centered, got ${JSON.stringify(layout)}.`);
+  }
+  const wrongIconSize = layout.rowData.find(
+    (row) =>
+      Math.abs(row.iconWidth - 40) > 0.5 ||
+      Math.abs(row.iconHeight - 40) > 0.5 ||
+      Math.abs(row.iconMarginLeft - 20) > 0.5,
+  );
+  if (wrongIconSize) {
+    throw new Error(`Expected settings icons to use 40px size and 20px left margin, got ${JSON.stringify(layout)}.`);
+  }
+  const wrongRowHeight = layout.rowData.find((row) => Math.abs(row.rowMinHeight - 80) > 0.5);
+  if (wrongRowHeight) {
+    throw new Error(`Expected settings rows to use 80px min-height, got ${JSON.stringify(layout)}.`);
+  }
+  const wrappedLabel = layout.rowData.find((row) => row.labelHeight > 28 || row.labelWhiteSpace !== "nowrap");
+  if (wrappedLabel) {
+    throw new Error(`Expected settings row labels to stay on one line, got ${JSON.stringify(layout)}.`);
+  }
+  const wrongLabelSize = layout.rowData.find((row) => Math.abs(row.labelFontSize - 19.2) > 0.5);
+  if (wrongLabelSize) {
+    throw new Error(`Expected settings row labels to use 1.2rem font size, got ${JSON.stringify(layout)}.`);
+  }
+  const wrongColumns = layout.rowData.find((row) => !row.rowColumns.includes("70px") || !row.rowColumns.includes("120px"));
+  if (wrongColumns) {
+    throw new Error(`Expected settings rows to use 70px 1fr 120px columns, got ${JSON.stringify(layout)}.`);
+  }
+  const wrongTogglePadding = layout.rowData.find(
+    (row) => Math.abs(row.togglePaddingLeft - 20) > 0.5 || Math.abs(row.togglePaddingRight - 50) > 0.5,
+  );
+  if (wrongTogglePadding) {
+    throw new Error(`Expected settings toggle padding to be 0 50px 0 20px, got ${JSON.stringify(layout)}.`);
+  }
+  const wrongToggleKnob = layout.rowData.find(
+    (row) =>
+      Math.abs(row.toggleAfterTop - 7) > 0.5 ||
+      Math.abs(row.toggleAfterRight - 10) > 0.5 ||
+      Math.abs(row.toggleAfterWidth - 26) > 0.5 ||
+      Math.abs(row.toggleAfterHeight - 26) > 0.5,
+  );
+  if (wrongToggleKnob) {
+    throw new Error(`Expected settings toggle knob to use top 7px, right 10px, 26px size, got ${JSON.stringify(layout)}.`);
+  }
+  if (layout.clearProgressCount !== 0) {
+    throw new Error(`Expected settings clear-progress card to be removed, got ${JSON.stringify(layout)}.`);
   }
 }
 
