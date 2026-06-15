@@ -620,6 +620,8 @@ async function expectSecondaryPageNavigation(page) {
     throw new Error("Expected profile entry to open the personal center page.");
   }
   await expectSecondaryPageBuiltFromLayout(page, "#profileScreen", ".profile-layout");
+  await expectProfilePageOptimizedLayout(page);
+  await page.screenshot({ path: join(outputDir, "profile-mobile.png"), fullPage: true });
   await page.locator("#profileBackButton").click();
   await page.waitForSelector(".screen-start.active", { timeout: 1200 });
 
@@ -650,6 +652,161 @@ async function expectSecondaryPageBuiltFromLayout(page, screenSelector, layoutSe
   const hasLayout = await page.locator(`${screenSelector} ${layoutSelector}`).count();
   if (hasLayout !== 1) {
     throw new Error(`${screenSelector} should render exactly one layout root ${layoutSelector}.`);
+  }
+}
+
+async function expectProfilePageOptimizedLayout(page) {
+  const layout = await page.locator("#profileScreen.active .profile-layout").evaluate((node) => {
+    const backButton = node.querySelector("#profileBackButton")?.getBoundingClientRect();
+    const title = node.querySelector(".secondary-title--profile")?.getBoundingClientRect();
+    const titleText = node.querySelector(".secondary-title--profile h2");
+    const identityCard = node.querySelector(".profile-identity-card");
+    const cards = [...node.querySelectorAll(".profile-identity-card, .profile-stat-card, .profile-wide-card")];
+    const statsGrid = node.querySelector(".profile-stats-grid");
+    const levelBadge = node.querySelector("#profileCurrentLevelText");
+    const starText = node.querySelector("#profileStarText");
+    const completedCounter = node.querySelector("#profileCompletedText");
+    const threeStarCounter = node.querySelector("#profileThreeStarText");
+    const completedText = node.querySelector("#profileCompletedText")?.textContent ?? "";
+    const threeStarText = node.querySelector("#profileThreeStarText")?.textContent ?? "";
+    const nodeBox = node.getBoundingClientRect();
+    const gridBox = statsGrid?.getBoundingClientRect();
+    const cardData = cards.map((card) => {
+      const style = getComputedStyle(card);
+      const box = card.getBoundingClientRect();
+      const childBoxes = [...card.children].map((child) => child.getBoundingClientRect());
+      const contentTop = Math.min(...childBoxes.map((child) => child.top));
+      const contentBottom = Math.max(...childBoxes.map((child) => child.bottom));
+      return {
+        background: style.backgroundImage,
+        borderWidth: Number.parseFloat(style.borderTopWidth),
+        centerDelta: Math.round(Math.abs((contentTop + contentBottom) / 2 - (box.top + box.bottom) / 2)),
+        color: style.backgroundColor,
+        height: Math.round(box.height),
+      };
+    });
+    const identityStyle = identityCard ? getComputedStyle(identityCard) : null;
+    const titleStyle = titleText ? getComputedStyle(titleText) : null;
+    const titleTransform = titleStyle?.transform ?? "none";
+    const levelBadgeBox = levelBadge?.getBoundingClientRect();
+    const levelBadgeStyle = levelBadge ? getComputedStyle(levelBadge) : null;
+    const starStyle = starText ? getComputedStyle(starText) : null;
+    const levelBadgeTransform = levelBadgeStyle?.transform ?? "none";
+    const starTransform = starStyle?.transform ?? "none";
+    const completedStyle = completedCounter ? getComputedStyle(completedCounter) : null;
+    const threeStarStyle = threeStarCounter ? getComputedStyle(threeStarCounter) : null;
+    const iconData = {
+      coinWidth: Math.round(node.querySelector(".profile-wide-icon")?.getBoundingClientRect().width ?? 0),
+      levelWidth: Math.round(node.querySelector(".profile-stat-icon--level")?.getBoundingClientRect().width ?? 0),
+      starWidth: Math.round(
+        [...node.querySelectorAll(".profile-stat-card")]
+          .find((card) => card.textContent.includes("总星数"))
+          ?.querySelector(".profile-stat-icon")
+          ?.getBoundingClientRect().width ?? 0,
+      ),
+    };
+    return {
+      backWidth: Math.round(backButton?.width ?? 0),
+      cardData,
+      cardCount: cards.length,
+      clientHeight: node.clientHeight,
+      completedText,
+      gridCenterDelta: gridBox ? Math.round(Math.abs((gridBox.left + gridBox.right) / 2 - (nodeBox.left + nodeBox.right) / 2)) : 999,
+      homeButtonCount: node.querySelectorAll("#profileHomeButton").length,
+      iconData,
+      identityMarginTop: identityStyle ? Number.parseFloat(identityStyle.marginTop) : 0,
+      layoutOverflowY: getComputedStyle(node).overflowY,
+      levelBadgeFontSize: levelBadgeStyle ? Number.parseFloat(levelBadgeStyle.fontSize) : 0,
+      levelBadgeLineHeight: levelBadgeStyle ? Number.parseFloat(levelBadgeStyle.lineHeight) : 0,
+      levelBadgeTranslateY: levelBadgeTransform === "none" ? 0 : Math.round(new DOMMatrixReadOnly(levelBadgeTransform).m42),
+      levelBadgeWidth: Math.round(levelBadgeBox?.width ?? 0),
+      nodeHeight: Math.round(nodeBox.height),
+      scrollHeight: node.scrollHeight,
+      completedFontSize: completedStyle ? Number.parseFloat(completedStyle.fontSize) : 0,
+      starFontSize: starStyle ? Number.parseFloat(starStyle.fontSize) : 0,
+      starTranslateY: starTransform === "none" ? 0 : Math.round(new DOMMatrixReadOnly(starTransform).m42),
+      threeStarFontSize: threeStarStyle ? Number.parseFloat(threeStarStyle.fontSize) : 0,
+      threeStarText,
+      titleFontSize: titleStyle ? Number.parseFloat(titleStyle.fontSize) : 0,
+      titleHeight: Math.round(title?.height ?? 0),
+      titleTextAlign: titleStyle?.textAlign ?? "",
+      titleTranslateY: titleTransform === "none" ? 0 : Math.round(new DOMMatrixReadOnly(titleTransform).m42),
+    };
+  });
+
+  if (layout.backWidth < 58 || layout.backWidth > 61) {
+    throw new Error(`Expected profile back button to be 20% smaller, got ${JSON.stringify(layout)}.`);
+  }
+  if (layout.titleHeight < 75 || layout.titleHeight > 78 || Math.abs(layout.titleFontSize - 24) > 0.5) {
+    throw new Error(`Expected profile title icon to shrink 20% and text to be 24px, got ${JSON.stringify(layout)}.`);
+  }
+  if (layout.cardCount !== 6) {
+    throw new Error(`Expected profile page to render 6 middle cards, got ${JSON.stringify(layout)}.`);
+  }
+  const cardWithColor = layout.cardData.find((card) => card.color !== "rgba(0, 0, 0, 0)" || !card.background.includes("module-profile-"));
+  if (cardWithColor) {
+    throw new Error(`Expected profile cards to keep image backgrounds without beige color fill, got ${JSON.stringify(layout)}.`);
+  }
+  const cardWithBorder = layout.cardData.find((card) => card.borderWidth !== 0);
+  if (cardWithBorder) {
+    throw new Error(`Expected profile middle cards to remove white borders, got ${JSON.stringify(layout)}.`);
+  }
+  const offCenterCard = layout.cardData.find((card) => card.centerDelta > 8);
+  if (offCenterCard) {
+    throw new Error(`Expected profile middle cards to center their content vertically, got ${JSON.stringify(layout)}.`);
+  }
+  if (layout.gridCenterDelta > 2) {
+    throw new Error(`Expected profile middle card grid to be centered, got ${JSON.stringify(layout)}.`);
+  }
+  if (layout.titleTranslateY > -6 || layout.titleTranslateY < -8) {
+    throw new Error(`Expected profile title text to move down 8px from previous position, got ${JSON.stringify(layout)}.`);
+  }
+  if (
+    layout.iconData.levelWidth < 90 ||
+    layout.iconData.levelWidth > 92 ||
+    layout.iconData.starWidth < 60 ||
+    layout.iconData.starWidth > 62 ||
+    layout.iconData.coinWidth < 68 ||
+    layout.iconData.coinWidth > 70
+  ) {
+    throw new Error(`Expected profile level/star/coin icons to shrink another 10%, got ${JSON.stringify(layout)}.`);
+  }
+  if (
+    layout.levelBadgeFontSize < 15.5 ||
+    layout.levelBadgeFontSize > 16.5 ||
+    layout.levelBadgeLineHeight < 15.5 ||
+    layout.levelBadgeLineHeight > 16.5
+  ) {
+    throw new Error(`Expected current-level green badge text to be 1rem and vertically centered, got ${JSON.stringify(layout)}.`);
+  }
+  if (layout.levelBadgeTranslateY < 9 || layout.levelBadgeTranslateY > 11) {
+    throw new Error(`Expected current-level green badge to move down 10px, got ${JSON.stringify(layout)}.`);
+  }
+  if (layout.starFontSize < 19 || layout.starFontSize > 20) {
+    throw new Error(`Expected total-stars number text to be 1.2rem, got ${JSON.stringify(layout)}.`);
+  }
+  if (layout.starTranslateY < 9 || layout.starTranslateY > 11) {
+    throw new Error(`Expected total-stars number to move down 10px, got ${JSON.stringify(layout)}.`);
+  }
+  if (
+    layout.completedFontSize < 22 ||
+    layout.completedFontSize > 23 ||
+    layout.threeStarFontSize < 22 ||
+    layout.threeStarFontSize > 23
+  ) {
+    throw new Error(`Expected completed and three-star number text to be 1.4rem, got ${JSON.stringify(layout)}.`);
+  }
+  if (!/^\d+关$/.test(layout.completedText) || !/^\d+关$/.test(layout.threeStarText)) {
+    throw new Error(`Expected completed and three-star counts to include 关 suffix, got ${JSON.stringify(layout)}.`);
+  }
+  if (layout.scrollHeight > layout.clientHeight || layout.layoutOverflowY !== "hidden") {
+    throw new Error(`Expected profile page not to scroll, got ${JSON.stringify(layout)}.`);
+  }
+  if (Math.abs(layout.identityMarginTop - 50) > 0.5) {
+    throw new Error(`Expected profile identity card to have margin-top: 50px, got ${JSON.stringify(layout)}.`);
+  }
+  if (layout.homeButtonCount !== 0) {
+    throw new Error(`Expected profile bottom home button to be removed, got ${JSON.stringify(layout)}.`);
   }
 }
 

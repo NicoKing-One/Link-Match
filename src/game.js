@@ -195,7 +195,7 @@ function bindEvents() {
     elements.settingsHomeButton,
     elements.exchangeBackButton,
     elements.exchangeHomeButton,
-  ].forEach((button) => {
+  ].filter(Boolean).forEach((button) => {
     button.addEventListener("click", returnHome);
   });
   elements.settingToggles.forEach((button) => {
@@ -265,8 +265,8 @@ function renderSecondaryPages(currentLevel) {
   elements.profileCurrentLevelText.textContent = `第${String(currentLevel.number).padStart(2, "0")}关`;
   elements.profileStarText.textContent = `${totalStars}/${MAX_LEVEL_NUMBER * 3}`;
   elements.profileCoinText.textContent = state.progress.coins;
-  elements.profileCompletedText.textContent = completedLevels;
-  elements.profileThreeStarText.textContent = threeStarLevels;
+  elements.profileCompletedText.textContent = `${completedLevels}关`;
+  elements.profileThreeStarText.textContent = `${threeStarLevels}关`;
   elements.exchangeCoinText.textContent = state.progress.coins;
 }
 

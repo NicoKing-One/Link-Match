@@ -352,8 +352,36 @@ button:disabled {
 }
 
 .profile-layout {
-  gap: 14px;
-  padding-bottom: 18px;
+  gap: 4px;
+  padding-top: 14px;
+  padding-bottom: 8px;
+  overflow: hidden;
+}
+
+.profile-layout .secondary-back-button {
+  top: 18px;
+  left: 14px;
+  width: 59px;
+}
+
+.profile-layout .secondary-title--profile {
+  width: min(64%, 288px);
+  min-height: 77px;
+  margin: 8px auto 0;
+}
+
+.profile-layout .secondary-title--profile h2 {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+  font-size: 24px;
+  line-height: 1;
+  text-align: center;
+  transform: translateY(-7px);
+  text-shadow:
+    0 3px 0 #086d66,
+    0 6px 12px rgba(2, 69, 71, 0.24);
 }
 
 .profile-identity-card,
@@ -369,18 +397,24 @@ button:disabled {
     0 12px 22px rgba(93, 131, 74, 0.2);
 }
 
+.profile-identity-card,
+.profile-stat-card,
+.profile-wide-card {
+  border: 0;
+  box-shadow: 0 10px 18px rgba(93, 131, 74, 0.18);
+}
+
 .profile-identity-card {
   display: grid;
-  width: min(90%, 430px);
-  min-height: 180px;
-  padding: 22px 24px;
+  width: min(81%, 387px);
+  min-height: 162px;
+  margin-top: 50px;
+  padding: 20px 22px;
   grid-template-columns: 34% minmax(0, 1fr);
   align-items: center;
-  gap: 16px;
-  border-radius: 34px;
-  background:
-    url("./assets/UI-ICON/profile-page/module-profile-info-bg.png") center / 100% 100% no-repeat,
-    rgba(255, 248, 218, 0.94);
+  gap: 14px;
+  border-radius: 31px;
+  background: url("./assets/UI-ICON/profile-page/module-profile-info-bg.png") center / 100% 100% no-repeat;
 }
 
 .profile-avatar {
@@ -411,11 +445,12 @@ button:disabled {
   display: grid;
   min-width: 0;
   justify-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
 .profile-player strong {
-  font-size: 1.5rem;
+  font-size: 1.35rem;
+  white-space: nowrap;
 }
 
 .profile-divider {
@@ -436,66 +471,89 @@ button:disabled {
 
 .profile-stats-grid {
   display: grid;
-  width: min(88%, 420px);
+  width: min(79.2%, 378px);
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: 10px;
 }
 
 .profile-stat-card,
 .profile-wide-card {
   display: grid;
-  min-height: 156px;
-  padding: 14px 10px;
+  min-height: 140px;
+  padding: 12px 9px;
+  align-content: center;
   align-items: center;
+  justify-content: center;
   justify-items: center;
-  border-radius: 24px;
-  background:
-    url("./assets/UI-ICON/profile-page/module-profile-stat-card-bg.png") center / 100% 100% no-repeat,
-    rgba(255, 248, 218, 0.94);
+  border-radius: 22px;
+  background: url("./assets/UI-ICON/profile-page/module-profile-stat-card-bg.png") center / 100% 100% no-repeat;
 }
 
 .profile-stat-card strong,
 .profile-wide-card strong {
   color: #076f65;
-  font-size: 2rem;
+  font-size: 1.8rem;
   font-weight: 950;
 }
 
+#profileStarText {
+  display: block;
+  font-size: 1.2rem;
+  transform: translateY(10px);
+}
+
+#profileCompletedText,
+#profileThreeStarText {
+  font-size: 1.4rem;
+}
+
 .profile-stat-icon {
-  width: 76px;
-  height: 64px;
+  width: 61px;
+  height: 52px;
   object-fit: contain;
 }
 
 .profile-stat-icon--level {
-  width: 112px;
+  width: 91px;
 }
 
 .profile-level-badge {
-  min-width: 118px;
-  padding: 7px 12px 8px;
+  display: grid;
+  min-width: 106px;
+  padding: 6px 11px 7px;
+  place-items: center;
   color: #ffffff;
-  font-size: 1.35rem;
+  font-size: 1rem;
   font-weight: 950;
+  line-height: 1rem;
   text-align: center;
+  transform: translateY(10px);
   text-shadow: 0 3px 0 #086d66;
   background: url("./assets/UI-ICON/profile-page/level-badge-bg.png") center / 100% 100% no-repeat;
 }
 
 .profile-wide-card {
-  min-height: 132px;
+  min-height: 119px;
   grid-column: 1 / -1;
   grid-template-columns: 36% minmax(0, 1fr);
-  background:
-    url("./assets/UI-ICON/profile-page/module-profile-coin-wide-bg.png") center / 100% 100% no-repeat,
-    rgba(255, 248, 218, 0.94);
+  background: url("./assets/UI-ICON/profile-page/module-profile-coin-wide-bg.png") center / 100% 100% no-repeat;
 }
 
 .profile-wide-icon {
-  width: 86px;
-  height: 86px;
+  width: 69px;
+  height: 69px;
   object-fit: contain;
   grid-row: span 2;
+}
+
+.profile-layout .secondary-label-row img {
+  width: 20px;
+  height: 16px;
+}
+
+.profile-layout .secondary-label-row {
+  gap: 4px;
+  white-space: nowrap;
 }
 
 .settings-layout {
