@@ -62,11 +62,15 @@ resetStoredPlayerDataIfNeeded();
 
 const screens = {
   start: document.querySelector("#startScreen"),
+  profile: document.querySelector("#profileScreen"),
+  settings: document.querySelector("#settingsScreen"),
+  exchange: document.querySelector("#exchangeScreen"),
   game: document.querySelector("#gameScreen"),
   result: document.querySelector("#resultScreen"),
 };
 
 const elements = {
+  appShell: document.querySelector(".app-shell"),
   chapterTabs: document.querySelector("#chapterTabs"),
   chapterSummary: document.querySelector("#chapterSummary"),
   chapterLockNotice: document.querySelector("#chapterLockNotice"),
@@ -76,6 +80,22 @@ const elements = {
   nextChapterButton: document.querySelector("#nextChapterButton"),
   profileButton: document.querySelector("#profileButton"),
   settingsButton: document.querySelector("#settingsButton"),
+  coinExchangeButton: document.querySelector("#coinExchangeButton"),
+  profileBackButton: document.querySelector("#profileBackButton"),
+  profileHomeButton: document.querySelector("#profileHomeButton"),
+  settingsBackButton: document.querySelector("#settingsBackButton"),
+  settingsHomeButton: document.querySelector("#settingsHomeButton"),
+  exchangeBackButton: document.querySelector("#exchangeBackButton"),
+  exchangeHomeButton: document.querySelector("#exchangeHomeButton"),
+  profileCurrentLevelText: document.querySelector("#profileCurrentLevelText"),
+  profileStarText: document.querySelector("#profileStarText"),
+  profileCoinText: document.querySelector("#profileCoinText"),
+  profileCompletedText: document.querySelector("#profileCompletedText"),
+  profileThreeStarText: document.querySelector("#profileThreeStarText"),
+  exchangeCoinText: document.querySelector("#exchangeCoinText"),
+  settingToggles: document.querySelectorAll(".settings-toggle"),
+  clearProgressButton: document.querySelector("#clearProgressButton"),
+  exchangeButtons: document.querySelectorAll(".exchange-button"),
   startButton: document.querySelector("#startButton"),
   coinText: document.querySelector("#coinText"),
   starText: document.querySelector("#starText"),
@@ -165,8 +185,30 @@ function bindEvents() {
   elements.startButton.addEventListener("click", () => requestStartGame(LEVELS[state.progress.highestUnlockedLevel - 1]));
   elements.prevChapterButton.addEventListener("click", () => switchChapter(-1));
   elements.nextChapterButton.addEventListener("click", () => switchChapter(1));
-  elements.profileButton.addEventListener("click", () => showHomeNotice("个人中心将在下一步接入"));
-  elements.settingsButton.addEventListener("click", () => showHomeNotice("设置入口已预留"));
+  elements.profileButton.addEventListener("click", () => openSecondaryPage("profile"));
+  elements.settingsButton.addEventListener("click", () => openSecondaryPage("settings"));
+  elements.coinExchangeButton.addEventListener("click", () => openSecondaryPage("exchange"));
+  [
+    elements.profileBackButton,
+    elements.profileHomeButton,
+    elements.settingsBackButton,
+    elements.settingsHomeButton,
+    elements.exchangeBackButton,
+    elements.exchangeHomeButton,
+  ].forEach((button) => {
+    button.addEventListener("click", returnHome);
+  });
+  elements.settingToggles.forEach((button) => {
+    button.addEventListener("click", () => toggleSettingButton(button));
+  });
+  elements.clearProgressButton.addEventListener("click", () => {
+    showHomeNotice("清除进度功能待接入");
+  });
+  elements.exchangeButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      showHomeNotice("兑换功能待接入");
+    });
+  });
   elements.getStaminaButtons.forEach((button) => {
     button.addEventListener("click", claimStaminaFromAd);
   });
@@ -195,14 +237,44 @@ function bindEvents() {
   });
 }
 
+function openSecondaryPage(name) {
+  stopTimer();
+  state.paused = false;
+  hideToast();
+  hideModals();
+  renderHome();
+  showScreen(name);
+}
+
 function renderHome() {
   const currentLevel = LEVELS[state.progress.highestUnlockedLevel - 1] ?? LEVELS[0];
   elements.startButton.textContent = calculateCompletedLevels(state.progress) > 0 ? "继续闯关" : "开始闯关";
   elements.coinText.textContent = state.progress.coins;
   elements.starText.textContent = `${calculateTotalStars(state.progress)}/${MAX_LEVEL_NUMBER * 3}`;
   elements.completedText.textContent = `已通关 ${calculateCompletedLevels(state.progress)}`;
+  renderSecondaryPages(currentLevel);
   renderChapterTabs();
   renderRoadMap();
+}
+
+function renderSecondaryPages(currentLevel) {
+  const totalStars = calculateTotalStars(state.progress);
+  const completedLevels = calculateCompletedLevels(state.progress);
+  const threeStarLevels = Object.values(state.progress.records).filter((record) => record?.stars >= 3).length;
+
+  elements.profileCurrentLevelText.textContent = `第${String(currentLevel.number).padStart(2, "0")}关`;
+  elements.profileStarText.textContent = `${totalStars}/${MAX_LEVEL_NUMBER * 3}`;
+  elements.profileCoinText.textContent = state.progress.coins;
+  elements.profileCompletedText.textContent = completedLevels;
+  elements.profileThreeStarText.textContent = threeStarLevels;
+  elements.exchangeCoinText.textContent = state.progress.coins;
+}
+
+function toggleSettingButton(button) {
+  const isOn = !button.classList.contains("is-on");
+  button.classList.toggle("is-on", isOn);
+  button.setAttribute("aria-pressed", String(isOn));
+  button.querySelector("span").textContent = isOn ? "开" : "关";
 }
 
 function renderChapterTabs() {
@@ -876,6 +948,10 @@ function pointToSvg(point) {
 }
 
 function showScreen(name) {
+  elements.appShell.classList.toggle(
+    "is-secondary-active",
+    name === "profile" || name === "settings" || name === "exchange",
+  );
   Object.entries(screens).forEach(([screenName, screen]) => {
     screen.classList.toggle("active", screenName === name);
   });

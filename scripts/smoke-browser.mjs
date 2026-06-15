@@ -83,6 +83,7 @@ try {
   }
   await expectHomeRoadMap(page);
   await page.screenshot({ path: join(outputDir, "home-map-mobile.png"), fullPage: true });
+  await expectSecondaryPageNavigation(page);
   await expectStaleFullStaminaSpend(page);
   await page.evaluate(() => localStorage.clear());
   await seedPlayableFreshState(page);
@@ -610,6 +611,46 @@ async function expectHomeRoadMap(page) {
     throw new Error(`Expected road map to scroll vertically, got ${JSON.stringify(scrollInfo)}.`);
   }
   await expectHomeBackgroundImageRemoved(page);
+}
+
+async function expectSecondaryPageNavigation(page) {
+  await page.locator("#profileButton").click();
+  await page.waitForSelector("#profileScreen.active", { timeout: 1200 });
+  if (!(await page.locator("#profileScreen.active").innerText()).includes("个人中心")) {
+    throw new Error("Expected profile entry to open the personal center page.");
+  }
+  await expectSecondaryPageBuiltFromLayout(page, "#profileScreen", ".profile-layout");
+  await page.locator("#profileBackButton").click();
+  await page.waitForSelector(".screen-start.active", { timeout: 1200 });
+
+  await page.locator("#settingsButton").click();
+  await page.waitForSelector("#settingsScreen.active", { timeout: 1200 });
+  if (!(await page.locator("#settingsScreen.active").innerText()).includes("设置")) {
+    throw new Error("Expected settings entry to open the settings page.");
+  }
+  await expectSecondaryPageBuiltFromLayout(page, "#settingsScreen", ".settings-layout");
+  await page.locator("#settingsBackButton").click();
+  await page.waitForSelector(".screen-start.active", { timeout: 1200 });
+
+  await page.locator("#coinExchangeButton").click();
+  await page.waitForSelector("#exchangeScreen.active", { timeout: 1200 });
+  if (!(await page.locator("#exchangeScreen.active").innerText()).includes("金币兑换")) {
+    throw new Error("Expected coin resource entry to open the coin exchange page.");
+  }
+  await expectSecondaryPageBuiltFromLayout(page, "#exchangeScreen", ".exchange-layout");
+  await page.locator("#exchangeBackButton").click();
+  await page.waitForSelector(".screen-start.active", { timeout: 1200 });
+}
+
+async function expectSecondaryPageBuiltFromLayout(page, screenSelector, layoutSelector) {
+  const fullPageImageCount = await page.locator(`${screenSelector} .secondary-design-image`).count();
+  if (fullPageImageCount > 0) {
+    throw new Error(`${screenSelector} still uses a full-page design image instead of HTML layout.`);
+  }
+  const hasLayout = await page.locator(`${screenSelector} ${layoutSelector}`).count();
+  if (hasLayout !== 1) {
+    throw new Error(`${screenSelector} should render exactly one layout root ${layoutSelector}.`);
+  }
 }
 
 async function expectHomeBackgroundImageRemoved(page) {

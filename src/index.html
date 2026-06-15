@@ -21,11 +21,11 @@
             <strong class="staminaText">50/50</strong>
             <small class="staminaCountdown">恢复 03:00</small>
           </div>
-          <div class="home-stat">
+          <button class="home-stat home-stat-button" id="coinExchangeButton" type="button" aria-label="打开金币兑换">
             <span>金币</span>
             <strong id="coinText">0</strong>
             <small>通关获得</small>
-          </div>
+          </button>
           <div class="home-stat">
             <span>星星</span>
             <strong id="starText">0/270</strong>
@@ -52,6 +52,173 @@
           <button class="primary-button" id="startButton" type="button">开始闯关</button>
         </div>
         <div class="home-toast" id="homeToast" role="status" aria-live="polite"></div>
+      </section>
+
+      <section class="screen secondary-screen secondary-screen--profile" id="profileScreen" aria-label="个人中心">
+        <div class="secondary-layout profile-layout">
+          <button class="secondary-back-button" id="profileBackButton" type="button" aria-label="返回首页">
+            <img src="./assets/UI-ICON/profile-page/button-back-icon.png" alt="" aria-hidden="true" />
+          </button>
+
+          <header class="secondary-title secondary-title--profile">
+            <img src="./assets/UI-ICON/profile-page/title-bg-profile-center.png" alt="" aria-hidden="true" />
+            <h2>个人中心</h2>
+          </header>
+
+          <section class="profile-identity-card" aria-label="玩家信息">
+            <div class="profile-avatar">
+              <img src="./assets/UI-ICON/profile-page/avatar-frame.png" alt="" aria-hidden="true" />
+            </div>
+            <div class="profile-player">
+              <div class="secondary-label-row">
+                <img src="./assets/UI-ICON/profile-page/text-side-leaf-left.png" alt="" aria-hidden="true" />
+                <strong>玩家昵称</strong>
+                <img src="./assets/UI-ICON/profile-page/text-side-leaf-right.png" alt="" aria-hidden="true" />
+              </div>
+              <div class="profile-divider" aria-hidden="true"></div>
+              <span class="profile-id">ID 000001</span>
+            </div>
+          </section>
+
+          <section class="profile-stats-grid" aria-label="玩家数据">
+            <article class="profile-stat-card profile-stat-card--level">
+              <div class="secondary-label-row">
+                <img src="./assets/UI-ICON/profile-page/text-side-leaf-left.png" alt="" aria-hidden="true" />
+                <span>当前进度</span>
+                <img src="./assets/UI-ICON/profile-page/text-side-leaf-right.png" alt="" aria-hidden="true" />
+              </div>
+              <img class="profile-stat-icon profile-stat-icon--level" src="./assets/UI-ICON/profile-page/icon-current-progress.png" alt="" aria-hidden="true" />
+              <div class="profile-level-badge" id="profileCurrentLevelText">第01关</div>
+            </article>
+            <article class="profile-stat-card">
+              <div class="secondary-label-row">
+                <img src="./assets/UI-ICON/profile-page/text-side-leaf-left.png" alt="" aria-hidden="true" />
+                <span>总星数</span>
+                <img src="./assets/UI-ICON/profile-page/text-side-leaf-right.png" alt="" aria-hidden="true" />
+              </div>
+              <img class="profile-stat-icon" src="./assets/UI-ICON/profile-page/icon-star.png" alt="" aria-hidden="true" />
+              <strong id="profileStarText">0/270</strong>
+            </article>
+            <article class="profile-wide-card">
+              <img class="profile-wide-icon" src="./assets/UI-ICON/profile-page/icon-coin.png" alt="" aria-hidden="true" />
+              <div class="secondary-label-row">
+                <img src="./assets/UI-ICON/profile-page/text-side-leaf-left.png" alt="" aria-hidden="true" />
+                <span>金币</span>
+                <img src="./assets/UI-ICON/profile-page/text-side-leaf-right.png" alt="" aria-hidden="true" />
+              </div>
+              <strong id="profileCoinText">0</strong>
+            </article>
+            <article class="profile-stat-card">
+              <div class="secondary-label-row">
+                <img src="./assets/UI-ICON/profile-page/text-side-leaf-left.png" alt="" aria-hidden="true" />
+                <span>已通关</span>
+                <img src="./assets/UI-ICON/profile-page/text-side-leaf-right.png" alt="" aria-hidden="true" />
+              </div>
+              <img class="profile-stat-icon" src="./assets/UI-ICON/profile-page/icon-completed.png" alt="" aria-hidden="true" />
+              <strong id="profileCompletedText">0</strong>
+            </article>
+            <article class="profile-stat-card">
+              <div class="secondary-label-row">
+                <img src="./assets/UI-ICON/profile-page/text-side-leaf-left.png" alt="" aria-hidden="true" />
+                <span>三星关卡</span>
+                <img src="./assets/UI-ICON/profile-page/text-side-leaf-right.png" alt="" aria-hidden="true" />
+              </div>
+              <img class="profile-stat-icon" src="./assets/UI-ICON/profile-page/icon-three-star.png" alt="" aria-hidden="true" />
+              <strong id="profileThreeStarText">0</strong>
+            </article>
+          </section>
+
+          <button class="secondary-home-button" id="profileHomeButton" type="button">返回首页</button>
+        </div>
+      </section>
+
+      <section class="screen secondary-screen secondary-screen--settings" id="settingsScreen" aria-label="设置">
+        <div class="secondary-layout settings-layout">
+          <button class="secondary-back-button" id="settingsBackButton" type="button" aria-label="返回首页">
+            <img src="./assets/UI-ICON/settings-page/button-back-icon.png" alt="" aria-hidden="true" />
+          </button>
+
+          <header class="secondary-title secondary-title--settings">
+            <img src="./assets/UI-ICON/settings-page/title-bg-settings.png" alt="" aria-hidden="true" />
+            <h2>设置</h2>
+          </header>
+
+          <section class="settings-panel" aria-label="开关设置">
+            <div class="settings-flower" aria-hidden="true"></div>
+            <article class="settings-row">
+              <img class="settings-icon" src="./assets/UI-ICON/settings-page/icon-music.png" alt="" aria-hidden="true" />
+              <strong>音乐</strong>
+              <button class="settings-toggle is-on" id="musicToggle" type="button" aria-pressed="true"><span>开</span></button>
+            </article>
+            <article class="settings-row">
+              <img class="settings-icon" src="./assets/UI-ICON/settings-page/icon-sound.png" alt="" aria-hidden="true" />
+              <strong>音效</strong>
+              <button class="settings-toggle is-on" id="soundToggle" type="button" aria-pressed="true"><span>开</span></button>
+            </article>
+            <article class="settings-row">
+              <img class="settings-icon" src="./assets/UI-ICON/settings-page/icon-vibration.png" alt="" aria-hidden="true" />
+              <strong>振动</strong>
+              <button class="settings-toggle is-on" id="vibrationToggle" type="button" aria-pressed="true"><span>开</span></button>
+            </article>
+          </section>
+
+          <section class="settings-clear-card" aria-label="清除进度">
+            <div class="settings-warning" aria-hidden="true">!</div>
+            <button class="settings-clear-button" id="clearProgressButton" type="button">清除进度</button>
+          </section>
+
+          <button class="secondary-home-button" id="settingsHomeButton" type="button">返回首页</button>
+        </div>
+      </section>
+
+      <section class="screen secondary-screen secondary-screen--exchange" id="exchangeScreen" aria-label="金币兑换">
+        <div class="secondary-layout exchange-layout">
+          <button class="secondary-back-button" id="exchangeBackButton" type="button" aria-label="返回首页">
+            <img src="./assets/UI-ICON/exchange-page/button-back-icon.png" alt="" aria-hidden="true" />
+          </button>
+
+          <header class="secondary-title secondary-title--exchange">
+            <img src="./assets/UI-ICON/exchange-page/title-bg-coin-exchange.png" alt="" aria-hidden="true" />
+            <h2>金币兑换</h2>
+          </header>
+
+          <section class="exchange-coin-card" aria-label="金币数量">
+            <img src="./assets/UI-ICON/exchange-page/icon-coin.png" alt="" aria-hidden="true" />
+            <div>
+              <span>金币</span>
+              <strong id="exchangeCoinText">0</strong>
+            </div>
+          </section>
+
+          <section class="exchange-list" aria-label="兑换列表">
+            <article class="exchange-item">
+              <img class="exchange-item-icon" src="./assets/UI-ICON/exchange-page/icon-stamina.png" alt="" aria-hidden="true" />
+              <div class="exchange-item-copy">
+                <strong>体力 +30</strong>
+                <span><img src="./assets/UI-ICON/exchange-page/icon-coin.png" alt="" aria-hidden="true" />20 金币</span>
+              </div>
+              <button class="exchange-button" type="button" data-exchange="stamina">兑换</button>
+            </article>
+            <article class="exchange-item">
+              <img class="exchange-item-icon" src="./assets/UI-ICON/exchange-page/icon-hint.png" alt="" aria-hidden="true" />
+              <div class="exchange-item-copy">
+                <strong>提示 +1</strong>
+                <span><img src="./assets/UI-ICON/exchange-page/icon-coin.png" alt="" aria-hidden="true" />15 金币</span>
+              </div>
+              <button class="exchange-button" type="button" data-exchange="hint">兑换</button>
+            </article>
+            <article class="exchange-item">
+              <img class="exchange-item-icon" src="./assets/UI-ICON/exchange-page/icon-shuffle.png" alt="" aria-hidden="true" />
+              <div class="exchange-item-copy">
+                <strong>洗牌 +1</strong>
+                <span><img src="./assets/UI-ICON/exchange-page/icon-coin.png" alt="" aria-hidden="true" />15 金币</span>
+              </div>
+              <button class="exchange-button" type="button" data-exchange="shuffle">兑换</button>
+            </article>
+          </section>
+
+          <button class="secondary-home-button" id="exchangeHomeButton" type="button">返回首页</button>
+        </div>
       </section>
 
       <section

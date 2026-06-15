@@ -59,6 +59,10 @@ button:disabled {
   overflow: hidden;
 }
 
+.app-shell.is-secondary-active {
+  padding: 0;
+}
+
 .screen {
   display: none;
   width: 100%;
@@ -190,6 +194,589 @@ button:disabled {
   font-size: 0.66rem;
   font-weight: 800;
   white-space: nowrap;
+}
+
+.home-stat-button {
+  width: 100%;
+  color: inherit;
+  text-align: left;
+}
+
+.home-stat-button:focus-visible {
+  outline: 3px solid rgba(24, 185, 167, 0.55);
+  outline-offset: 2px;
+}
+
+.secondary-screen {
+  position: relative;
+  padding: 0;
+  background: #effff3;
+  isolation: isolate;
+}
+
+.secondary-screen.active {
+  display: block;
+}
+
+.secondary-screen--profile {
+  background: url("./assets/UI-ICON/profile-page/page-bg.png") center / cover no-repeat;
+}
+
+.secondary-screen--settings {
+  background: url("./assets/UI-ICON/settings-page/page-bg.png") center / cover no-repeat;
+}
+
+.secondary-screen--exchange {
+  background: url("./assets/UI-ICON/exchange-page/page-bg.png") center / cover no-repeat;
+}
+
+.secondary-layout {
+  position: relative;
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding: 24px 18px 20px;
+  overflow-y: auto;
+  flex-direction: column;
+  align-items: center;
+  color: #086d66;
+  text-shadow: 0 2px 0 rgba(255, 255, 255, 0.88);
+}
+
+.secondary-back-button {
+  position: absolute;
+  top: 22px;
+  left: 18px;
+  z-index: 3;
+  display: grid;
+  width: 74px;
+  aspect-ratio: 1;
+  padding: 0;
+  place-items: center;
+  background: transparent;
+}
+
+.secondary-back-button img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.secondary-title {
+  position: relative;
+  display: grid;
+  width: min(80%, 360px);
+  min-height: 96px;
+  margin: 18px auto 20px;
+  place-items: center;
+}
+
+.secondary-title img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.secondary-title h2 {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  color: #ffffff;
+  font-size: 2rem;
+  font-weight: 950;
+  letter-spacing: 0;
+  text-shadow:
+    0 4px 0 #086d66,
+    0 8px 16px rgba(2, 69, 71, 0.28);
+}
+
+.secondary-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 0;
+  color: #086d66;
+  font-weight: 950;
+}
+
+.secondary-label-row img {
+  width: 30px;
+  height: 22px;
+  object-fit: contain;
+}
+
+.secondary-home-button {
+  flex: 0 0 auto;
+  width: min(76%, 360px);
+  min-height: 78px;
+  margin-top: auto;
+  color: #ffffff;
+  font-size: 1.75rem;
+  font-weight: 950;
+  letter-spacing: 0;
+  text-shadow:
+    0 4px 0 #086d66,
+    0 8px 14px rgba(2, 69, 71, 0.22);
+  background-color: transparent;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+}
+
+.profile-layout .secondary-home-button {
+  background-image: url("./assets/UI-ICON/profile-page/button-return-home-bg.png");
+}
+
+.settings-layout .secondary-home-button {
+  background-image: url("./assets/UI-ICON/settings-page/button-return-home-bg.png");
+}
+
+.exchange-layout .secondary-home-button {
+  background-image: url("./assets/UI-ICON/exchange-page/button-return-home-bg.png");
+}
+
+.secondary-back-button:focus-visible,
+.secondary-home-button:focus-visible,
+.settings-toggle:focus-visible,
+.settings-clear-button:focus-visible,
+.exchange-button:focus-visible {
+  outline: 3px solid rgba(255, 255, 255, 0.92);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 6px rgba(24, 185, 167, 0.45);
+}
+
+.profile-layout {
+  gap: 14px;
+  padding-bottom: 18px;
+}
+
+.profile-identity-card,
+.profile-stat-card,
+.profile-wide-card,
+.settings-panel,
+.settings-clear-card,
+.exchange-coin-card,
+.exchange-item {
+  border: 2px solid rgba(255, 255, 255, 0.86);
+  box-shadow:
+    inset 0 5px 0 rgba(255, 255, 255, 0.52),
+    0 12px 22px rgba(93, 131, 74, 0.2);
+}
+
+.profile-identity-card {
+  display: grid;
+  width: min(90%, 430px);
+  min-height: 180px;
+  padding: 22px 24px;
+  grid-template-columns: 34% minmax(0, 1fr);
+  align-items: center;
+  gap: 16px;
+  border-radius: 34px;
+  background:
+    url("./assets/UI-ICON/profile-page/module-profile-info-bg.png") center / 100% 100% no-repeat,
+    rgba(255, 248, 218, 0.94);
+}
+
+.profile-avatar {
+  position: relative;
+  display: grid;
+  aspect-ratio: 1;
+  place-items: center;
+}
+
+.profile-avatar::before {
+  content: "";
+  width: 64%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 42% 32%, rgba(196, 240, 220, 0.95), rgba(69, 184, 163, 0.72));
+}
+
+.profile-avatar img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.profile-player {
+  display: grid;
+  min-width: 0;
+  justify-items: center;
+  gap: 12px;
+}
+
+.profile-player strong {
+  font-size: 1.5rem;
+}
+
+.profile-divider {
+  width: 86%;
+  border-top: 3px dashed rgba(208, 178, 111, 0.45);
+}
+
+.profile-id {
+  min-width: 66%;
+  padding: 6px 14px;
+  border-radius: 999px;
+  color: #9a7442;
+  font-size: 1rem;
+  font-weight: 900;
+  text-align: center;
+  background: rgba(255, 239, 192, 0.78);
+}
+
+.profile-stats-grid {
+  display: grid;
+  width: min(88%, 420px);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.profile-stat-card,
+.profile-wide-card {
+  display: grid;
+  min-height: 156px;
+  padding: 14px 10px;
+  align-items: center;
+  justify-items: center;
+  border-radius: 24px;
+  background:
+    url("./assets/UI-ICON/profile-page/module-profile-stat-card-bg.png") center / 100% 100% no-repeat,
+    rgba(255, 248, 218, 0.94);
+}
+
+.profile-stat-card strong,
+.profile-wide-card strong {
+  color: #076f65;
+  font-size: 2rem;
+  font-weight: 950;
+}
+
+.profile-stat-icon {
+  width: 76px;
+  height: 64px;
+  object-fit: contain;
+}
+
+.profile-stat-icon--level {
+  width: 112px;
+}
+
+.profile-level-badge {
+  min-width: 118px;
+  padding: 7px 12px 8px;
+  color: #ffffff;
+  font-size: 1.35rem;
+  font-weight: 950;
+  text-align: center;
+  text-shadow: 0 3px 0 #086d66;
+  background: url("./assets/UI-ICON/profile-page/level-badge-bg.png") center / 100% 100% no-repeat;
+}
+
+.profile-wide-card {
+  min-height: 132px;
+  grid-column: 1 / -1;
+  grid-template-columns: 36% minmax(0, 1fr);
+  background:
+    url("./assets/UI-ICON/profile-page/module-profile-coin-wide-bg.png") center / 100% 100% no-repeat,
+    rgba(255, 248, 218, 0.94);
+}
+
+.profile-wide-icon {
+  width: 86px;
+  height: 86px;
+  object-fit: contain;
+  grid-row: span 2;
+}
+
+.settings-layout {
+  gap: 20px;
+}
+
+.settings-panel {
+  position: relative;
+  display: grid;
+  width: min(88%, 430px);
+  padding: 68px 28px 28px;
+  gap: 20px;
+  border-radius: 38px;
+  background:
+    url("./assets/UI-ICON/settings-page/module-settings-panel-bg.png") center / 100% 100% no-repeat,
+    rgba(255, 248, 218, 0.94);
+}
+
+.settings-flower {
+  position: absolute;
+  top: -25px;
+  left: 50%;
+  width: 128px;
+  height: 58px;
+  transform: translateX(-50%);
+  background:
+    radial-gradient(circle at 50% 45%, #ffd246 0 10px, transparent 11px),
+    radial-gradient(circle at 32% 40%, #fffaf0 0 18px, transparent 19px),
+    radial-gradient(circle at 50% 22%, #fffaf0 0 18px, transparent 19px),
+    radial-gradient(circle at 68% 40%, #fffaf0 0 18px, transparent 19px),
+    radial-gradient(ellipse at 18% 68%, #78c64d 0 22px, transparent 23px),
+    radial-gradient(ellipse at 82% 68%, #78c64d 0 22px, transparent 23px);
+  filter: drop-shadow(0 5px 4px rgba(70, 112, 45, 0.25));
+}
+
+.settings-row {
+  display: grid;
+  min-height: 108px;
+  padding: 12px 18px;
+  grid-template-columns: 86px minmax(0, 1fr) 122px;
+  align-items: center;
+  gap: 14px;
+  border-radius: 26px;
+  background:
+    url("./assets/UI-ICON/settings-page/module-settings-row-bg.png") center / 100% 100% no-repeat,
+    rgba(255, 252, 234, 0.9);
+}
+
+.settings-icon {
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+}
+
+.settings-row strong {
+  color: #086d66;
+  font-size: 1.65rem;
+  font-weight: 950;
+  text-align: center;
+}
+
+.settings-toggle {
+  position: relative;
+  min-height: 54px;
+  padding: 0 42px 0 20px;
+  border-radius: 999px;
+  color: #ffffff;
+  font-size: 1.35rem;
+  font-weight: 950;
+  text-align: left;
+  text-shadow: 0 3px 0 #086d66;
+  background: linear-gradient(180deg, #31e4d0, #049c94);
+  border: 3px solid rgba(255, 226, 149, 0.86);
+  box-shadow:
+    inset 0 4px 0 rgba(255, 255, 255, 0.42),
+    0 5px 0 rgba(5, 107, 103, 0.38);
+}
+
+.settings-toggle::after {
+  content: "";
+  position: absolute;
+  top: 5px;
+  right: 6px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(180deg, #fffdf5, #f0e6cf);
+  box-shadow: 0 3px 8px rgba(42, 87, 77, 0.22);
+}
+
+.settings-toggle:not(.is-on) {
+  padding-right: 20px;
+  padding-left: 42px;
+  background: linear-gradient(180deg, #b8c6bd, #78948a);
+}
+
+.settings-toggle:not(.is-on)::after {
+  right: auto;
+  left: 6px;
+}
+
+.settings-clear-card {
+  display: grid;
+  width: min(82%, 400px);
+  min-height: 190px;
+  padding: 28px 30px;
+  align-items: center;
+  justify-items: center;
+  border-radius: 28px;
+  background:
+    url("./assets/UI-ICON/settings-page/module-settings-clear-bg.png") center / 100% 100% no-repeat,
+    rgba(255, 248, 218, 0.94);
+}
+
+.settings-warning {
+  display: grid;
+  width: 54px;
+  height: 54px;
+  place-items: center;
+  border-radius: 50%;
+  color: rgba(255, 255, 255, 0.95);
+  font-size: 2rem;
+  font-weight: 950;
+  background: rgba(255, 199, 103, 0.5);
+}
+
+.settings-clear-button {
+  width: min(86%, 280px);
+  min-height: 70px;
+  border-radius: 999px;
+  color: #ffffff;
+  font-size: 1.6rem;
+  font-weight: 950;
+  text-shadow: 0 4px 0 #a51f43;
+  background: linear-gradient(180deg, #ff7d96, #e62961);
+  border: 4px solid rgba(255, 221, 150, 0.9);
+  box-shadow:
+    inset 0 5px 0 rgba(255, 255, 255, 0.45),
+    0 8px 0 rgba(166, 81, 44, 0.32);
+}
+
+.exchange-layout {
+  gap: 18px;
+}
+
+.exchange-coin-card {
+  display: grid;
+  width: min(54%, 280px);
+  min-height: 110px;
+  padding: 12px 22px;
+  grid-template-columns: 82px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  border-radius: 26px;
+  background:
+    url("./assets/UI-ICON/exchange-page/coin-exchange-resource-bg.png") center / 100% 100% no-repeat,
+    rgba(255, 248, 218, 0.94);
+}
+
+.exchange-coin-card img {
+  width: 74px;
+  height: 74px;
+  object-fit: contain;
+}
+
+.exchange-coin-card span {
+  display: block;
+  color: #7b3b25;
+  font-size: 1.2rem;
+  font-weight: 950;
+}
+
+.exchange-coin-card strong {
+  display: block;
+  color: #086d66;
+  font-size: 2rem;
+  font-weight: 950;
+}
+
+.exchange-list {
+  display: grid;
+  width: min(92%, 460px);
+  gap: 18px;
+}
+
+.exchange-item {
+  display: grid;
+  min-height: 150px;
+  padding: 18px 20px;
+  grid-template-columns: 116px minmax(0, 1fr) 116px;
+  align-items: center;
+  gap: 12px;
+  border-radius: 28px;
+  background:
+    url("./assets/UI-ICON/exchange-page/module-exchange-item-bg.png") center / 100% 100% no-repeat,
+    rgba(255, 248, 218, 0.94);
+}
+
+.exchange-item-icon {
+  width: 98px;
+  height: 98px;
+  object-fit: contain;
+}
+
+.exchange-item-copy {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.exchange-item-copy strong {
+  color: #086d66;
+  font-size: 1.55rem;
+  font-weight: 950;
+}
+
+.exchange-item-copy span {
+  display: inline-flex;
+  min-width: 132px;
+  min-height: 42px;
+  padding: 5px 14px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 999px;
+  color: #dc6a20;
+  font-size: 1.05rem;
+  font-weight: 950;
+  background: rgba(255, 252, 235, 0.94);
+  box-shadow:
+    inset 0 3px 0 rgba(255, 255, 255, 0.7),
+    0 4px 8px rgba(147, 102, 33, 0.16);
+}
+
+.exchange-item-copy span img {
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+}
+
+.exchange-button {
+  min-height: 66px;
+  color: #ffffff;
+  font-size: 1.45rem;
+  font-weight: 950;
+  text-shadow: 0 4px 0 #086d66;
+  background: url("./assets/UI-ICON/exchange-page/button-exchange-bg.png") center / 100% 100% no-repeat;
+}
+
+@media (max-height: 760px) {
+  .secondary-layout {
+    padding-top: 16px;
+    gap: 10px;
+  }
+
+  .secondary-title {
+    min-height: 78px;
+    margin-top: 8px;
+    margin-bottom: 10px;
+  }
+
+  .secondary-title h2 {
+    font-size: 1.65rem;
+  }
+
+  .profile-identity-card {
+    min-height: 150px;
+  }
+
+  .profile-stat-card {
+    min-height: 128px;
+  }
+
+  .settings-row {
+    min-height: 92px;
+  }
+
+  .exchange-item {
+    min-height: 126px;
+  }
 }
 
 .home-actions {
