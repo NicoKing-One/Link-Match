@@ -169,7 +169,7 @@
 
           <header class="secondary-title secondary-title--exchange">
             <img src="./assets/UI-ICON/exchange-page/title-bg-coin-exchange.png" alt="" aria-hidden="true" />
-            <h2>金币兑换</h2>
+            <h2>兑换商城</h2>
           </header>
 
           <section class="exchange-coin-card" aria-label="金币数量">
@@ -177,51 +177,38 @@
             <div>
               <div class="secondary-label-row">
                 <img src="./assets/UI-ICON/text-side-leaf-left.png" alt="" aria-hidden="true" />
-                <span>金币</span>
+                <span>我的金币</span>
                 <img src="./assets/UI-ICON/text-side-leaf-right.png" alt="" aria-hidden="true" />
               </div>
-              <strong id="exchangeCoinText">0</strong>
+              <strong id="exchangeCoinText">0个</strong>
             </div>
           </section>
 
-          <section class="exchange-list" aria-label="兑换列表">
-            <article class="exchange-item">
-              <img class="exchange-item-icon" src="./assets/UI-ICON/exchange-page/icon-stamina.png" alt="" aria-hidden="true" />
-              <div class="exchange-item-copy">
-                <div class="secondary-label-row">
-                  <img src="./assets/UI-ICON/text-side-leaf-left.png" alt="" aria-hidden="true" />
-                  <strong>体力 +30</strong>
-                  <img src="./assets/UI-ICON/text-side-leaf-right.png" alt="" aria-hidden="true" />
-                </div>
-                <span><img src="./assets/UI-ICON/exchange-page/icon-coin.png" alt="" aria-hidden="true" />20 金币</span>
-              </div>
-              <button class="exchange-button" type="button" data-exchange="stamina">兑换</button>
-            </article>
-            <article class="exchange-item">
-              <img class="exchange-item-icon" src="./assets/UI-ICON/exchange-page/icon-hint.png" alt="" aria-hidden="true" />
-              <div class="exchange-item-copy">
-                <div class="secondary-label-row">
-                  <img src="./assets/UI-ICON/text-side-leaf-left.png" alt="" aria-hidden="true" />
-                  <strong>提示 +1</strong>
-                  <img src="./assets/UI-ICON/text-side-leaf-right.png" alt="" aria-hidden="true" />
-                </div>
-                <span><img src="./assets/UI-ICON/exchange-page/icon-coin.png" alt="" aria-hidden="true" />15 金币</span>
-              </div>
-              <button class="exchange-button" type="button" data-exchange="hint">兑换</button>
-            </article>
-            <article class="exchange-item">
-              <img class="exchange-item-icon" src="./assets/UI-ICON/exchange-page/icon-shuffle.png" alt="" aria-hidden="true" />
-              <div class="exchange-item-copy">
-                <div class="secondary-label-row">
-                  <img src="./assets/UI-ICON/text-side-leaf-left.png" alt="" aria-hidden="true" />
-                  <strong>洗牌 +1</strong>
-                  <img src="./assets/UI-ICON/text-side-leaf-right.png" alt="" aria-hidden="true" />
-                </div>
-                <span><img src="./assets/UI-ICON/exchange-page/icon-coin.png" alt="" aria-hidden="true" />15 金币</span>
-              </div>
-              <button class="exchange-button" type="button" data-exchange="shuffle">兑换</button>
-            </article>
+          <section class="exchange-shop-panel" aria-label="头衔商城">
+            <div class="exchange-shop-grid" id="exchangeShopGrid"></div>
           </section>
+
+          <nav class="exchange-pager" aria-label="商城翻页">
+            <button class="exchange-page-arrow" id="exchangePrevPageButton" type="button" aria-label="上一页">
+              <img src="./assets/UI-Home/icon-arrow-left.png" alt="" aria-hidden="true" />
+            </button>
+            <div class="exchange-page-index" id="exchangeShopPageText">第 1 / 2 页</div>
+            <button class="exchange-page-arrow exchange-page-arrow--next" id="exchangeNextPageButton" type="button" aria-label="下一页">
+              <img src="./assets/UI-Home/icon-arrow-left.png" alt="" aria-hidden="true" />
+            </button>
+          </nav>
+
+          <div class="modal hidden exchange-result-modal" id="exchangeResultModal" role="dialog" aria-modal="true" aria-labelledby="exchangeResultTitle">
+            <div class="modal-card candy-modal-card">
+              <div class="modal-plaque" aria-hidden="true">
+                <span class="plaque-level-label" id="exchangeResultTitle">兑换结果</span>
+              </div>
+              <h2 id="exchangeResultMessage">已兑换成功</h2>
+              <div class="modal-actions">
+                <button class="primary-button" id="exchangeResultCloseButton" type="button">确定</button>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 

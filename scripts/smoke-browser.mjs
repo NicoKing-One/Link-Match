@@ -343,7 +343,7 @@ async function seedProfileThreeStarState(page) {
       "lianliankan.progress",
       JSON.stringify({
         highestUnlockedLevel: 4,
-        coins: 6,
+        coins: 86,
         records: {
           1: { completed: true, bestScore: 1200, bestStars: 3 },
           2: { completed: true, bestScore: 900, bestStars: 2 },
@@ -662,14 +662,126 @@ async function expectSecondaryPageNavigation(page) {
 
   await page.locator("#coinExchangeButton").click();
   await page.waitForSelector("#exchangeScreen.active", { timeout: 1200 });
-  if (!(await page.locator("#exchangeScreen.active").innerText()).includes("金币兑换")) {
-    throw new Error("Expected coin resource entry to open the coin exchange page.");
+  if (!(await page.locator("#exchangeScreen.active").innerText()).includes("兑换商城")) {
+    throw new Error("Expected coin resource entry to open the exchange shop page.");
   }
   await expectSecondaryPageBuiltFromLayout(page, "#exchangeScreen", ".exchange-layout");
-  await expectSecondaryPageOptimizedLikeProfile(page, "#exchangeScreen", ".exchange-layout", ".exchange-coin-card, .exchange-item");
+  await expectExchangePageRemovesConsumableOffers(page);
+  await expectExchangeCoinCardCompactLayout(page);
+  await expectExchangeTitleShop(page);
+  await expectSecondaryPageOptimizedLikeProfile(page, "#exchangeScreen", ".exchange-layout", ".exchange-coin-card, .exchange-shop-panel");
   await page.screenshot({ path: join(outputDir, "exchange-mobile.png"), fullPage: true });
   await page.locator("#exchangeBackButton").click();
   await page.waitForSelector(".screen-start.active", { timeout: 1200 });
+}
+
+async function expectExchangePageRemovesConsumableOffers(page) {
+  const exchangeData = await page.locator("#exchangeScreen.active").evaluate((screen) => ({
+    buttonCount: screen.querySelectorAll(".exchange-button").length,
+    itemCount: screen.querySelectorAll(".exchange-item").length,
+    text: screen.innerText,
+  }));
+  if (exchangeData.itemCount !== 0 || exchangeData.buttonCount !== 0) {
+    throw new Error(
+      `Expected coin exchange page to remove stamina/hint/shuffle offers, got items=${exchangeData.itemCount}, buttons=${exchangeData.buttonCount}.`,
+    );
+  }
+  for (const label of ["体力 +30", "提示 +1", "洗牌 +1", "20 金币", "15 金币"]) {
+    if (exchangeData.text.includes(label)) {
+      throw new Error(`Expected coin exchange page not to show old consumable offer text: ${label}.`);
+    }
+  }
+}
+
+async function expectExchangeCoinCardCompactLayout(page) {
+  const coinCardData = await page.locator("#exchangeScreen.active .exchange-coin-card").evaluate((card) => {
+    const cardBox = card.getBoundingClientRect();
+    const coinIcon = card.querySelector(":scope > img");
+    const coinIconBox = coinIcon?.getBoundingClientRect();
+    const coinText = card.querySelector("#exchangeCoinText");
+    const coinTextStyle = coinText ? getComputedStyle(coinText) : null;
+    const coinIconStyle = coinIcon ? getComputedStyle(coinIcon) : null;
+    const cardStyle = getComputedStyle(card);
+    return {
+      cardHeight: Math.round(cardBox.height),
+      cardMinHeight: Number.parseFloat(cardStyle.minHeight),
+      cardWidth: Math.round(cardBox.width),
+      coinIconHeight: Math.round(coinIconBox?.height ?? 0),
+      coinIconMarginLeft: coinIconStyle ? Number.parseFloat(coinIconStyle.marginLeft) : 0,
+      coinIconWidth: Math.round(coinIconBox?.width ?? 0),
+      coinText: coinText?.textContent ?? "",
+      labelText: card.querySelector(".secondary-label-row span")?.textContent ?? "",
+      fontSize: coinTextStyle ? Number.parseFloat(coinTextStyle.fontSize) : 0,
+      marginTop: coinTextStyle ? Number.parseFloat(coinTextStyle.marginTop) : 0,
+      paddingBottom: Number.parseFloat(cardStyle.paddingBottom),
+      paddingTop: Number.parseFloat(cardStyle.paddingTop),
+    };
+  });
+  if (
+    coinCardData.cardMinHeight !== 80 ||
+    Math.abs(coinCardData.cardWidth - 248) > 2 ||
+    coinCardData.coinIconHeight !== 45 ||
+    coinCardData.coinIconMarginLeft !== 20 ||
+    coinCardData.coinIconWidth !== 45 ||
+    coinCardData.coinText !== "86个" ||
+    coinCardData.labelText !== "我的金币" ||
+    Math.abs(coinCardData.fontSize - 22.4) > 0.5 ||
+    coinCardData.marginTop !== 5 ||
+    coinCardData.paddingBottom !== 10 ||
+    coinCardData.paddingTop !== 10
+  ) {
+    throw new Error(`Expected compact exchange coin card, got ${JSON.stringify(coinCardData)}.`);
+  }
+}
+
+async function expectExchangeTitleShop(page) {
+  const firstPageData = await page.locator("#exchangeScreen.active").evaluate((screen) => ({
+    itemCount: screen.querySelectorAll(".exchange-shop-item").length,
+    pageText: screen.querySelector("#exchangeShopPageText")?.textContent ?? "",
+    titleTexts: [...screen.querySelectorAll(".exchange-title-badge")].map((node) => node.textContent?.trim() ?? ""),
+  }));
+  if (
+    firstPageData.itemCount !== 9 ||
+    firstPageData.pageText !== "第 1 / 2 页" ||
+    !firstPageData.titleTexts.includes("萌新果冻")
+  ) {
+    throw new Error(`Expected exchange title shop page 1 with 9 titles, got ${JSON.stringify(firstPageData)}.`);
+  }
+
+  await page.locator("#exchangeNextPageButton").click();
+  const secondPageData = await page.locator("#exchangeScreen.active").evaluate((screen) => ({
+    itemCount: screen.querySelectorAll(".exchange-shop-item").length,
+    pageText: screen.querySelector("#exchangeShopPageText")?.textContent ?? "",
+    titleTexts: [...screen.querySelectorAll(".exchange-title-badge")].map((node) => node.textContent?.trim() ?? ""),
+  }));
+  if (
+    secondPageData.itemCount !== 9 ||
+    secondPageData.pageText !== "第 2 / 2 页" ||
+    !secondPageData.titleTexts.includes("金币大亨")
+  ) {
+    throw new Error(`Expected exchange title shop page 2 with 9 titles, got ${JSON.stringify(secondPageData)}.`);
+  }
+
+  await page.locator("#exchangePrevPageButton").click();
+  await page.locator("#exchangeScreen.active .exchange-price-button").first().click();
+  await page.waitForSelector("#exchangeResultModal:not(.hidden)", { timeout: 1200 });
+  const successText = await page.locator("#exchangeResultMessage").innerText();
+  if (successText !== "已兑换成功") {
+    throw new Error(`Expected successful title exchange modal, got: ${successText}`);
+  }
+  await page.locator("#exchangeResultCloseButton").click();
+  await page.locator("#exchangeResultModal").waitFor({ state: "hidden", timeout: 1200 });
+
+  await page.locator("#exchangeNextPageButton").click();
+  await page.locator("#exchangeScreen.active .exchange-price-button").last().click();
+  await page.waitForSelector("#exchangeResultModal:not(.hidden)", { timeout: 1200 });
+  const failText = await page.locator("#exchangeResultMessage").innerText();
+  if (failText !== "金币不足") {
+    throw new Error(`Expected insufficient coin title exchange modal, got: ${failText}`);
+  }
+  await page.locator("#exchangeResultCloseButton").click();
+  await page.locator("#exchangeResultModal").waitFor({ state: "hidden", timeout: 1200 });
+  await page.locator("#exchangePrevPageButton").click();
 }
 
 async function expectSecondaryPageBuiltFromLayout(page, screenSelector, layoutSelector) {

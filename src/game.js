@@ -58,6 +58,30 @@ const DATA_RESET_VERSION = "2026-06-13-full-stamina-baseline";
 const ROAD_STEP_Y = 52;
 const ROAD_TOP_Y = 36;
 const ROAD_X_PATTERN = [18, 34, 62, 80, 66, 38];
+const EXCHANGE_TITLE_PAGES = [
+  [
+    { name: "萌新果冻", price: 20 },
+    { name: "水果新星", price: 35 },
+    { name: "糖果学徒", price: 55 },
+    { name: "连线小将", price: 80 },
+    { name: "森林旅人", price: 120 },
+    { name: "甜心队长", price: 180 },
+    { name: "闪光萌主", price: 260 },
+    { name: "果冻骑士", price: 360 },
+    { name: "蜜糖达人", price: 520 },
+  ],
+  [
+    { name: "星辉领主", price: 650 },
+    { name: "彩虹旅者", price: 820 },
+    { name: "宝石猎人", price: 1000 },
+    { name: "果香名人", price: 1250 },
+    { name: "甜梦伯爵", price: 1600 },
+    { name: "泡泡冠军", price: 2100 },
+    { name: "糖霜大师", price: 2800 },
+    { name: "金牌连线", price: 3600 },
+    { name: "金币大亨", price: 5000 },
+  ],
+];
 
 resetStoredPlayerDataIfNeeded();
 
@@ -94,9 +118,15 @@ const elements = {
   profileCompletedText: document.querySelector("#profileCompletedText"),
   profileThreeStarText: document.querySelector("#profileThreeStarText"),
   exchangeCoinText: document.querySelector("#exchangeCoinText"),
+  exchangeShopGrid: document.querySelector("#exchangeShopGrid"),
+  exchangeShopPageText: document.querySelector("#exchangeShopPageText"),
+  exchangePrevPageButton: document.querySelector("#exchangePrevPageButton"),
+  exchangeNextPageButton: document.querySelector("#exchangeNextPageButton"),
+  exchangeResultModal: document.querySelector("#exchangeResultModal"),
+  exchangeResultMessage: document.querySelector("#exchangeResultMessage"),
+  exchangeResultCloseButton: document.querySelector("#exchangeResultCloseButton"),
   settingToggles: document.querySelectorAll(".settings-toggle"),
   clearProgressButton: document.querySelector("#clearProgressButton"),
-  exchangeButtons: document.querySelectorAll(".exchange-button"),
   startButton: document.querySelector("#startButton"),
   coinText: document.querySelector("#coinText"),
   starText: document.querySelector("#starText"),
@@ -166,6 +196,7 @@ const state = {
   stamina: loadStaminaState(),
   progress: loadProgressState(),
   chapterIndex: 0,
+  exchangePageIndex: 0,
   paused: false,
   busy: false,
 };
@@ -205,11 +236,9 @@ function bindEvents() {
   elements.clearProgressButton?.addEventListener("click", () => {
     showHomeNotice("清除进度功能待接入");
   });
-  elements.exchangeButtons.forEach((button) => {
-    button.addEventListener("click", () => {
-      showHomeNotice("兑换功能待接入");
-    });
-  });
+  elements.exchangePrevPageButton.addEventListener("click", () => switchExchangePage(-1));
+  elements.exchangeNextPageButton.addEventListener("click", () => switchExchangePage(1));
+  elements.exchangeResultCloseButton.addEventListener("click", closeExchangeResultModal);
   elements.getStaminaButtons.forEach((button) => {
     button.addEventListener("click", claimStaminaFromAd);
   });
@@ -243,6 +272,7 @@ function openSecondaryPage(name) {
   state.paused = false;
   hideToast();
   hideModals();
+  if (name === "exchange") state.exchangePageIndex = 0;
   renderHome();
   showScreen(name);
 }
@@ -268,7 +298,57 @@ function renderSecondaryPages(currentLevel) {
   elements.profileCoinText.textContent = state.progress.coins;
   elements.profileCompletedText.textContent = `${completedLevels}关`;
   elements.profileThreeStarText.textContent = `${threeStarLevels}关`;
-  elements.exchangeCoinText.textContent = state.progress.coins;
+  elements.exchangeCoinText.textContent = `${state.progress.coins}个`;
+  renderExchangeShop();
+}
+
+function renderExchangeShop() {
+  const titles = EXCHANGE_TITLE_PAGES[state.exchangePageIndex] ?? EXCHANGE_TITLE_PAGES[0];
+  elements.exchangeShopGrid.innerHTML = "";
+  titles.forEach((title) => {
+    const item = document.createElement("article");
+    item.className = "exchange-shop-item";
+
+    const badge = document.createElement("div");
+    badge.className = "exchange-title-badge";
+    badge.textContent = title.name;
+
+    const button = document.createElement("button");
+    button.className = "exchange-price-button";
+    button.type = "button";
+    button.dataset.price = String(title.price);
+    button.dataset.titleName = title.name;
+    button.setAttribute("aria-label", `兑换${title.name}，需要${title.price}金币`);
+
+    const coinIcon = document.createElement("img");
+    coinIcon.src = "./assets/UI-ICON/exchange-page/icon-coin.png";
+    coinIcon.alt = "";
+    coinIcon.setAttribute("aria-hidden", "true");
+
+    const price = document.createElement("span");
+    price.textContent = String(title.price);
+
+    button.append(coinIcon, price);
+    button.addEventListener("click", () => openExchangeResultModal(state.progress.coins >= title.price));
+    item.append(badge, button);
+    elements.exchangeShopGrid.append(item);
+  });
+  elements.exchangeShopPageText.textContent = `第 ${state.exchangePageIndex + 1} / ${EXCHANGE_TITLE_PAGES.length} 页`;
+}
+
+function switchExchangePage(direction) {
+  state.exchangePageIndex =
+    (state.exchangePageIndex + direction + EXCHANGE_TITLE_PAGES.length) % EXCHANGE_TITLE_PAGES.length;
+  renderExchangeShop();
+}
+
+function openExchangeResultModal(success) {
+  elements.exchangeResultMessage.textContent = success ? "已兑换成功" : "金币不足";
+  elements.exchangeResultModal.classList.remove("hidden");
+}
+
+function closeExchangeResultModal() {
+  elements.exchangeResultModal.classList.add("hidden");
 }
 
 function toggleSettingButton(button) {
@@ -716,6 +796,7 @@ function hideModals() {
   elements.toolModal.classList.add("hidden");
   elements.exitModal.classList.add("hidden");
   elements.staminaModal.classList.add("hidden");
+  elements.exchangeResultModal.classList.add("hidden");
 }
 
 function renderResultStars(count) {
