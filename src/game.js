@@ -58,6 +58,7 @@ const DATA_RESET_VERSION = "2026-06-13-full-stamina-baseline";
 const ROAD_STEP_Y = 52;
 const ROAD_TOP_Y = 36;
 const ROAD_X_PATTERN = [18, 34, 62, 80, 66, 38];
+const HOME_THEME_CLASSES = CHAPTERS.map((chapter) => `home-theme-${chapter.id}`);
 const EXCHANGE_TITLE_PAGES = [
   [
     { name: "萌新果冻", price: 20 },
@@ -364,7 +365,9 @@ function renderChapterTabs() {
     const status = getChapterStatus(chapter, state.progress);
     const button = document.createElement("button");
     button.type = "button";
-    button.className = `chapter-tab ${status}${index === state.chapterIndex ? " selected" : ""}`;
+    button.className = `chapter-tab chapter-tab--${chapter.id} ${status}${
+      index === state.chapterIndex ? " selected" : ""
+    }`;
     button.setAttribute("role", "tab");
     button.setAttribute("aria-selected", index === state.chapterIndex ? "true" : "false");
     button.innerHTML = `<strong>${chapter.name}</strong><span>${chapter.startLevel}-${chapter.endLevel}</span>`;
@@ -390,10 +393,14 @@ function renderRoadMap() {
   }));
 
   elements.chapterSummary.textContent = `${chapter.name} · ${chapter.startLevel}-${chapter.endLevel}关`;
+  elements.chapterSummary.className = `chapter-summary chapter-summary--${chapter.id}`;
   elements.chapterSummary.dataset.status = chapterStatus;
   elements.chapterLockNotice.classList.toggle("hidden", chapterStatus !== "locked");
-  elements.chapterLockNotice.textContent =
-    chapter.id === "candy-garden" ? "通关第30关后解锁糖果花园" : "通关第60关后解锁果冻城堡";
+  const lockText = chapter.id === "candy-garden" ? "通关第30关后解锁糖果花园" : "通关第60关后解锁果冻城堡";
+  const lockCopy = elements.chapterLockNotice.querySelector("span");
+  if (lockCopy) lockCopy.textContent = lockText;
+  screens.start.classList.remove(...HOME_THEME_CLASSES);
+  screens.start.classList.add(`home-theme-${chapter.id}`);
   elements.levelRoad.className = `level-road ${chapter.backgroundClass}`;
   elements.levelRoad.style.height = `${roadHeight}px`;
   elements.levelRoad.innerHTML = buildRoadSvg(points, roadHeight);
@@ -403,12 +410,17 @@ function renderRoadMap() {
     const record = state.progress.records[String(level.number)] ?? { bestStars: 0 };
     const button = document.createElement("button");
     button.type = "button";
-    button.className = `road-level ${status}`;
-    button.style.left = `calc(${x}% - 24px)`;
-    button.style.top = `${y - 24}px`;
+    button.className = `road-level road-level--${chapter.id} ${status}`;
+    button.style.left = `${x}%`;
+    button.style.top = `${y}px`;
     button.disabled = status === "locked";
     button.setAttribute("aria-label", `${formatLevelTitle(level)} ${getLevelStatusText(status)}`);
-    button.innerHTML = `<strong>${String(level.number).padStart(2, "0")}</strong>${renderMiniStars(record.bestStars)}`;
+    button.innerHTML =
+      status === "locked"
+        ? `<img class="road-lock-icon" src="./assets/UI-Home/icon-lock.png" alt="" aria-hidden="true" /><strong>${String(
+            level.number,
+          ).padStart(2, "0")}</strong>${renderMiniStars(record.bestStars)}`
+        : `<strong>${String(level.number).padStart(2, "0")}</strong>${renderMiniStars(record.bestStars)}`;
     button.addEventListener("click", () => requestStartGame(level));
     elements.levelRoad.append(button);
   });

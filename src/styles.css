@@ -79,6 +79,19 @@ button:disabled {
   display: none !important;
 }
 
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  white-space: nowrap;
+  border: 0;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+}
+
 .screen-result {
   flex-direction: column;
   justify-content: center;
@@ -92,7 +105,22 @@ button:disabled {
   gap: 10px;
   min-height: 0;
   padding: 8px 10px 0;
-  background-color: #effff3;
+  background: var(--home-screen-bg, #effff3) center top / cover no-repeat;
+}
+
+.home-theme-fruit-forest {
+  --home-screen-bg: url("./assets/UI-Home/background-fruit-full.png");
+  --home-start-button-bg: url("./assets/UI-Home/start-button-fruit-bg.png");
+}
+
+.home-theme-candy-garden {
+  --home-screen-bg: url("./assets/UI-Home/background-candy-full.png");
+  --home-start-button-bg: url("./assets/UI-Home/start-button-candy-bg.png");
+}
+
+.home-theme-jelly-castle {
+  --home-screen-bg: url("./assets/UI-Home/background-jelly-full.png");
+  --home-start-button-bg: url("./assets/UI-Home/start-button-jelly-bg.png");
 }
 
 .screen-game {
@@ -127,7 +155,7 @@ button:disabled {
 
 .home-header {
   display: grid;
-  grid-template-columns: 62px minmax(0, 1fr) 62px;
+  grid-template-columns: 72px minmax(0, 1fr) 72px;
   align-items: center;
   gap: 8px;
   flex: 0 0 auto;
@@ -140,18 +168,18 @@ button:disabled {
 .round-menu-button {
   display: grid;
   place-items: center;
+  width: 72px;
+  aspect-ratio: 442 / 258;
   min-width: 0;
-  min-height: 44px;
-  padding: 0 8px;
-  border-radius: 999px;
-  color: #17766d;
-  font-size: 0.78rem;
-  font-weight: 900;
-  background: linear-gradient(180deg, #fffdf0, #cbfff2);
-  border: 2px solid rgba(255, 255, 255, 0.86);
-  box-shadow:
-    inset 0 3px 0 rgba(255, 255, 255, 0.68),
-    0 8px 18px rgba(52, 128, 114, 0.14);
+  padding: 0;
+  background: url("./assets/UI-Home/top-button-bg.png") center / 100% 100% no-repeat;
+}
+
+.round-menu-button img {
+  width: 38px;
+  height: 38px;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 0 rgba(255, 255, 255, 0.8));
 }
 
 .home-stats {
@@ -162,12 +190,10 @@ button:disabled {
 }
 
 .home-stat {
-  min-height: 70px;
-  padding: 8px 8px 7px;
-  border-radius: 18px;
-  border: 2px solid rgba(255, 255, 255, 0.88);
-  background: linear-gradient(180deg, rgba(255, 253, 239, 0.96), rgba(218, 255, 244, 0.9));
-  box-shadow: 0 8px 18px rgba(52, 128, 114, 0.1);
+  min-height: 66px;
+  padding: 10px 12px 8px;
+  color: #0b746c;
+  background: url("./assets/UI-Home/resource-card-bg.png") center / 100% 100% no-repeat;
 }
 
 .home-stat span,
@@ -177,21 +203,21 @@ button:disabled {
 }
 
 .home-stat span {
-  color: var(--muted);
-  font-size: 0.72rem;
+  color: #238179;
+  font-size: 0.7rem;
   font-weight: 900;
 }
 
 .home-stat strong {
   margin-top: 2px;
-  font-size: 1.05rem;
+  font-size: 1rem;
   line-height: 1.16;
 }
 
 .home-stat small {
   margin-top: 1px;
-  color: rgba(23, 64, 74, 0.56);
-  font-size: 0.66rem;
+  color: rgba(18, 99, 94, 0.68);
+  font-size: 0.62rem;
   font-weight: 800;
   white-space: nowrap;
 }
@@ -958,9 +984,14 @@ button:disabled {
 
 .home-bottom-dock .primary-button {
   width: min(50vw, 260px);
-  min-height: 52px;
-  border-radius: 999px;
+  aspect-ratio: 1115 / 276;
+  min-height: 48px;
+  color: #ffffff;
   font-size: 1rem;
+  font-weight: 950;
+  text-shadow: 0 2px 0 rgba(0, 108, 98, 0.68);
+  background: var(--home-start-button-bg) center / 100% 100% no-repeat;
+  box-shadow: none;
 }
 
 .chapter-shell {
@@ -968,17 +999,12 @@ button:disabled {
   flex: 1 1 auto;
   flex-direction: column;
   min-height: 0;
-  padding: 8px;
-  border-radius: 24px 24px 0 0;
-  border: 2px solid rgba(255, 255, 255, 0.82);
-  background: rgba(255, 250, 225, 0.78);
-  box-shadow: 0 12px 32px rgba(52, 128, 114, 0.12);
-  backdrop-filter: blur(12px);
+  padding: 4px 2px 0;
 }
 
 .chapter-switcher {
   display: grid;
-  grid-template-columns: 38px minmax(0, 1fr) 38px;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
   align-items: center;
   gap: 6px;
   flex: 0 0 auto;
@@ -987,14 +1013,16 @@ button:disabled {
 .chapter-arrow {
   display: grid;
   place-items: center;
-  width: 38px;
-  height: 42px;
-  border-radius: 999px;
-  color: #fff;
-  font-size: 1.45rem;
-  font-weight: 900;
-  background: linear-gradient(180deg, #35d7be, #0a94b9);
-  box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.28);
+  width: 44px;
+  height: 48px;
+  padding: 0;
+  background: url("./assets/UI-Home/arrow-button-bg.png") center / contain no-repeat;
+}
+
+.chapter-arrow img {
+  width: 19px;
+  height: 27px;
+  object-fit: contain;
 }
 
 .chapter-arrow:disabled {
@@ -1004,17 +1032,16 @@ button:disabled {
 .chapter-tabs {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 5px;
+  gap: 4px;
 }
 
 .chapter-tab {
   min-width: 0;
-  min-height: 42px;
-  padding: 5px 4px;
-  border-radius: 16px;
-  color: var(--ink);
-  background: rgba(255, 255, 255, 0.58);
-  border: 2px solid rgba(255, 255, 255, 0.7);
+  min-height: 48px;
+  padding: 8px 8px 7px;
+  color: #0b746c;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.9);
+  background: var(--chapter-tab-bg) center / 100% 100% no-repeat;
 }
 
 .chapter-tab strong,
@@ -1026,22 +1053,21 @@ button:disabled {
 }
 
 .chapter-tab strong {
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-weight: 900;
 }
 
 .chapter-tab span {
   margin-top: 1px;
-  color: rgba(23, 64, 74, 0.58);
+  color: rgba(10, 99, 94, 0.66);
   font-size: 0.62rem;
   font-weight: 800;
 }
 
 .chapter-tab.selected {
   color: #fff;
-  background: linear-gradient(180deg, #ff86aa, #23bda7);
-  border-color: rgba(255, 255, 255, 0.96);
-  box-shadow: 0 8px 16px rgba(255, 111, 127, 0.2);
+  text-shadow: 0 2px 0 rgba(180, 54, 90, 0.45);
+  background: var(--chapter-tab-selected-bg) center / 100% 100% no-repeat;
 }
 
 .chapter-tab.selected span {
@@ -1053,17 +1079,49 @@ button:disabled {
   opacity: 0.62;
 }
 
+.chapter-tab--fruit-forest {
+  --chapter-tab-bg: url("./assets/UI-Home/tab-fruit-unselected-bg.png");
+  --chapter-tab-selected-bg: url("./assets/UI-Home/tab-fruit-selected-bg.png");
+}
+
+.chapter-tab--candy-garden {
+  --chapter-tab-bg: url("./assets/UI-Home/tab-candy-unselected-bg.png");
+  --chapter-tab-selected-bg: url("./assets/UI-Home/tab-candy-selected-bg.png");
+}
+
+.chapter-tab--jelly-castle {
+  --chapter-tab-bg: url("./assets/UI-Home/tab-jelly-unselected-bg.png");
+  --chapter-tab-selected-bg: url("./assets/UI-Home/tab-jelly-selected-bg.png");
+}
+
 .chapter-summary {
   flex: 0 0 auto;
-  margin: 6px 2px 7px;
-  color: #176e68;
-  font-size: 0.82rem;
+  width: min(76%, 320px);
+  min-height: 54px;
+  margin: 6px auto 1px;
+  padding: 14px 26px 8px;
+  color: #ffffff;
+  font-size: 0.86rem;
   font-weight: 900;
   text-align: center;
+  text-shadow: 0 2px 0 rgba(0, 103, 98, 0.55);
+  background: var(--chapter-title-bg) center / 100% 100% no-repeat;
+}
+
+.chapter-summary--fruit-forest {
+  --chapter-title-bg: url("./assets/UI-Home/chapter-title-fruit-bg.png");
+}
+
+.chapter-summary--candy-garden {
+  --chapter-title-bg: url("./assets/UI-Home/chapter-title-candy-bg.png");
+}
+
+.chapter-summary--jelly-castle {
+  --chapter-title-bg: url("./assets/UI-Home/chapter-title-jelly-bg.png");
 }
 
 .chapter-summary[data-status="locked"] {
-  color: rgba(23, 64, 74, 0.58);
+  color: rgba(255, 255, 255, 0.78);
 }
 
 .map-panel {
@@ -1071,11 +1129,7 @@ button:disabled {
   flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
-  border-radius: 22px;
-  border: 2px solid rgba(255, 255, 255, 0.82);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0)),
-    rgba(213, 255, 235, 0.54);
+  border-radius: 20px;
 }
 
 .road-scroll {
@@ -1097,48 +1151,22 @@ button:disabled {
   overflow: hidden;
 }
 
-.level-road::before,
-.level-road::after {
-  content: "";
-  position: absolute;
-  border-radius: 999px;
-  pointer-events: none;
-}
-
-.level-road::before {
-  inset: 18px auto auto 8%;
-  width: 54px;
-  height: 54px;
-  background: rgba(255, 255, 255, 0.32);
-}
-
-.level-road::after {
-  right: 7%;
-  bottom: 24px;
-  width: 72px;
-  height: 72px;
-  background: rgba(255, 255, 255, 0.26);
-}
-
 .theme-fruit-forest {
-  background:
-    radial-gradient(circle at 18% 10%, rgba(117, 201, 90, 0.34), transparent 22%),
-    radial-gradient(circle at 88% 36%, rgba(255, 239, 145, 0.5), transparent 20%),
-    linear-gradient(180deg, rgba(226, 255, 224, 0.86), rgba(185, 245, 218, 0.78));
+  --level-current-bg: url("./assets/UI-Home/level-fruit-current-bg.png");
+  --level-completed-bg: url("./assets/UI-Home/level-fruit-completed-bg.png");
+  --level-not-started-bg: url("./assets/UI-Home/level-fruit-not-started-bg.png");
 }
 
 .theme-candy-garden {
-  background:
-    radial-gradient(circle at 15% 12%, rgba(255, 120, 169, 0.32), transparent 24%),
-    radial-gradient(circle at 88% 40%, rgba(255, 227, 127, 0.42), transparent 20%),
-    linear-gradient(180deg, rgba(255, 231, 243, 0.9), rgba(211, 255, 242, 0.8));
+  --level-current-bg: url("./assets/UI-Home/level-candy-current-bg.png");
+  --level-completed-bg: url("./assets/UI-Home/level-candy-completed-bg.png");
+  --level-not-started-bg: url("./assets/UI-Home/level-candy-not-started-bg.png");
 }
 
 .theme-jelly-castle {
-  background:
-    radial-gradient(circle at 22% 12%, rgba(127, 115, 232, 0.3), transparent 24%),
-    radial-gradient(circle at 84% 42%, rgba(84, 189, 232, 0.36), transparent 20%),
-    linear-gradient(180deg, rgba(235, 231, 255, 0.88), rgba(213, 255, 248, 0.78));
+  --level-current-bg: url("./assets/UI-Home/level-jelly-current-bg.png");
+  --level-completed-bg: url("./assets/UI-Home/level-jelly-completed-bg.png");
+  --level-not-started-bg: url("./assets/UI-Home/level-jelly-not-started-bg.png");
 }
 
 .road-path {
@@ -1146,6 +1174,7 @@ button:disabled {
   inset: 0;
   width: 100%;
   height: 100%;
+  display: none;
   pointer-events: none;
 }
 
@@ -1163,56 +1192,72 @@ button:disabled {
   z-index: 2;
   display: grid;
   place-items: center;
-  width: 48px;
-  height: 48px;
-  border-radius: 999px;
-  color: #fff;
-  border: 3px solid rgba(255, 255, 255, 0.92);
-  background: linear-gradient(180deg, #32d4bc, #078eab);
-  box-shadow:
-    inset 0 4px 0 rgba(255, 255, 255, 0.3),
-    inset 0 -5px 0 rgba(0, 84, 92, 0.12),
-    0 9px 16px rgba(30, 122, 120, 0.22);
+  width: 64px;
+  height: 56px;
+  padding: 8px 8px 12px;
+  color: #ffffff;
+  text-shadow: 0 2px 0 rgba(0, 112, 102, 0.48);
+  background: var(--level-not-started-bg) center / contain no-repeat;
+  transform: translate(-50%, -50%);
 }
 
 .road-level strong {
-  font-size: 0.84rem;
+  font-size: 0.82rem;
   line-height: 1;
 }
 
 .road-level.completed {
-  background: linear-gradient(180deg, #ffd95a, #ff8a76);
+  background-image: var(--level-completed-bg);
 }
 
 .road-level.current {
-  background: linear-gradient(180deg, #ff83a8, #e74e82);
+  width: 70px;
+  height: 60px;
+  background-image: var(--level-current-bg);
   animation: currentLevelPulse 1.4s ease-in-out infinite;
 }
 
 .road-level.available {
-  background: linear-gradient(180deg, #8eea75, #1cab73);
+  background-image: var(--level-not-started-bg);
 }
 
 .road-level.locked {
-  color: rgba(23, 64, 74, 0.48);
-  background: linear-gradient(180deg, #f3f2e9, #c9d9d5);
-  box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.48);
+  color: rgba(92, 80, 63, 0.5);
+  background-image: var(--level-not-started-bg);
+}
+
+.road-level:disabled {
+  opacity: 1;
+}
+
+.road-lock-icon {
+  width: 20px;
+  height: 25px;
+  object-fit: contain;
+}
+
+.road-level.locked strong {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
 }
 
 .road-stars {
   position: absolute;
   left: 50%;
-  bottom: -9px;
+  bottom: 5px;
   display: flex;
-  gap: 1px;
+  gap: 2px;
   transform: translateX(-50%);
 }
 
 .road-stars span {
-  width: 8px;
-  height: 8px;
+  width: 9px;
+  height: 9px;
   clip-path: polygon(50% 0, 63% 34%, 100% 36%, 70% 58%, 79% 95%, 50% 75%, 21% 95%, 30% 58%, 0 36%, 37% 34%);
-  background: rgba(255, 255, 255, 0.68);
+  background: rgba(151, 82, 32, 0.7);
   box-shadow: 0 1px 2px rgba(23, 64, 74, 0.16);
 }
 
@@ -1226,8 +1271,12 @@ button:disabled {
   left: 16px;
   right: 16px;
   top: 16px;
-  padding: 10px 12px;
-  border-radius: 18px;
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 16px;
   color: #5e6670;
   font-size: 0.84rem;
   font-weight: 900;
@@ -1235,6 +1284,12 @@ button:disabled {
   background: rgba(255, 255, 255, 0.82);
   border: 2px solid rgba(255, 255, 255, 0.9);
   box-shadow: 0 8px 20px rgba(52, 128, 114, 0.14);
+}
+
+.chapter-lock img {
+  width: 28px;
+  height: 36px;
+  object-fit: contain;
 }
 
 .home-toast {
@@ -1266,10 +1321,10 @@ button:disabled {
 @keyframes currentLevelPulse {
   0%,
   100% {
-    transform: scale(1);
+    transform: translate(-50%, -50%) scale(1);
   }
   50% {
-    transform: scale(1.08);
+    transform: translate(-50%, -50%) scale(1.08);
   }
 }
 

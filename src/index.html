@@ -10,9 +10,15 @@
     <main class="app-shell" aria-live="polite">
       <section class="screen screen-start active" id="startScreen">
         <header class="home-header">
-          <button class="round-menu-button" id="profileButton" type="button">个人</button>
+          <button class="round-menu-button" id="profileButton" type="button" aria-label="个人中心">
+            <img src="./assets/UI-Home/icon-profile.png" alt="" aria-hidden="true" />
+            <span class="visually-hidden">个人</span>
+          </button>
           <div class="home-header-spacer" aria-hidden="true"></div>
-          <button class="round-menu-button" id="settingsButton" type="button">设置</button>
+          <button class="round-menu-button" id="settingsButton" type="button" aria-label="设置">
+            <img src="./assets/UI-Home/icon-settings.png" alt="" aria-hidden="true" />
+            <span class="visually-hidden">设置</span>
+          </button>
         </header>
 
         <section class="home-stats" aria-label="玩家资源">
@@ -35,14 +41,21 @@
 
         <section class="chapter-shell" aria-label="章节关卡">
           <div class="chapter-switcher">
-            <button class="chapter-arrow" id="prevChapterButton" type="button" aria-label="上一个主题">‹</button>
+            <button class="chapter-arrow" id="prevChapterButton" type="button" aria-label="上一个主题">
+              <img src="./assets/UI-Home/icon-arrow-left.png" alt="" aria-hidden="true" />
+            </button>
             <div class="chapter-tabs" id="chapterTabs" role="tablist" aria-label="主题选择"></div>
-            <button class="chapter-arrow" id="nextChapterButton" type="button" aria-label="下一个主题">›</button>
+            <button class="chapter-arrow" id="nextChapterButton" type="button" aria-label="下一个主题">
+              <img src="./assets/UI-Home/icon-arrow-right.png" alt="" aria-hidden="true" />
+            </button>
           </div>
 
           <div class="chapter-summary" id="chapterSummary">水果森林 · 1-30</div>
           <div class="map-panel">
-            <div class="chapter-lock hidden" id="chapterLockNotice"></div>
+            <div class="chapter-lock hidden" id="chapterLockNotice">
+              <img src="./assets/UI-Home/icon-lock.png" alt="" aria-hidden="true" />
+              <span></span>
+            </div>
             <div class="road-scroll" id="roadScroll" aria-label="关卡地图">
               <div class="level-road" id="levelRoad"></div>
             </div>

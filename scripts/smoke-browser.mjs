@@ -632,7 +632,7 @@ async function expectHomeRoadMap(page) {
   if (scrollInfo.scrollHeight <= scrollInfo.clientHeight) {
     throw new Error(`Expected road map to scroll vertically, got ${JSON.stringify(scrollInfo)}.`);
   }
-  await expectHomeBackgroundImageRemoved(page);
+  await expectHomeUsesUiHomeAssets(page);
 }
 
 async function expectSecondaryPageNavigation(page) {
@@ -1150,23 +1150,44 @@ async function expectProfileThreeStarDataMatchesHome(page) {
   }
 }
 
-async function expectHomeBackgroundImageRemoved(page) {
-  const background = await page.locator(".screen-start.active").evaluate((node) => {
-    const bodyStyle = getComputedStyle(document.body);
-    const style = getComputedStyle(node);
-    const color = style.backgroundColor.match(/rgba?\(([^)]+)\)/);
-    const parts = color ? color[1].split(",").map((part) => Number(part.trim())) : [];
+async function expectHomeUsesUiHomeAssets(page) {
+  const assets = await page.locator(".screen-start.active").evaluate((node) => {
+    const backgroundImageOf = (selector) => getComputedStyle(document.querySelector(selector)).backgroundImage;
+    const firstRoadLevel = document.querySelector(".road-level.current");
+    const summary = document.querySelector("#chapterSummary");
+    const activeTab = document.querySelector(".chapter-tab.selected");
     return {
-      bodyImage: bodyStyle.backgroundImage,
-      image: style.backgroundImage,
-      color: style.backgroundColor,
-      alpha: parts.length === 4 ? parts[3] : 1,
+      screenClass: node.className,
+      screenBackground: getComputedStyle(node).backgroundImage,
+      profileIcon: document.querySelector("#profileButton img")?.getAttribute("src") ?? "",
+      settingsIcon: document.querySelector("#settingsButton img")?.getAttribute("src") ?? "",
+      statBackground: backgroundImageOf(".home-stat"),
+      arrowBackground: backgroundImageOf(".chapter-arrow"),
+      arrowIcon: document.querySelector("#nextChapterButton img")?.getAttribute("src") ?? "",
+      tabBackground: activeTab ? getComputedStyle(activeTab).backgroundImage : "",
+      summaryBackground: summary ? getComputedStyle(summary).backgroundImage : "",
+      levelBackground: firstRoadLevel ? getComputedStyle(firstRoadLevel).backgroundImage : "",
+      startBackground: backgroundImageOf("#startButton"),
+      lockIcon: document.querySelector(".chapter-lock img")?.getAttribute("src") ?? "",
     };
   });
-  if (background.bodyImage !== "none" || background.image !== "none" || background.alpha < 0.95) {
-    throw new Error(
-      `Expected home screen and page chrome to use an opaque non-image background, got ${JSON.stringify(background)}.`,
-    );
+
+  const expected = [
+    ["screenBackground", "UI-Home/background-fruit-full.png"],
+    ["profileIcon", "UI-Home/icon-profile.png"],
+    ["settingsIcon", "UI-Home/icon-settings.png"],
+    ["statBackground", "UI-Home/resource-card-bg.png"],
+    ["arrowBackground", "UI-Home/arrow-button-bg.png"],
+    ["arrowIcon", "UI-Home/icon-arrow-right.png"],
+    ["tabBackground", "UI-Home/tab-fruit-selected-bg.png"],
+    ["summaryBackground", "UI-Home/chapter-title-fruit-bg.png"],
+    ["levelBackground", "UI-Home/level-fruit-current-bg.png"],
+    ["startBackground", "UI-Home/start-button-fruit-bg.png"],
+    ["lockIcon", "UI-Home/icon-lock.png"],
+  ];
+  const missing = expected.filter(([key, value]) => !String(assets[key]).includes(value));
+  if (!assets.screenClass.includes("home-theme-fruit-forest") || missing.length) {
+    throw new Error(`Expected home screen to render UI-Home sliced assets, got ${JSON.stringify({ assets, missing })}.`);
   }
 }
 
