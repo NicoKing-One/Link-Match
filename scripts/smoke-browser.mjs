@@ -669,7 +669,15 @@ async function expectSecondaryPageNavigation(page) {
   await expectExchangePageRemovesConsumableOffers(page);
   await expectExchangeCoinCardCompactLayout(page);
   await expectExchangeTitleShop(page);
-  await expectSecondaryPageOptimizedLikeProfile(page, "#exchangeScreen", ".exchange-layout", ".exchange-coin-card, .exchange-shop-panel");
+  await expectSecondaryPageOptimizedLikeProfile(page, "#exchangeScreen", ".exchange-layout", ".exchange-coin-card, .exchange-shop-panel", {
+    allowPageScroll: true,
+  });
+  await page.locator("#exchangeScreen.active .exchange-layout").evaluate((layout) => {
+    layout.scrollTop = 0;
+  });
+  await page.locator("#exchangeScreen.active .exchange-shop-grid").evaluate((grid) => {
+    grid.scrollTop = 0;
+  });
   await page.screenshot({ path: join(outputDir, "exchange-mobile.png"), fullPage: true });
   await page.locator("#exchangeBackButton").click();
   await page.waitForSelector(".screen-start.active", { timeout: 1200 });
@@ -735,17 +743,18 @@ async function expectExchangeCoinCardCompactLayout(page) {
 }
 
 async function expectExchangeTitleShop(page) {
+  await expectExchangeShopUsesV2Assets(page);
   const firstPageData = await page.locator("#exchangeScreen.active").evaluate((screen) => ({
     itemCount: screen.querySelectorAll(".exchange-shop-item").length,
     pageText: screen.querySelector("#exchangeShopPageText")?.textContent ?? "",
     titleTexts: [...screen.querySelectorAll(".exchange-title-badge")].map((node) => node.textContent?.trim() ?? ""),
   }));
   if (
-    firstPageData.itemCount !== 9 ||
-    firstPageData.pageText !== "第 1 / 2 页" ||
+    firstPageData.itemCount !== 6 ||
+    firstPageData.pageText !== "第 1 / 3 页" ||
     !firstPageData.titleTexts.includes("萌新果冻")
   ) {
-    throw new Error(`Expected exchange title shop page 1 with 9 titles, got ${JSON.stringify(firstPageData)}.`);
+    throw new Error(`Expected exchange title shop page 1 with 6 titles, got ${JSON.stringify(firstPageData)}.`);
   }
 
   await page.locator("#exchangeNextPageButton").click();
@@ -755,14 +764,28 @@ async function expectExchangeTitleShop(page) {
     titleTexts: [...screen.querySelectorAll(".exchange-title-badge")].map((node) => node.textContent?.trim() ?? ""),
   }));
   if (
-    secondPageData.itemCount !== 9 ||
-    secondPageData.pageText !== "第 2 / 2 页" ||
-    !secondPageData.titleTexts.includes("金币大亨")
+    secondPageData.itemCount !== 6 ||
+    secondPageData.pageText !== "第 2 / 3 页" ||
+    !secondPageData.titleTexts.includes("闪光萌主")
   ) {
-    throw new Error(`Expected exchange title shop page 2 with 9 titles, got ${JSON.stringify(secondPageData)}.`);
+    throw new Error(`Expected exchange title shop page 2 with 6 titles, got ${JSON.stringify(secondPageData)}.`);
   }
 
-  await page.locator("#exchangePrevPageButton").click();
+  await page.locator("#exchangeNextPageButton").click();
+  const thirdPageData = await page.locator("#exchangeScreen.active").evaluate((screen) => ({
+    itemCount: screen.querySelectorAll(".exchange-shop-item").length,
+    pageText: screen.querySelector("#exchangeShopPageText")?.textContent ?? "",
+    titleTexts: [...screen.querySelectorAll(".exchange-title-badge")].map((node) => node.textContent?.trim() ?? ""),
+  }));
+  if (
+    thirdPageData.itemCount !== 6 ||
+    thirdPageData.pageText !== "第 3 / 3 页" ||
+    !thirdPageData.titleTexts.includes("金币大亨")
+  ) {
+    throw new Error(`Expected exchange title shop page 3 with 6 titles, got ${JSON.stringify(thirdPageData)}.`);
+  }
+
+  await page.locator("#exchangeNextPageButton").click();
   await page.locator("#exchangeScreen.active .exchange-price-button").first().click();
   await page.waitForSelector("#exchangeResultModal:not(.hidden)", { timeout: 1200 });
   const successText = await page.locator("#exchangeResultMessage").innerText();
@@ -773,6 +796,7 @@ async function expectExchangeTitleShop(page) {
   await page.locator("#exchangeResultModal").waitFor({ state: "hidden", timeout: 1200 });
 
   await page.locator("#exchangeNextPageButton").click();
+  await page.locator("#exchangeNextPageButton").click();
   await page.locator("#exchangeScreen.active .exchange-price-button").last().click();
   await page.waitForSelector("#exchangeResultModal:not(.hidden)", { timeout: 1200 });
   const failText = await page.locator("#exchangeResultMessage").innerText();
@@ -781,7 +805,75 @@ async function expectExchangeTitleShop(page) {
   }
   await page.locator("#exchangeResultCloseButton").click();
   await page.locator("#exchangeResultModal").waitFor({ state: "hidden", timeout: 1200 });
-  await page.locator("#exchangePrevPageButton").click();
+  await page.locator("#exchangeNextPageButton").click();
+}
+
+async function expectExchangeShopUsesV2Assets(page) {
+  const assetData = await page.locator("#exchangeScreen.active").evaluate((screen) => {
+    const backgroundImageOf = (selector) => getComputedStyle(screen.querySelector(selector)).backgroundImage;
+    const panelStyle = getComputedStyle(screen.querySelector(".exchange-shop-panel"));
+    const gridStyle = getComputedStyle(screen.querySelector(".exchange-shop-grid"));
+    const item = screen.querySelector(".exchange-shop-item");
+    const itemStyle = getComputedStyle(item);
+    const itemBox = item.getBoundingClientRect();
+    const titleBadge = item.querySelector(".exchange-title-badge");
+    const titleBadgeBox = titleBadge.getBoundingClientRect();
+    const titleBadgeStyle = getComputedStyle(titleBadge);
+    const priceButton = item.querySelector(".exchange-price-button");
+    const priceButtonBox = priceButton.getBoundingClientRect();
+    const priceIconBox = priceButton.querySelector("img").getBoundingClientRect();
+    return {
+      panelBackground: backgroundImageOf(".exchange-shop-panel"),
+      itemBackground: backgroundImageOf(".exchange-shop-item"),
+      itemBackgroundSize: itemStyle.backgroundSize,
+      itemWidth: Math.round(itemBox.width),
+      itemRatio: itemBox.width / itemBox.height,
+      priceButtonRatio: priceButtonBox.width / priceButtonBox.height,
+      priceIconHeight: Math.round(priceIconBox.height),
+      priceIconWidth: Math.round(priceIconBox.width),
+      priceButtonBackground: backgroundImageOf(".exchange-price-button"),
+      titleBadgeAlignItems: titleBadgeStyle.alignItems,
+      titleBadgeCenterDelta: Math.round(Math.abs((titleBadgeBox.top + titleBadgeBox.bottom) / 2 - titleBadgeBox.top - titleBadgeBox.height / 2)),
+      titleBadgeDisplay: titleBadgeStyle.display,
+      titleBadgeJustifyContent: titleBadgeStyle.justifyContent,
+      arrowBackground: backgroundImageOf(".exchange-page-arrow"),
+      panelMinHeight: panelStyle.minHeight,
+      shopColumnCount: gridStyle.gridTemplateColumns.split(" ").filter(Boolean).length,
+    };
+  });
+  const expected = [
+    ["panelBackground", "exchange-shop-panel-bg-v2.png"],
+    ["itemBackground", "exchange-title-card-bg-v2.png"],
+    ["priceButtonBackground", "exchange-price-button-bg-v2.png"],
+    ["arrowBackground", "exchange-page-arrow-bg-v2.png"],
+  ];
+  const missing = expected.filter(([key, fileName]) => !String(assetData[key]).includes(fileName));
+  if (missing.length) {
+    throw new Error(`Expected exchange shop to use v2 generated assets, got ${JSON.stringify({ assetData, missing })}.`);
+  }
+  if (assetData.panelMinHeight !== "auto" || assetData.shopColumnCount !== 2) {
+    throw new Error(`Expected exchange shop panel to use auto min-height with 2 columns, got ${JSON.stringify(assetData)}.`);
+  }
+  if (assetData.itemBackgroundSize !== "contain" || Math.abs(assetData.itemRatio - 943 / 1228) > 0.02) {
+    throw new Error(`Expected exchange shop item background to keep original image ratio, got ${JSON.stringify(assetData)}.`);
+  }
+  if (assetData.itemWidth !== 117) {
+    throw new Error(`Expected exchange shop items to be 117px wide, got ${JSON.stringify(assetData)}.`);
+  }
+  if (
+    Math.abs(assetData.priceButtonRatio - 1224 / 427) > 0.04 ||
+    assetData.priceIconHeight !== 16 ||
+    assetData.priceIconWidth !== 16
+  ) {
+    throw new Error(`Expected exchange price button and coin icon to keep normal size, got ${JSON.stringify(assetData)}.`);
+  }
+  if (
+    assetData.titleBadgeDisplay !== "flex" ||
+    assetData.titleBadgeAlignItems !== "center" ||
+    assetData.titleBadgeJustifyContent !== "center"
+  ) {
+    throw new Error(`Expected exchange title text to be centered in the green badge, got ${JSON.stringify(assetData)}.`);
+  }
 }
 
 async function expectSecondaryPageBuiltFromLayout(page, screenSelector, layoutSelector) {
@@ -795,7 +887,7 @@ async function expectSecondaryPageBuiltFromLayout(page, screenSelector, layoutSe
   }
 }
 
-async function expectSecondaryPageOptimizedLikeProfile(page, screenSelector, layoutSelector, cardSelector) {
+async function expectSecondaryPageOptimizedLikeProfile(page, screenSelector, layoutSelector, cardSelector, options = {}) {
   const layout = await page.locator(`${screenSelector}.active ${layoutSelector}`).evaluate((node, cardSelector) => {
     const backButton = node.querySelector(".secondary-back-button")?.getBoundingClientRect();
     const title = node.querySelector(".secondary-title")?.getBoundingClientRect();
@@ -849,8 +941,11 @@ async function expectSecondaryPageOptimizedLikeProfile(page, screenSelector, lay
   if (layout.homeButtonCount !== 0) {
     throw new Error(`Expected ${screenSelector} bottom home button to be removed, got ${JSON.stringify(layout)}.`);
   }
-  if (layout.scrollHeight > layout.clientHeight || layout.layoutOverflowY !== "hidden") {
+  if (!options.allowPageScroll && (layout.scrollHeight > layout.clientHeight || layout.layoutOverflowY !== "hidden")) {
     throw new Error(`Expected ${screenSelector} page not to scroll, got ${JSON.stringify(layout)}.`);
+  }
+  if (options.allowPageScroll && layout.scrollHeight > layout.clientHeight && layout.layoutOverflowY === "hidden") {
+    throw new Error(`Expected ${screenSelector} overflow to remain reachable, got ${JSON.stringify(layout)}.`);
   }
 }
 

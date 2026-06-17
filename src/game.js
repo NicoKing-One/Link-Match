@@ -59,30 +59,28 @@ const ROAD_STEP_Y = 52;
 const ROAD_TOP_Y = 36;
 const ROAD_X_PATTERN = [18, 34, 62, 80, 66, 38];
 const HOME_THEME_CLASSES = CHAPTERS.map((chapter) => `home-theme-${chapter.id}`);
-const EXCHANGE_TITLE_PAGES = [
-  [
-    { name: "萌新果冻", price: 20 },
-    { name: "水果新星", price: 35 },
-    { name: "糖果学徒", price: 55 },
-    { name: "连线小将", price: 80 },
-    { name: "森林旅人", price: 120 },
-    { name: "甜心队长", price: 180 },
-    { name: "闪光萌主", price: 260 },
-    { name: "果冻骑士", price: 360 },
-    { name: "蜜糖达人", price: 520 },
-  ],
-  [
-    { name: "星辉领主", price: 650 },
-    { name: "彩虹旅者", price: 820 },
-    { name: "宝石猎人", price: 1000 },
-    { name: "果香名人", price: 1250 },
-    { name: "甜梦伯爵", price: 1600 },
-    { name: "泡泡冠军", price: 2100 },
-    { name: "糖霜大师", price: 2800 },
-    { name: "金牌连线", price: 3600 },
-    { name: "金币大亨", price: 5000 },
-  ],
+const EXCHANGE_TITLE_PAGE_SIZE = 6;
+const EXCHANGE_TITLES = [
+  { name: "萌新果冻", price: 20 },
+  { name: "水果新星", price: 35 },
+  { name: "糖果学徒", price: 55 },
+  { name: "连线小将", price: 80 },
+  { name: "森林旅人", price: 120 },
+  { name: "甜心队长", price: 180 },
+  { name: "闪光萌主", price: 260 },
+  { name: "果冻骑士", price: 360 },
+  { name: "蜜糖达人", price: 520 },
+  { name: "星辉领主", price: 650 },
+  { name: "彩虹旅者", price: 820 },
+  { name: "宝石猎人", price: 1000 },
+  { name: "果香名人", price: 1250 },
+  { name: "甜梦伯爵", price: 1600 },
+  { name: "泡泡冠军", price: 2100 },
+  { name: "糖霜大师", price: 2800 },
+  { name: "金牌连线", price: 3600 },
+  { name: "金币大亨", price: 5000 },
 ];
+const EXCHANGE_TITLE_PAGE_COUNT = Math.ceil(EXCHANGE_TITLES.length / EXCHANGE_TITLE_PAGE_SIZE);
 
 resetStoredPlayerDataIfNeeded();
 
@@ -304,7 +302,8 @@ function renderSecondaryPages(currentLevel) {
 }
 
 function renderExchangeShop() {
-  const titles = EXCHANGE_TITLE_PAGES[state.exchangePageIndex] ?? EXCHANGE_TITLE_PAGES[0];
+  const pageStart = state.exchangePageIndex * EXCHANGE_TITLE_PAGE_SIZE;
+  const titles = EXCHANGE_TITLES.slice(pageStart, pageStart + EXCHANGE_TITLE_PAGE_SIZE);
   elements.exchangeShopGrid.innerHTML = "";
   titles.forEach((title) => {
     const item = document.createElement("article");
@@ -334,12 +333,12 @@ function renderExchangeShop() {
     item.append(badge, button);
     elements.exchangeShopGrid.append(item);
   });
-  elements.exchangeShopPageText.textContent = `第 ${state.exchangePageIndex + 1} / ${EXCHANGE_TITLE_PAGES.length} 页`;
+  elements.exchangeShopPageText.textContent = `第 ${state.exchangePageIndex + 1} / ${EXCHANGE_TITLE_PAGE_COUNT} 页`;
 }
 
 function switchExchangePage(direction) {
   state.exchangePageIndex =
-    (state.exchangePageIndex + direction + EXCHANGE_TITLE_PAGES.length) % EXCHANGE_TITLE_PAGES.length;
+    (state.exchangePageIndex + direction + EXCHANGE_TITLE_PAGE_COUNT) % EXCHANGE_TITLE_PAGE_COUNT;
   renderExchangeShop();
 }
 

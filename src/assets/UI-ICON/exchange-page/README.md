@@ -30,6 +30,14 @@ src/assets/UI-ICON/exchange-page/
 - `coin-exchange-resource-bg.png`：金币资源栏背景。
 - `module-exchange-item-bg.png`：单个兑换项模块背景。
 
+## 头衔商城 v2 预览与组件
+
+- `exchange-shop-preview-v2.png`：头衔商城中间兑换框整体预览图，仅用于确认效果和后续复刻参考，不直接切图接入。
+- `exchange-shop-panel-bg-v2.png`：中间兑换框大背景，透明 PNG，已裁掉多余透明边，文字和商品内容建议用 HTML/CSS 覆盖。
+- `exchange-title-card-bg-v2.png`：单个头衔框背景，透明 PNG，头衔名称建议用 HTML/CSS 覆盖，当前页面按两列、每页 6 个渲染。
+- `exchange-price-button-bg-v2.png`：兑换/价格按钮背景，透明 PNG，已裁掉多余透明边，金币图标和价格建议用独立图标与 HTML/CSS 覆盖。
+- `exchange-page-arrow-bg-v2.png`：翻页按钮背景，透明 PNG，已裁掉多余透明边，左翻页可通过 CSS 镜像或另行生成。
+
 ## 图标
 
 - `icon-coin.png`：金币图标。
