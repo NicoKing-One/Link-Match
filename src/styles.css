@@ -54,13 +54,8 @@ button:disabled {
   height: 100dvh;
   min-height: 0;
   margin: 0 auto;
-  padding: max(10px, env(safe-area-inset-top)) 0 max(10px, env(safe-area-inset-bottom));
   display: flex;
   overflow: hidden;
-}
-
-.app-shell.is-secondary-active {
-  padding: 0;
 }
 
 .screen {
@@ -104,7 +99,7 @@ button:disabled {
   justify-content: flex-start;
   gap: 10px;
   min-height: 0;
-  padding: 8px 10px 0;
+  padding: 0 10px 0;
   background: var(--home-screen-bg, #effff3) center top / cover no-repeat;
 }
 
@@ -155,10 +150,11 @@ button:disabled {
 
 .home-header {
   display: grid;
-  grid-template-columns: 72px minmax(0, 1fr) 72px;
+  grid-template-columns: 88px minmax(0, 1fr) 88px;
   align-items: center;
   gap: 8px;
   flex: 0 0 auto;
+  margin-top: 30px;
 }
 
 .home-header-spacer {
@@ -168,16 +164,16 @@ button:disabled {
 .round-menu-button {
   display: grid;
   place-items: center;
-  width: 72px;
-  aspect-ratio: 442 / 258;
+  width: 88px;
+  height: 52px;
   min-width: 0;
   padding: 0;
   background: url("./assets/UI-Home/top-button-bg.png") center / 100% 100% no-repeat;
 }
 
 .round-menu-button img {
-  width: 38px;
-  height: 38px;
+  width: 34px;
+  height: 34px;
   object-fit: contain;
   filter: drop-shadow(0 2px 0 rgba(255, 255, 255, 0.8));
 }
@@ -190,40 +186,62 @@ button:disabled {
 }
 
 .home-stat {
+  display: grid;
+  grid-template-columns: 34px minmax(0, max-content);
+  grid-template-rows: auto auto;
+  align-items: center;
+  justify-content: center;
+  column-gap: 8px;
   min-height: 66px;
-  padding: 10px 12px 8px;
+  padding: 10px 10px 8px;
   color: #0b746c;
   background: url("./assets/UI-Home/resource-card-bg.png") center / 100% 100% no-repeat;
 }
 
-.home-stat span,
+.home-stat-icon {
+  grid-row: 1 / span 2;
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.8));
+}
+
 .home-stat strong,
 .home-stat small {
   display: block;
-}
-
-.home-stat span {
-  color: #238179;
-  font-size: 0.7rem;
-  font-weight: 900;
+  min-width: 0;
+  color: #08746e;
 }
 
 .home-stat strong {
-  margin-top: 2px;
-  font-size: 1rem;
-  line-height: 1.16;
-}
-
-.home-stat small {
-  margin-top: 1px;
-  color: rgba(18, 99, 94, 0.68);
-  font-size: 0.62rem;
-  font-weight: 800;
+  grid-column: 2;
+  grid-row: 1;
+  align-self: center;
+  font-size: 1.16rem;
+  line-height: 1;
   white-space: nowrap;
 }
 
+.home-stat small {
+  grid-column: 2;
+  grid-row: 2;
+  margin-top: 4px;
+  font-size: 0.6rem;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.home-stat--compact {
+  grid-template-rows: auto;
+}
+
+.home-stat--compact .home-stat-icon,
+.home-stat--compact strong {
+  grid-row: 1;
+}
+
 .home-stat-button {
-  width: 100%;
   color: inherit;
   text-align: left;
 }
@@ -956,16 +974,20 @@ button:disabled {
   display: flex;
   flex: 0 0 auto;
   justify-content: center;
-  padding: 8px 0 30px;
+  padding: 8px 24px 30px;
 }
 
 .home-bottom-dock .primary-button {
-  width: min(50vw, 260px);
+  display: grid;
+  place-items: center;
+  width: 100%;
   aspect-ratio: 1115 / 276;
-  min-height: 48px;
+  min-height: 0;
+  padding: 0 0 10px;
   color: #ffffff;
   font-size: 1rem;
   font-weight: 950;
+  line-height: 1;
   text-shadow: 0 2px 0 rgba(0, 108, 98, 0.68);
   background: var(--home-start-button-bg) center / 100% 100% no-repeat;
   box-shadow: none;
@@ -981,7 +1003,7 @@ button:disabled {
 
 .chapter-switcher {
   display: grid;
-  grid-template-columns: 44px minmax(0, 1fr) 44px;
+  grid-template-columns: 52px minmax(0, 1fr) 52px;
   align-items: center;
   gap: 6px;
   flex: 0 0 auto;
@@ -990,85 +1012,22 @@ button:disabled {
 .chapter-arrow {
   display: grid;
   place-items: center;
-  width: 44px;
-  height: 48px;
+  width: 52px;
+  height: 52px;
   padding: 0;
-  background: url("./assets/UI-Home/arrow-button-bg.png") center / contain no-repeat;
+  background: url("./assets/UI-ICON/exchange-page/exchange-page-arrow-bg-v2.png") center / contain no-repeat;
 }
 
 .chapter-arrow img {
-  width: 19px;
-  height: 27px;
-  object-fit: contain;
+  display: none;
+}
+
+.chapter-arrow:first-child {
+  transform: scaleX(-1);
 }
 
 .chapter-arrow:disabled {
   opacity: 0.36;
-}
-
-.chapter-tabs {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 4px;
-}
-
-.chapter-tab {
-  min-width: 0;
-  min-height: 48px;
-  padding: 8px 8px 7px;
-  color: #0b746c;
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.9);
-  background: var(--chapter-tab-bg) center / 100% 100% no-repeat;
-}
-
-.chapter-tab strong,
-.chapter-tab span {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.chapter-tab strong {
-  font-size: 0.7rem;
-  font-weight: 900;
-}
-
-.chapter-tab span {
-  margin-top: 1px;
-  color: rgba(10, 99, 94, 0.66);
-  font-size: 0.62rem;
-  font-weight: 800;
-}
-
-.chapter-tab.selected {
-  color: #fff;
-  text-shadow: 0 2px 0 rgba(180, 54, 90, 0.45);
-  background: var(--chapter-tab-selected-bg) center / 100% 100% no-repeat;
-}
-
-.chapter-tab.selected span {
-  color: rgba(255, 255, 255, 0.78);
-}
-
-.chapter-tab.locked {
-  filter: grayscale(0.4);
-  opacity: 0.62;
-}
-
-.chapter-tab--fruit-forest {
-  --chapter-tab-bg: url("./assets/UI-Home/tab-fruit-unselected-bg.png");
-  --chapter-tab-selected-bg: url("./assets/UI-Home/tab-fruit-selected-bg.png");
-}
-
-.chapter-tab--candy-garden {
-  --chapter-tab-bg: url("./assets/UI-Home/tab-candy-unselected-bg.png");
-  --chapter-tab-selected-bg: url("./assets/UI-Home/tab-candy-selected-bg.png");
-}
-
-.chapter-tab--jelly-castle {
-  --chapter-tab-bg: url("./assets/UI-Home/tab-jelly-unselected-bg.png");
-  --chapter-tab-selected-bg: url("./assets/UI-Home/tab-jelly-selected-bg.png");
 }
 
 .chapter-summary {
@@ -1083,6 +1042,15 @@ button:disabled {
   text-align: center;
   text-shadow: 0 2px 0 rgba(0, 103, 98, 0.55);
   background: var(--chapter-title-bg) center / 100% 100% no-repeat;
+}
+
+.chapter-switcher .chapter-summary {
+  width: 100%;
+  min-height: 58px;
+  margin: 0;
+  padding: 15px 24px 9px;
+  font-size: 0.92rem;
+  align-self: center;
 }
 
 .chapter-summary--fruit-forest {
@@ -1419,6 +1387,7 @@ h2 {
 }
 
 .primary-button {
+  padding-bottom: 10px;
   color: #fff;
   background: linear-gradient(180deg, #2dd7c0, #078fba);
   box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.28), 0 12px 30px rgba(8, 143, 186, 0.24);

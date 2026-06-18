@@ -22,35 +22,32 @@
         </header>
 
         <section class="home-stats" aria-label="玩家资源">
-          <div class="home-stat">
-            <span>体力</span>
+          <div class="home-stat home-stat--stamina">
+            <img class="home-stat-icon" src="./assets/UI-ICON/icon-stamina.png" alt="" aria-hidden="true" />
             <strong class="staminaText">50/50</strong>
             <small class="staminaCountdown">恢复 03:00</small>
           </div>
-          <button class="home-stat home-stat-button" id="coinExchangeButton" type="button" aria-label="打开金币兑换">
-            <span>金币</span>
+          <button class="home-stat home-stat--compact home-stat-button" id="coinExchangeButton" type="button" aria-label="打开金币兑换">
+            <img class="home-stat-icon" src="./assets/UI-ICON/icon-coin.png" alt="" aria-hidden="true" />
             <strong id="coinText">0</strong>
-            <small>通关获得</small>
           </button>
-          <div class="home-stat">
-            <span>星星</span>
+          <div class="home-stat home-stat--compact">
+            <img class="home-stat-icon" src="./assets/UI-ICON/icon-star.png" alt="" aria-hidden="true" />
             <strong id="starText">0/270</strong>
-            <small id="completedText">已通关 0</small>
           </div>
         </section>
 
         <section class="chapter-shell" aria-label="章节关卡">
           <div class="chapter-switcher">
             <button class="chapter-arrow" id="prevChapterButton" type="button" aria-label="上一个主题">
-              <img src="./assets/UI-Home/icon-arrow-left.png" alt="" aria-hidden="true" />
+              <img src="./assets/UI-ICON/exchange-page/exchange-page-arrow-bg-v2.png" alt="" aria-hidden="true" />
             </button>
-            <div class="chapter-tabs" id="chapterTabs" role="tablist" aria-label="主题选择"></div>
+            <div class="chapter-summary" id="chapterSummary">水果森林 · 1-30关</div>
             <button class="chapter-arrow" id="nextChapterButton" type="button" aria-label="下一个主题">
-              <img src="./assets/UI-Home/icon-arrow-right.png" alt="" aria-hidden="true" />
+              <img src="./assets/UI-ICON/exchange-page/exchange-page-arrow-bg-v2.png" alt="" aria-hidden="true" />
             </button>
           </div>
 
-          <div class="chapter-summary" id="chapterSummary">水果森林 · 1-30</div>
           <div class="map-panel">
             <div class="chapter-lock hidden" id="chapterLockNotice">
               <img src="./assets/UI-Home/icon-lock.png" alt="" aria-hidden="true" />

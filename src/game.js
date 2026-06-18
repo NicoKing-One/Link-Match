@@ -95,7 +95,6 @@ const screens = {
 
 const elements = {
   appShell: document.querySelector(".app-shell"),
-  chapterTabs: document.querySelector("#chapterTabs"),
   chapterSummary: document.querySelector("#chapterSummary"),
   chapterLockNotice: document.querySelector("#chapterLockNotice"),
   levelRoad: document.querySelector("#levelRoad"),
@@ -281,9 +280,11 @@ function renderHome() {
   elements.startButton.textContent = calculateCompletedLevels(state.progress) > 0 ? "继续闯关" : "开始闯关";
   elements.coinText.textContent = state.progress.coins;
   elements.starText.textContent = `${calculateTotalStars(state.progress)}/${MAX_LEVEL_NUMBER * 3}`;
-  elements.completedText.textContent = `已通关 ${calculateCompletedLevels(state.progress)}`;
+  if (elements.completedText) {
+    elements.completedText.textContent = `已通关 ${calculateCompletedLevels(state.progress)}`;
+  }
   renderSecondaryPages(currentLevel);
-  renderChapterTabs();
+  renderChapterSwitcher();
   renderRoadMap();
 }
 
@@ -358,24 +359,7 @@ function toggleSettingButton(button) {
   button.querySelector("span").textContent = isOn ? "开" : "关";
 }
 
-function renderChapterTabs() {
-  elements.chapterTabs.innerHTML = "";
-  CHAPTERS.forEach((chapter, index) => {
-    const status = getChapterStatus(chapter, state.progress);
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = `chapter-tab chapter-tab--${chapter.id} ${status}${
-      index === state.chapterIndex ? " selected" : ""
-    }`;
-    button.setAttribute("role", "tab");
-    button.setAttribute("aria-selected", index === state.chapterIndex ? "true" : "false");
-    button.innerHTML = `<strong>${chapter.name}</strong><span>${chapter.startLevel}-${chapter.endLevel}</span>`;
-    button.addEventListener("click", () => {
-      state.chapterIndex = index;
-      renderHome();
-    });
-    elements.chapterTabs.append(button);
-  });
+function renderChapterSwitcher() {
   elements.prevChapterButton.disabled = state.chapterIndex === 0;
   elements.nextChapterButton.disabled = state.chapterIndex === CHAPTERS.length - 1;
 }

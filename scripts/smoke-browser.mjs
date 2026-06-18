@@ -569,10 +569,11 @@ async function expectHomeRoadMap(page) {
   const visibleRoadLevelCount = await page.locator(".screen-start.active .road-level").count();
   const currentLevelText = await page.locator(".screen-start.active .road-level.current").innerText();
   const lockedCount = await page.locator(".screen-start.active .road-level.locked").count();
-  const lockedTabCount = await page.locator(".screen-start.active .chapter-tab.locked").count();
   const continueText = await page.locator("#startButton").innerText();
   const homeTitleCount = await page.locator(".screen-start.active .home-brand h1, .screen-start.active .home-brand .eyebrow").count();
   const homeStaminaButtonCount = await page.locator(".screen-start.active .getStaminaButton").count();
+  const homeStatLabelCount = await page.locator(".screen-start.active .home-stat-label").count();
+  const homeStatSmallCount = await page.locator(".screen-start.active .home-stat small").count();
   const scrollInfo = await page.locator("#roadScroll").evaluate((node) => ({
     clientHeight: node.clientHeight,
     scrollHeight: node.scrollHeight,
@@ -583,20 +584,28 @@ async function expectHomeRoadMap(page) {
     const levelOne = [...document.querySelectorAll(".road-level")].find((node) => node.textContent.includes("01"));
     const levelTwo = [...document.querySelectorAll(".road-level")].find((node) => node.textContent.includes("02"));
     const dock = document.querySelector(".home-bottom-dock");
+    const startButtonStyle = getComputedStyle(startButton);
+    const buttonRect = startButton.getBoundingClientRect();
     return {
-      buttonWidth: startButton.getBoundingClientRect().width,
+      buttonWidth: buttonRect.width,
+      buttonHeight: buttonRect.height,
+      buttonRatio: buttonRect.width / buttonRect.height,
       viewportWidth: window.innerWidth,
-      buttonBottom: window.innerHeight - startButton.getBoundingClientRect().bottom,
+      buttonBottom: window.innerHeight - buttonRect.bottom,
       levelOneTop: levelOne.getBoundingClientRect().top,
       levelTwoTop: levelTwo.getBoundingClientRect().top,
       hasDock: Boolean(dock),
       dockPaddingBottom: dock ? getComputedStyle(dock).paddingBottom : "",
+      buttonDisplay: startButtonStyle.display,
+      buttonAlignItems: startButtonStyle.alignItems,
+      buttonJustifyItems: startButtonStyle.justifyItems,
+      buttonLineHeight: startButtonStyle.lineHeight,
       firstText: first?.textContent ?? "",
     };
   });
 
-  if (chapterTabCount !== 3) {
-    throw new Error(`Expected 3 chapter tabs, got ${chapterTabCount}.`);
+  if (chapterTabCount !== 0) {
+    throw new Error(`Expected chapter tabs to be removed, got ${chapterTabCount}.`);
   }
   if (bottomTabCount !== 0) {
     throw new Error(`Expected no bottom tabs, got ${bottomTabCount}.`);
@@ -607,8 +616,8 @@ async function expectHomeRoadMap(page) {
   if (!currentLevelText.includes("01")) {
     throw new Error(`Expected level 01 to be current, got: ${currentLevelText}.`);
   }
-  if (lockedCount < 20 || lockedTabCount !== 2) {
-    throw new Error(`Expected most future levels and later chapters to be locked, got levels=${lockedCount}, tabs=${lockedTabCount}.`);
+  if (lockedCount < 20) {
+    throw new Error(`Expected most future levels to be locked, got levels=${lockedCount}.`);
   }
   if (!continueText.includes("闯关")) {
     throw new Error(`Expected start button to use start/continue challenge copy, got: ${continueText}.`);
@@ -619,12 +628,24 @@ async function expectHomeRoadMap(page) {
   if (homeStaminaButtonCount !== 0) {
     throw new Error(`Expected home stamina claim button to be removed, got ${homeStaminaButtonCount}.`);
   }
+  if (homeStatLabelCount !== 0 || homeStatSmallCount !== 1) {
+    throw new Error(`Expected resource cards to keep only stamina countdown small text, got labels=${homeStatLabelCount}, small=${homeStatSmallCount}.`);
+  }
   if (
     !layoutInfo.hasDock ||
-    Math.abs(layoutInfo.buttonWidth - layoutInfo.viewportWidth / 2) > 8 ||
+    layoutInfo.buttonWidth < layoutInfo.viewportWidth * 0.7 ||
+    Math.abs(layoutInfo.buttonRatio - 1115 / 276) > 0.12 ||
     layoutInfo.dockPaddingBottom !== "30px"
   ) {
-    throw new Error(`Expected continue button to be half-width with 30px bottom padding, got ${JSON.stringify(layoutInfo)}.`);
+    throw new Error(`Expected continue button to fill its dock at the source image aspect ratio, got ${JSON.stringify(layoutInfo)}.`);
+  }
+  if (
+    !["grid", "inline-grid"].includes(layoutInfo.buttonDisplay) ||
+    layoutInfo.buttonAlignItems !== "center" ||
+    layoutInfo.buttonJustifyItems !== "center" ||
+    layoutInfo.buttonLineHeight !== "16px"
+  ) {
+    throw new Error(`Expected continue button text to be centered, got ${JSON.stringify(layoutInfo)}.`);
   }
   if (layoutInfo.levelOneTop <= layoutInfo.levelTwoTop) {
     throw new Error(`Expected level 01 to appear below level 02 in bottom-up map, got ${JSON.stringify(layoutInfo)}.`);
@@ -1250,7 +1271,6 @@ async function expectHomeUsesUiHomeAssets(page) {
     const backgroundImageOf = (selector) => getComputedStyle(document.querySelector(selector)).backgroundImage;
     const firstRoadLevel = document.querySelector(".road-level.current");
     const summary = document.querySelector("#chapterSummary");
-    const activeTab = document.querySelector(".chapter-tab.selected");
     return {
       screenClass: node.className,
       screenBackground: getComputedStyle(node).backgroundImage,
@@ -1259,7 +1279,6 @@ async function expectHomeUsesUiHomeAssets(page) {
       statBackground: backgroundImageOf(".home-stat"),
       arrowBackground: backgroundImageOf(".chapter-arrow"),
       arrowIcon: document.querySelector("#nextChapterButton img")?.getAttribute("src") ?? "",
-      tabBackground: activeTab ? getComputedStyle(activeTab).backgroundImage : "",
       summaryBackground: summary ? getComputedStyle(summary).backgroundImage : "",
       levelBackground: firstRoadLevel ? getComputedStyle(firstRoadLevel).backgroundImage : "",
       startBackground: backgroundImageOf("#startButton"),
@@ -1272,9 +1291,8 @@ async function expectHomeUsesUiHomeAssets(page) {
     ["profileIcon", "UI-Home/icon-profile.png"],
     ["settingsIcon", "UI-Home/icon-settings.png"],
     ["statBackground", "UI-Home/resource-card-bg.png"],
-    ["arrowBackground", "UI-Home/arrow-button-bg.png"],
-    ["arrowIcon", "UI-Home/icon-arrow-right.png"],
-    ["tabBackground", "UI-Home/tab-fruit-selected-bg.png"],
+    ["arrowBackground", "UI-ICON/exchange-page/exchange-page-arrow-bg-v2.png"],
+    ["arrowIcon", "UI-ICON/exchange-page/exchange-page-arrow-bg-v2.png"],
     ["summaryBackground", "UI-Home/chapter-title-fruit-bg.png"],
     ["levelBackground", "UI-Home/level-fruit-current-bg.png"],
     ["startBackground", "UI-Home/start-button-fruit-bg.png"],
