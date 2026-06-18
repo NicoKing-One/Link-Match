@@ -84,6 +84,7 @@ try {
   await expectHomeRoadMap(page);
   await page.screenshot({ path: join(outputDir, "home-map-mobile.png"), fullPage: true });
   await seedProfileThreeStarState(page);
+  await expectHomeLevelStarsMatchProgress(page);
   await expectSecondaryPageNavigation(page);
   await seedPlayableFreshState(page);
   await expectStaleFullStaminaSpend(page);
@@ -347,7 +348,7 @@ async function seedProfileThreeStarState(page) {
         records: {
           1: { completed: true, bestScore: 1200, bestStars: 3 },
           2: { completed: true, bestScore: 900, bestStars: 2 },
-          3: { completed: true, bestScore: 1500, bestStars: 3 },
+          3: { completed: true, bestScore: 1500, bestStars: 1 },
         },
       }),
     );
@@ -653,7 +654,117 @@ async function expectHomeRoadMap(page) {
   if (scrollInfo.scrollHeight <= scrollInfo.clientHeight) {
     throw new Error(`Expected road map to scroll vertically, got ${JSON.stringify(scrollInfo)}.`);
   }
+  await expectHomeChapterArrowsCycle(page);
   await expectHomeUsesUiHomeAssets(page);
+}
+
+async function expectHomeChapterArrowsCycle(page) {
+  const initialDisabledState = await page.locator(".screen-start.active .chapter-arrow").evaluateAll((nodes) =>
+    nodes.map((node) => node.disabled),
+  );
+  if (initialDisabledState.some(Boolean)) {
+    throw new Error(`Expected home chapter arrows to stay clickable, got disabled=${initialDisabledState.join(",")}.`);
+  }
+
+  await page.locator("#prevChapterButton").click();
+  await page.waitForFunction(() => document.querySelector("#startScreen")?.className.includes("home-theme-jelly-castle"));
+  await page.locator("#nextChapterButton").click();
+  await page.waitForFunction(() => document.querySelector("#startScreen")?.className.includes("home-theme-fruit-forest"));
+  await page.locator("#nextChapterButton").click();
+  await page.waitForFunction(() => document.querySelector("#startScreen")?.className.includes("home-theme-candy-garden"));
+  await page.locator("#nextChapterButton").click();
+  await page.waitForFunction(() => document.querySelector("#startScreen")?.className.includes("home-theme-jelly-castle"));
+  await page.locator("#nextChapterButton").click();
+  await page.waitForFunction(() => document.querySelector("#startScreen")?.className.includes("home-theme-fruit-forest"));
+}
+
+async function expectHomeLevelStarsMatchProgress(page) {
+  const starData = await page.locator(".screen-start.active").evaluate(() => {
+    const levels = [...document.querySelectorAll(".road-level")];
+    return ["01", "02", "03", "04"].map((label) => {
+      const node = levels.find((item) => item.textContent.includes(label));
+      const starBox = node?.querySelector(".road-stars");
+      return {
+        label,
+        filled: starBox?.querySelectorAll(".filled").length ?? -1,
+        imageStars: starBox?.querySelectorAll("img").length ?? -1,
+        visibleStars: starBox ? getComputedStyle(starBox).display !== "none" : false,
+      };
+    });
+  });
+  const expected = new Map([
+    ["01", 3],
+    ["02", 2],
+    ["03", 1],
+    ["04", 0],
+  ]);
+  const mismatch = starData.filter((item) => item.filled !== expected.get(item.label) || item.imageStars !== 0);
+  if (mismatch.length) {
+    throw new Error(`Expected road level CSS stars to match bestStars, got ${JSON.stringify(starData)}.`);
+  }
+  await expectLevelBackgroundsAreCleanBases(page);
+}
+
+async function expectLevelBackgroundsAreCleanBases(page) {
+  const backgroundData = await page.evaluate(async () => {
+    const collectBackgroundUrls = () =>
+      [...document.querySelectorAll(".road-level")].map((node) => {
+        const match = getComputedStyle(node).backgroundImage.match(/url\(["']?(.*?)["']?\)/);
+        return match?.[1] ?? "";
+      });
+    const urls = [...new Set(collectBackgroundUrls().filter(Boolean))];
+
+    async function inspectLevelBase(url) {
+      const image = new Image();
+      image.crossOrigin = "anonymous";
+      image.src = url;
+      await image.decode();
+      const canvas = document.createElement("canvas");
+      canvas.width = image.naturalWidth;
+      canvas.height = image.naturalHeight;
+      const context = canvas.getContext("2d", { willReadFrequently: true });
+      context.drawImage(image, 0, 0);
+      const isCurrent = url.includes("current");
+      const centers = isCurrent ? [0.36, 0.5, 0.64] : [0.29, 0.5, 0.71];
+      const boxWidth = image.naturalWidth * (isCurrent ? 0.17 : 0.22);
+      const boxHeight = image.naturalHeight * (isCurrent ? 0.2 : 0.27);
+      const centerY = image.naturalHeight * (isCurrent ? 0.72 : 0.74);
+      let blackPixels = 0;
+      let transparentPixels = 0;
+      let sampled = 0;
+      centers.forEach((centerXRatio) => {
+        const left = Math.max(0, Math.floor(image.naturalWidth * centerXRatio - boxWidth / 2));
+        const top = Math.max(0, Math.floor(centerY - boxHeight / 2));
+        const width = Math.min(image.naturalWidth - left, Math.ceil(boxWidth));
+        const height = Math.min(image.naturalHeight - top, Math.ceil(boxHeight));
+        const data = context.getImageData(left, top, width, height).data;
+        sampled += width * height;
+        for (let index = 0; index < data.length; index += 4) {
+          const alpha = data[index + 3];
+          if (alpha <= 12) transparentPixels += 1;
+          if (alpha > 12 && data[index] < 30 && data[index + 1] < 30 && data[index + 2] < 30) {
+            blackPixels += 1;
+          }
+        }
+      });
+      return {
+        blackPixels,
+        file: url.split("/").pop(),
+        height: image.naturalHeight,
+        sampledPixels: sampled,
+        transparentPixels,
+        width: image.naturalWidth,
+      };
+    }
+
+    return Promise.all(urls.map(inspectLevelBase));
+  });
+  const dirty = backgroundData.filter(
+    (item) => item.blackPixels > item.sampledPixels * 0.01 || item.transparentPixels > item.sampledPixels * 0.1,
+  );
+  if (dirty.length) {
+    throw new Error(`Expected regenerated level bases without black bars or cutout gaps, got ${JSON.stringify(dirty)}.`);
+  }
 }
 
 async function expectSecondaryPageNavigation(page) {

@@ -57,7 +57,7 @@ const DATA_RESET_KEY = "lianliankan.dataResetVersion";
 const DATA_RESET_VERSION = "2026-06-13-full-stamina-baseline";
 const ROAD_STEP_Y = 52;
 const ROAD_TOP_Y = 36;
-const ROAD_X_PATTERN = [18, 34, 62, 80, 66, 38];
+const ROAD_X_PATTERN = [32, 43, 65, 72, 58, 37];
 const HOME_THEME_CLASSES = CHAPTERS.map((chapter) => `home-theme-${chapter.id}`);
 const EXCHANGE_TITLE_PAGE_SIZE = 6;
 const EXCHANGE_TITLES = [
@@ -360,8 +360,8 @@ function toggleSettingButton(button) {
 }
 
 function renderChapterSwitcher() {
-  elements.prevChapterButton.disabled = state.chapterIndex === 0;
-  elements.nextChapterButton.disabled = state.chapterIndex === CHAPTERS.length - 1;
+  elements.prevChapterButton.disabled = false;
+  elements.nextChapterButton.disabled = false;
 }
 
 function renderRoadMap() {
@@ -880,7 +880,7 @@ function updateStaminaView() {
 }
 
 function switchChapter(direction) {
-  state.chapterIndex = Math.min(CHAPTERS.length - 1, Math.max(0, state.chapterIndex + direction));
+  state.chapterIndex = (state.chapterIndex + direction + CHAPTERS.length) % CHAPTERS.length;
   renderHome();
 }
 
@@ -890,9 +890,10 @@ function buildRoadSvg(points, height) {
 }
 
 function renderMiniStars(count) {
+  const filledCount = Math.min(3, Math.max(0, Number(count) || 0));
   const stars = [];
-  for (let index = 1; index <= 3; index += 1) {
-    stars.push(`<span class="${index <= count ? "filled" : ""}"></span>`);
+  for (let index = 1; index <= filledCount; index += 1) {
+    stars.push(`<span class="filled"></span>`);
   }
   return `<span class="road-stars" aria-hidden="true">${stars.join("")}</span>`;
 }
