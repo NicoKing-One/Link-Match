@@ -974,7 +974,7 @@ button:disabled {
   display: flex;
   flex: 0 0 auto;
   justify-content: center;
-  padding: 8px 24px 30px;
+  padding: 20px 24px 30px;
 }
 
 .home-bottom-dock .primary-button {
@@ -985,7 +985,7 @@ button:disabled {
   min-height: 0;
   padding: 0 0 10px;
   color: #ffffff;
-  font-size: 1rem;
+  font-size: 1.3rem;
   font-weight: 950;
   line-height: 1;
   text-shadow: 0 2px 0 rgba(0, 108, 98, 0.68);
@@ -1033,7 +1033,7 @@ button:disabled {
   margin: 6px auto 1px;
   padding: 14px 26px 8px;
   color: #ffffff;
-  font-size: 0.86rem;
+  font-size: 1.1rem;
   font-weight: 900;
   text-align: center;
   text-shadow: 0 2px 0 rgba(0, 103, 98, 0.55);
@@ -1045,7 +1045,7 @@ button:disabled {
   min-height: 58px;
   margin: 0;
   padding: 15px 24px 9px;
-  font-size: 0.92rem;
+  font-size: 1.1rem;
   align-self: center;
 }
 
@@ -1069,6 +1069,7 @@ button:disabled {
   position: relative;
   flex: 1 1 auto;
   min-height: 0;
+  margin-top: 30px;
   overflow: hidden;
   border-radius: 20px;
 }
@@ -1096,36 +1097,150 @@ button:disabled {
   --level-current-bg: url("./assets/UI-Home/level-fruit-current-bg.png");
   --level-completed-bg: url("./assets/UI-Home/level-fruit-completed-bg.png");
   --level-not-started-bg: url("./assets/UI-Home/level-fruit-not-started-bg.png");
+  --road-line-main: #79c85c;
+  --road-line-outer: #2e7f42;
+  --road-line-shadow: rgba(33, 83, 35, 0.28);
+  --road-line-highlight: #d9f58d;
+  --road-line-accent: #43a75a;
+  --road-line-highlight-dash: 10 20;
+  --road-line-accent-dash: 1 0;
+  --road-line-accent-width: 4px;
+  --road-line-accent-opacity: 0.96;
 }
 
 .theme-candy-garden {
   --level-current-bg: url("./assets/UI-Home/level-candy-current-bg.png");
   --level-completed-bg: url("./assets/UI-Home/level-candy-completed-bg.png");
   --level-not-started-bg: url("./assets/UI-Home/level-candy-not-started-bg.png");
+  --road-line-main: #fff5c7;
+  --road-line-outer: #ff7eb9;
+  --road-line-shadow: rgba(188, 76, 128, 0.3);
+  --road-line-highlight: rgba(255, 255, 255, 0.94);
+  --road-line-accent: #ff68aa;
+  --road-line-highlight-dash: 16 18;
+  --road-line-accent-dash: 18 14;
+  --road-line-accent-width: 7px;
+  --road-line-accent-opacity: 0.95;
 }
 
 .theme-jelly-castle {
   --level-current-bg: url("./assets/UI-Home/level-jelly-current-bg.png");
   --level-completed-bg: url("./assets/UI-Home/level-jelly-completed-bg.png");
   --level-not-started-bg: url("./assets/UI-Home/level-jelly-not-started-bg.png");
+  --road-line-main: #7ddcff;
+  --road-line-outer: #b894ff;
+  --road-line-shadow: rgba(61, 41, 170, 0.38);
+  --road-line-highlight: rgba(255, 255, 255, 0.95);
+  --road-line-accent: #d9f8ff;
+  --road-line-highlight-dash: 9 12;
+  --road-line-accent-dash: 1 17;
+  --road-line-accent-width: 13px;
+  --road-line-accent-opacity: 0.78;
 }
 
 .road-path {
   position: absolute;
   inset: 0;
+  z-index: 1;
   width: 100%;
   height: 100%;
-  display: none;
+  display: block;
   pointer-events: none;
 }
 
 .road-path path {
   fill: none;
-  stroke: rgba(255, 247, 201, 0.92);
-  stroke-width: 10;
   stroke-linecap: round;
   stroke-linejoin: round;
-  filter: drop-shadow(0 5px 0 rgba(79, 150, 116, 0.16));
+  vector-effect: non-scaling-stroke;
+}
+
+.road-line-shadow {
+  stroke: var(--road-line-shadow);
+  stroke-width: 18px;
+  transform: translateY(4px);
+}
+
+.road-line-outer {
+  stroke: var(--road-line-outer);
+  stroke-width: 16px;
+  filter: drop-shadow(0 2px 0 rgba(82, 67, 28, 0.16));
+}
+
+.road-line-main {
+  stroke: var(--road-line-main);
+  stroke-width: 10px;
+}
+
+.road-line-highlight {
+  stroke: var(--road-line-highlight);
+  stroke-width: 3px;
+  stroke-dasharray: var(--road-line-highlight-dash);
+  stroke-dashoffset: 7;
+  opacity: 0.86;
+}
+
+.road-line-accent {
+  stroke: var(--road-line-accent);
+  stroke-width: var(--road-line-accent-width);
+  stroke-dasharray: var(--road-line-accent-dash);
+  stroke-linecap: round;
+  opacity: var(--road-line-accent-opacity);
+}
+
+.road-vine-image-segment {
+  position: absolute;
+  z-index: 1;
+  height: 42px;
+  pointer-events: none;
+  background: url("./assets/UI-Home/road-vine-connector.png") center / 100% 100% no-repeat;
+  transform-origin: left center;
+  filter: drop-shadow(0 4px 2px rgba(37, 88, 30, 0.2));
+}
+
+.road-vine-decorations {
+  display: none;
+}
+
+.theme-fruit-forest .road-vine-decorations {
+  display: block;
+}
+
+.road-vine-leaf {
+  fill: #9ce264;
+  stroke: #2f9047;
+  stroke-width: 0.8px;
+  filter: drop-shadow(0 1px 0 rgba(38, 92, 37, 0.24));
+}
+
+.road-vine-bud {
+  fill: #fff079;
+  stroke: #62aa45;
+  stroke-width: 0.6px;
+}
+
+.theme-fruit-forest .road-line-shadow {
+  stroke-width: 8px;
+  transform: translateY(2px);
+}
+
+.theme-fruit-forest .road-line-outer {
+  stroke-width: 7px;
+}
+
+.theme-fruit-forest .road-line-main {
+  stroke-width: 4px;
+  transform: translate(-1px, -1px);
+}
+
+.theme-fruit-forest .road-line-highlight {
+  stroke-width: 1.6px;
+  opacity: 0.8;
+  transform: translate(-1px, -1px);
+}
+
+.theme-fruit-forest .road-line-accent {
+  transform: translate(2px, 2px);
 }
 
 .road-level {
@@ -1133,9 +1248,9 @@ button:disabled {
   z-index: 2;
   display: grid;
   place-items: center;
-  width: 64px;
-  height: 56px;
-  padding: 8px 8px 12px;
+  width: 77px;
+  height: 67px;
+  padding: 10px 10px 14px;
   color: #ffffff;
   text-shadow: 0 2px 0 rgba(0, 112, 102, 0.48);
   background: var(--level-not-started-bg) center / contain no-repeat;
@@ -1144,10 +1259,13 @@ button:disabled {
 }
 
 .road-level strong {
-  position: relative;
-  z-index: 1;
-  font-size: 0.82rem;
+  position: absolute;
+  left: 50%;
+  bottom: 8px;
+  z-index: 3;
+  font-size: 0.98rem;
   line-height: 1;
+  transform: translateX(-50%);
 }
 
 .road-level.completed {
@@ -1155,8 +1273,8 @@ button:disabled {
 }
 
 .road-level.current {
-  width: 70px;
-  height: 60px;
+  width: 84px;
+  height: 72px;
   background-image: var(--level-current-bg);
   animation: currentLevelPulse 1.4s ease-in-out infinite;
 }
@@ -1174,14 +1292,6 @@ button:disabled {
   opacity: 1;
 }
 
-.road-lock-icon {
-  position: relative;
-  z-index: 1;
-  width: 20px;
-  height: 25px;
-  object-fit: contain;
-}
-
 .road-level.locked strong {
   position: absolute;
   width: 1px;
@@ -1193,22 +1303,23 @@ button:disabled {
 .road-stars {
   position: absolute;
   left: 50%;
-  bottom: 4px;
-  z-index: 1;
-  display: flex;
-  gap: 1px;
-  transform: translateX(-50%);
+  top: -7px;
+  z-index: 3;
+  display: block;
+  width: 66px;
+  height: auto;
+  transform: translate(-50%, -50%);
 }
 
-.road-stars span {
-  width: 12px;
-  height: 12px;
-  clip-path: polygon(50% 0, 63% 34%, 100% 36%, 70% 58%, 79% 95%, 50% 75%, 21% 95%, 30% 58%, 0 36%, 37% 34%);
-  background: linear-gradient(180deg, #fff46b 0%, #ffc726 70%, #f09912 100%);
-  box-shadow:
-    0 1px 0 #fff7a6 inset,
-    0 1px 0 #a8600c,
-    0 2px 3px rgba(80, 45, 6, 0.28);
+.road-stars:empty {
+  display: none;
+}
+
+.road-stars img {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: contain;
 }
 
 .chapter-lock {
@@ -1390,6 +1501,7 @@ h2 {
 .primary-button {
   padding-bottom: 10px;
   color: #fff;
+  font-size: 1.3rem;
   background: linear-gradient(180deg, #2dd7c0, #078fba);
   box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.28), 0 12px 30px rgba(8, 143, 186, 0.24);
 }

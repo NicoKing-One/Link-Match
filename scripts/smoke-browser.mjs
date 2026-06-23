@@ -191,6 +191,7 @@ try {
   await page.locator("#confirmHomeButton").click();
   await page.waitForSelector(".screen-start.active");
 
+  await finishFreshLevelAndExpectHomeVines(page);
   await finishGameAndExpectFailureBadge(page);
   await finishGameAndExpectStarsAndNoStaminaAgain(page);
   await finishCompletedLevelAndExpectNoCoinMessage(page);
@@ -584,9 +585,30 @@ async function expectHomeRoadMap(page) {
     const first = document.querySelector('.road-level strong');
     const levelOne = [...document.querySelectorAll(".road-level")].find((node) => node.textContent.includes("01"));
     const levelTwo = [...document.querySelectorAll(".road-level")].find((node) => node.textContent.includes("02"));
+    const levelThree = [...document.querySelectorAll(".road-level")].find((node) => node.textContent.includes("03"));
+    const levelFour = [...document.querySelectorAll(".road-level")].find((node) => node.textContent.includes("04"));
+    const levelThirty = [...document.querySelectorAll(".road-level")].find((node) => node.textContent.includes("30"));
+    const chapterSummary = document.querySelector(".chapter-summary");
+    const mapPanel = document.querySelector(".map-panel");
+    const roadScroll = document.querySelector("#roadScroll");
     const dock = document.querySelector(".home-bottom-dock");
     const startButtonStyle = getComputedStyle(startButton);
     const buttonRect = startButton.getBoundingClientRect();
+    const summaryRect = chapterSummary.getBoundingClientRect();
+    const panelRect = mapPanel.getBoundingClientRect();
+    const lineLayers = [...document.querySelectorAll(".road-path path")].map((node) => node.getAttribute("class"));
+    const vineSegmentCount = document.querySelectorAll(".road-vine-image-segment").length;
+    const originalScrollTop = roadScroll.scrollTop;
+    roadScroll.scrollTop = 0;
+    const topLevelToPanelTop = Math.round(levelThirty.getBoundingClientRect().top - panelRect.top);
+    roadScroll.scrollTop = originalScrollTop;
+    const center = (node) => {
+      const rect = node.getBoundingClientRect();
+      return {
+        x: rect.left + rect.width / 2,
+        y: rect.top + rect.height / 2,
+      };
+    };
     return {
       buttonWidth: buttonRect.width,
       buttonHeight: buttonRect.height,
@@ -595,6 +617,13 @@ async function expectHomeRoadMap(page) {
       buttonBottom: window.innerHeight - buttonRect.bottom,
       levelOneTop: levelOne.getBoundingClientRect().top,
       levelTwoTop: levelTwo.getBoundingClientRect().top,
+      titleToPanel: Math.round(panelRect.top - summaryRect.bottom),
+      panelToButton: Math.round(buttonRect.top - panelRect.bottom),
+      levelOneToPanelBottom: Math.round(panelRect.bottom - levelOne.getBoundingClientRect().bottom),
+      topLevelToPanelTop,
+      levelCenters: [levelOne, levelTwo, levelThree, levelFour].map(center),
+      roadLineLayers: lineLayers,
+      vineSegmentCount,
       hasDock: Boolean(dock),
       dockPaddingBottom: dock ? getComputedStyle(dock).paddingBottom : "",
       buttonDisplay: startButtonStyle.display,
@@ -643,13 +672,32 @@ async function expectHomeRoadMap(page) {
   if (
     !["grid", "inline-grid"].includes(layoutInfo.buttonDisplay) ||
     layoutInfo.buttonAlignItems !== "center" ||
-    layoutInfo.buttonJustifyItems !== "center" ||
-    layoutInfo.buttonLineHeight !== "16px"
+    layoutInfo.buttonJustifyItems !== "center"
   ) {
     throw new Error(`Expected continue button text to be centered, got ${JSON.stringify(layoutInfo)}.`);
   }
   if (layoutInfo.levelOneTop <= layoutInfo.levelTwoTop) {
     throw new Error(`Expected level 01 to appear below level 02 in bottom-up map, got ${JSON.stringify(layoutInfo)}.`);
+  }
+  if (layoutInfo.titleToPanel !== 30 || layoutInfo.panelToButton !== 30) {
+    throw new Error(`Expected road map to keep 30px from chapter tab and bottom button, got ${JSON.stringify(layoutInfo)}.`);
+  }
+  if (layoutInfo.levelOneToPanelBottom < 0 || layoutInfo.levelOneToPanelBottom > 8) {
+    throw new Error(`Expected level 01 to sit at the bottom of the road area without clipping, got ${JSON.stringify(layoutInfo)}.`);
+  }
+  if (layoutInfo.topLevelToPanelTop < 0 || layoutInfo.topLevelToPanelTop > 4) {
+    throw new Error(`Expected level 30 to sit at the top of the road area without clipping, got ${JSON.stringify(layoutInfo)}.`);
+  }
+  if (
+    layoutInfo.levelCenters.length !== 4 ||
+    !(layoutInfo.levelCenters[0].x < layoutInfo.levelCenters[1].x) ||
+    !(layoutInfo.levelCenters[1].x > layoutInfo.levelCenters[2].x) ||
+    !(layoutInfo.levelCenters[2].x < layoutInfo.levelCenters[3].x)
+  ) {
+    throw new Error(`Expected road levels to alternate left/right lanes, got ${JSON.stringify(layoutInfo)}.`);
+  }
+  if (layoutInfo.vineSegmentCount !== 29) {
+    throw new Error(`Expected fruit forest road to render 29 image-based vine segments, got ${JSON.stringify(layoutInfo)}.`);
   }
   if (scrollInfo.scrollHeight <= scrollInfo.clientHeight) {
     throw new Error(`Expected road map to scroll vertically, got ${JSON.stringify(scrollInfo)}.`);
@@ -684,11 +732,18 @@ async function expectHomeLevelStarsMatchProgress(page) {
     return ["01", "02", "03", "04"].map((label) => {
       const node = levels.find((item) => item.textContent.includes(label));
       const starBox = node?.querySelector(".road-stars");
+      const nodeRect = node?.getBoundingClientRect();
+      const starRect = starBox?.getBoundingClientRect();
+      const image = starBox?.querySelector("img");
       return {
         label,
-        filled: starBox?.querySelectorAll(".filled").length ?? -1,
-        imageStars: starBox?.querySelectorAll("img").length ?? -1,
+        imageCount: starBox?.querySelectorAll("img").length ?? -1,
+        imageSource: image?.getAttribute("src") ?? "",
         visibleStars: starBox ? getComputedStyle(starBox).display !== "none" : false,
+        starWidth: starRect ? Math.round(starRect.width) : null,
+        starHeight: starRect ? Math.round(starRect.height) : null,
+        starBottom: starRect ? Math.round(starRect.bottom) : null,
+        levelTop: nodeRect ? Math.round(nodeRect.top) : null,
       };
     });
   });
@@ -698,9 +753,27 @@ async function expectHomeLevelStarsMatchProgress(page) {
     ["03", 1],
     ["04", 0],
   ]);
-  const mismatch = starData.filter((item) => item.filled !== expected.get(item.label) || item.imageStars !== 0);
+  const mismatch = starData.filter((item) => {
+    const expectedStars = expected.get(item.label);
+    if (expectedStars === 0) return item.imageCount !== 0;
+    return item.imageCount !== 1 || !item.imageSource.includes(`road-stars-${expectedStars}.png`);
+  });
   if (mismatch.length) {
-    throw new Error(`Expected road level CSS stars to match bestStars, got ${JSON.stringify(starData)}.`);
+    throw new Error(`Expected road level star images to match bestStars, got ${JSON.stringify(starData)}.`);
+  }
+  const misplaced = starData.filter((item) => item.imageCount > 0 && item.starBottom > item.levelTop + 8);
+  if (misplaced.length) {
+    throw new Error(`Expected earned road stars to sit on the level header, got ${JSON.stringify(starData)}.`);
+  }
+  const earnedStarSizes = starData
+    .filter((item) => item.imageCount > 0)
+    .map((item) => `${item.starWidth}x${item.starHeight}`);
+  if (new Set(earnedStarSizes).size !== 1) {
+    throw new Error(`Expected earned road star badges to share one display size, got ${JSON.stringify(starData)}.`);
+  }
+  const emptyVisible = starData.filter((item) => item.imageCount === 0 && item.visibleStars);
+  if (emptyVisible.length) {
+    throw new Error(`Expected empty road star badges to stay hidden, got ${JSON.stringify(starData)}.`);
   }
   await expectLevelBackgroundsAreCleanBases(page);
 }
@@ -1358,7 +1431,7 @@ async function expectProfileThreeStarDataMatchesHome(page) {
     const records = Object.values(progress.records ?? {});
     const expectedThreeStarLevels = records.filter((record) => record.bestStars >= 3).length;
     const homeThreeStarNodes = [...document.querySelectorAll(".screen-start .road-level")].filter(
-      (node) => node.querySelectorAll(".road-stars .filled").length === 3,
+      (node) => node.querySelector(".road-stars img")?.getAttribute("src")?.includes("road-stars-3.png"),
     ).length;
 
     return {
@@ -1746,6 +1819,67 @@ async function finishGameAndExpectStarsAndNoStaminaAgain(page) {
   const staminaAfterPurchase = await readStoredStamina(page);
   if (staminaAfterPurchase.stamina !== 31 || staminaAfterPurchase.adClaims !== 3) {
     throw new Error(`Expected purchase to grant 30 stamina without ad claims, got: ${JSON.stringify(staminaAfterPurchase)}`);
+  }
+}
+
+async function finishFreshLevelAndExpectHomeVines(page) {
+  await page.evaluate(() => {
+    localStorage.setItem(
+      "lianliankan.stamina",
+      JSON.stringify({ stamina: 50, updatedAt: Date.now(), adClaims: 0 }),
+    );
+    localStorage.setItem(
+      "lianliankan.progress",
+      JSON.stringify({
+        highestUnlockedLevel: 1,
+        coins: 0,
+        records: {},
+      }),
+    );
+  });
+  await page.reload({ waitUntil: "networkidle" });
+  await page.locator("#startButton").click();
+  await page.waitForSelector(".screen-game.active .tile:not(.empty)");
+
+  const hasSmokeHook = await page.evaluate(() => typeof window.__linkMatchSmoke?.finishGameForSmoke === "function");
+  if (!hasSmokeHook) {
+    throw new Error("Expected boardSeed smoke URL to expose finishGameForSmoke hook.");
+  }
+
+  await page.evaluate(() => window.__linkMatchSmoke.finishGameForSmoke(true));
+  await page.waitForSelector('.screen-result.active[data-result="success"]', { timeout: 2000 });
+  await page.locator("#homeButton").click();
+  await page.waitForSelector(".screen-start.active", { timeout: 2000 });
+  await page.waitForFunction(() => document.querySelectorAll(".road-vine-image-segment").length === 29);
+  await expectFruitVineConnectorsAligned(page, "after success result home return");
+  await page.screenshot({ path: join(outputDir, "home-after-success-return.png"), fullPage: true });
+}
+
+async function expectFruitVineConnectorsAligned(page, label) {
+  const vineData = await page.locator(".screen-start.active").evaluate(() => {
+    const road = document.querySelector("#levelRoad");
+    const roadRect = road.getBoundingClientRect();
+    const segments = [...document.querySelectorAll(".road-vine-image-segment")].map((node) => ({
+      left: Number.parseFloat(node.style.left),
+      width: Number.parseFloat(node.style.width),
+      top: Number.parseFloat(node.style.top),
+    }));
+    return {
+      count: segments.length,
+      roadWidth: Math.round(roadRect.width),
+      segments,
+    };
+  });
+  const misplaced = vineData.segments.filter(
+    (segment) =>
+      !Number.isFinite(segment.left) ||
+      !Number.isFinite(segment.width) ||
+      segment.left < vineData.roadWidth * 0.2 ||
+      segment.left > vineData.roadWidth * 0.8 ||
+      segment.width < vineData.roadWidth * 0.35,
+  );
+  if (vineData.count !== 29 || vineData.roadWidth <= 0 || misplaced.length) {
+    throw new Error(`Expected fruit vine connectors to stay aligned ${label}, got ${JSON.stringify(vineData)}.`);
   }
 }
 

@@ -1,16 +1,18 @@
 # Link Match 连连看项目交接文档
 
-更新时间：2026-06-18
+更新时间：2026-06-23
 
 ## 1. 项目定位
 
 - 项目名称：Link Match 连连看
 - 项目路径：`D:\工作文件\游戏\连连看`
 - 项目类型：移动端竖屏 H5 单机连连看 MVP
-- 当前阶段：`1.1.6-首页关卡Icon优化` 已完成首页关卡底座资源与星级显示收口：9 张关卡三态底座已使用 `gpt-image-2` 重新生成，底图不再自带星星/星槽/黑白遮挡条且无额外透明留边；关卡星星改为 CSS 按 `record.bestStars` 实际数量渲染；左右章节箭头改为可循环切换；金币 icon 已重切去除彩色底和多余透明。
+- 当前阶段：`1.1.7-首页关卡优化` 已完成并准备提交：9 张首页关卡三态 icon 已按最新反馈重新生成并替换，完成态保留对勾，当前态保留高亮，未通关态使用锁定视觉；首页关卡地图改为左右交替布局，水果森林连接线改为 image2 生成的藤曼资源；完成关卡星级改为顶部图片徽章，已按 C 珊瑚粉方案重新生成 1/2/3 星资源并收紧透明画布；已修复通关后返回首页藤曼连接线贴边错位问题。曾尝试接入三主题树形关卡地图背景，因实际效果不理想已删除资源与代码引用，当前首页地图回到开放式背景路线。
 
 ## 2. 当前进度
 
+- 2026-06-23 `1.1.7-首页关卡优化`：首页关卡区域已按反馈改为红框内左右交替排布，01 关贴近底部、30 关贴近顶部，并保持与章节栏/底部按钮 30px 间距；水果森林关卡连接线改为 `src/assets/UI-Home/road-vine-connector.png` 藤曼图片分段渲染，糖果花园/果冻城堡保留主题化 SVG 连接线风格。完成关卡星级从 CSS 星星改为图片徽章，`renderMiniStars()` 按 `bestStars` 动态选择 `road-stars-1.png`、`road-stars-2.png`、`road-stars-3.png`；最终采用 C 珊瑚粉底色，1 星为 1 实星 + 2 空心星，2 星为 2 实星 + 1 空心星，3 星为 3 实星。三张星级徽章均由 `gpt-image-2` 独立生成并替换，后处理只做纯色底移除和紧缩透明画布，最终尺寸统一为 `540px x 216px`，页面显示统一为 `66px x 26px`。修复完成关卡 icon 黑色脏阴影问题，并修复通关成功从结果页返回首页后藤曼连接线因隐藏态宽度计算错误而贴到左侧的 bug；`scripts/smoke-browser.mjs` 已新增星级图片、星级尺寸一致、关卡上下边距、左右交替布局、29 段藤曼、通关返回首页藤曼对齐等回归断言。
+- 2026-06-22 `1.1.7-首页关卡Icon二次优化`：根据最新反馈重新生成并替换 `src/assets/UI-Home/level-*-bg.png` 9 张关卡三态 icon。完成态统一为主题色按钮 + 对勾，底部星星不再烘焙进 PNG，仍由 `renderMiniStars()` 按 `record.bestStars` 动态渲染；当前态保留高亮/主题装饰；未通关态统一为锁定视觉，并移除旧 DOM 叠加锁图标与 `.road-lock-icon` 样式，避免“双锁”。资源经 `scripts/process-level-icon-assets.py` 处理，完成绿幕抠像、去溢色、内容边界裁切，最终 9 张资源透明边距均为 `(0, 0, 0, 0)`；关卡 icon 显示尺寸先放大后按反馈缩到当前 0.8 倍，普通节点为 `77px x 67px`，当前关卡为 `84px x 72px`，关卡号和星星同步缩小。期间曾生成三主题树形关卡地图背景并接入试验，因实际效果“不好看”已删除 `src/assets/UI-Home/tree-map/` 并移除所有 `tree-map` / `TREE_MAP` 引用。
 - 2026-06-18 `1.1.6-首页关卡Icon优化`：重新生成 `src/assets/UI-Home/level-*-bg.png` 9 张首页关卡底座资源，替换此前挖空/遮挡处理方案；新底座不包含星星、星星槽、文字、锁、黑条或白条，生成后完成绿幕透明化和内容边界裁切，确认无多余透明留边。`src/game.js` 的 `renderMiniStars()` 改为只输出实际获得星数对应的 CSS 星星，0 星不显示，1/2/3 星分别显示对应数量；`src/styles.css` 移除临时底部遮罩条并强化 CSS 星星样式；首页左右章节箭头改为首尾循环切换，不再禁用；金币 icon 相关资源已重切去底色。`scripts/smoke-browser.mjs` 已新增首页章节循环、关卡星级按 `bestStars` 显示、关卡底座无黑条/挖空缺口、金币资源和主流程回归断言。
 - 2026-06-18 `1.1.5首页UI优化`：重新生成并替换首页问题资源，修复透明空白、底色残留和主题色不一致；`src/index.html` 首页资源框改为体力/金币/星星 icon + 数值布局，体力保留刷新倒计时，金币/星星去掉说明文字；三个主题 tab 已移除，原章节标题栏上移到左右切换箭头中间，左右箭头统一使用 `src/assets/UI-ICON/exchange-page/exchange-page-arrow-bg-v2.png`；`src/styles.css` 去掉 `.app-shell` padding，首页顶部入口与资源卡重排，底部开始按钮按 `1115/276` 原图比例 `width: 100%` 显示并增加 `padding-bottom: 10px`，`screen-start` 当前为 `padding: 0 10px 0`，`.home-header` 当前为 `margin-top: 30px`；`src/game.js` 改为只维护章节切换器状态，不再渲染三枚 chapter tab；`scripts/smoke-browser.mjs` 已同步断言首页无 chapter tab、章节标题栏/兑换页箭头资源实际渲染、资源框文本精简、开始按钮比例和主流程不回归。
 - 2026-06-17 兑换页面优化完成：金币兑换页中间商城已替换为 v2 独立组件资源，新增 `exchange-shop-panel-bg-v2.png`、`exchange-title-card-bg-v2.png`、`exchange-price-button-bg-v2.png`、`exchange-page-arrow-bg-v2.png` 和 `exchange-shop-preview-v2.png`；大兑换框、头衔框、价格按钮和翻页按钮均已重切透明余边并按原图比例显示，避免拉伸压缩。商城从 3x3/两页改为两列、每页 6 个、共 3 页；奖品框当前宽度为 `117px`，绿框文字水平垂直居中，价格按钮和金币 icon 正常比例显示；`scripts/smoke-browser.mjs` 已覆盖 v2 资源接入、两列布局、每页 6 个、3 页翻页、奖品框比例、价格按钮比例、金币 icon 尺寸和兑换结果弹框。
@@ -25,13 +27,13 @@
 - 2026-06-14 首页背景回退：按最新截图反馈，首页不再使用或透出水果背景图；`body` 改为纯浅绿色背景，原 `page-bg.png` 仅保留在游戏页使用。浏览器 smoke 已新增断言，防止首页和页面安全区再次露出背景图。
 - 2026-06-13 首页 UI 重改：新版三主题首页完整设计稿已确认并保存，覆盖水果森林、糖果花园、果冻城堡；设计稿已去除截图外侧黑色阴影，后续可作为首页切图和 H5 接入依据。
 
-当前已完成 H5 单机 demo 的核心玩法、体力系统、道具占位、结算流程、移动端游戏 UI、第一版章节闯关首页布局、`demo1.0.6-UI布局更新`、`demo1.0.7--金币系统优化`、`demo1.0.8--首页二级页面开发+UI`、`demo1.0.9个人中心页面UI完成`、`demo1.1.1个人中心页面三星关卡bug修复`、`demo1.1.2设置页面UI优化`、`demo1.1.3首页资源提交`、`1.1.4-首页UI替换`、`1.1.4兑换页面优化完成`、`1.1.5首页UI优化`、`1.1.6-首页关卡Icon优化`。首页 UI 方向已执行还原清理：旧三主题高保真稿、首页背景图、对齐稿、取用规则说明、导出模板/脚本和旧首页截图均已删除；新版三主题首页完整 UI 设计稿已重新确定并保存，且首页资源包已接入 H5 首页渲染。
+当前已完成 H5 单机 demo 的核心玩法、体力系统、道具占位、结算流程、移动端游戏 UI、第一版章节闯关首页布局、`demo1.0.6-UI布局更新`、`demo1.0.7--金币系统优化`、`demo1.0.8--首页二级页面开发+UI`、`demo1.0.9个人中心页面UI完成`、`demo1.1.1个人中心页面三星关卡bug修复`、`demo1.1.2设置页面UI优化`、`demo1.1.3首页资源提交`、`1.1.4-首页UI替换`、`1.1.4兑换页面优化完成`、`1.1.5首页UI优化`、`1.1.6-首页关卡Icon优化`、`1.1.7-首页关卡优化`。首页 UI 方向已执行还原清理：旧三主题高保真稿、首页背景图、对齐稿、取用规则说明、导出模板/脚本和旧首页截图均已删除；新版三主题首页完整 UI 设计稿已重新确定并保存，且首页资源包已接入 H5 首页渲染。
 
 已完成内容：
 
 - 首页和章节关卡：
   - 首页顶部保留个人中心、设置、体力、金币、星星入口，已删除 `Link Match / 连连看` 大标题。
-  - 首页改为可纵向滑动的蜿蜒小路关卡地图，当前视口展示约 10 个关卡点。
+  - 首页改为可纵向滑动的左右交替关卡地图，当前视口展示约 4-5 个大尺寸关卡点，01 关贴近关卡区域底部，30 关贴近顶部。
   - 关卡顺序为自下而上：第 01 关在底部，向上滑动查看后续关卡。
   - 主题章节为水果森林 1-30、糖果花园 31-60、果冻城堡 61-90；当前首页不再显示三枚主题 tab，中间只保留当前章节关卡栏。
   - 支持左右箭头切换主题；糖果花园需通关第 30 关后进入，果冻城堡需通关第 60 关后进入。
@@ -48,6 +50,10 @@
     - `docs/ui-design-drafts/home-ui-design-v2-jelly-castle.png`
   - 新版设计稿采用完整首页结构：个人/设置入口、体力/金币/星星资源栏、左右切换按钮、当前章节关卡栏、蜿蜒关卡路线、关卡星级底座、锁定态、底部开始闯关按钮。
   - 新版首页资源包已接入 H5 首页渲染：顶部个人/设置入口、体力/金币/星星资源卡、章节标题、关卡三态底座、锁图标和底部开始按钮均使用 `src/assets/UI-Home/` 独立切图；左右切换按钮复用 `src/assets/UI-ICON/exchange-page/exchange-page-arrow-bg-v2.png`；动态文字和数值仍由 HTML/CSS/JS 渲染。
+  - 2026-06-22 已尝试三主题树形弹框地图背景方案并删除：`tree-map` 资源目录和代码引用已清理，当前首页地图继续使用开放式章节背景 + 关卡 icon 路线。
+  - 首页关卡 icon 当前使用二次优化资源：完成态对勾 + 顶部动态星级徽章、当前态高亮、未通关态锁定；普通节点当前显示尺寸约 `77px x 67px`，当前关卡约 `84px x 72px`。
+  - 首页完成关卡星级徽章当前使用 `road-stars-1.png`、`road-stars-2.png`、`road-stars-3.png`，均为 `gpt-image-2` 独立生成的 C 珊瑚粉底色图片，画布已收紧到 `540px x 216px`，页面显示约 `66px x 26px`。
+  - 水果森林连接线当前使用 `road-vine-connector.png` 藤曼图片分段渲染；通关成功返回首页后会在首页可见且布局稳定后重新计算藤曼位置，避免隐藏态宽度计算导致连接线贴边。
 
 - 首页二级页面：
   - 首页“个人”按钮已接入 `#profileScreen`，展示个人中心页面。
@@ -132,7 +138,8 @@
 - `docs/ui-design-drafts/home-ui-design-v2-fruit-forest.png`：新版首页水果森林主题完整 UI 设计稿。
 - `docs/ui-design-drafts/home-ui-design-v2-candy-garden.png`：新版首页糖果花园主题完整 UI 设计稿。
 - `docs/ui-design-drafts/home-ui-design-v2-jelly-castle.png`：新版首页果冻城堡主题完整 UI 设计稿。
-- `src/assets/UI-Home/`：新版首页三主题资源包，包含通用顶部按钮/资源卡/箭头/锁/icon，以及水果森林、糖果花园、果冻城堡三套背景、tab、章节标题、关卡状态和开始按钮切图；`asset-manifest.md` 为资源清单，`_contact-sheet.png` 为本地总览图。
+- `src/assets/UI-Home/`：新版首页三主题资源包，包含通用顶部按钮/资源卡/箭头/锁/icon，以及水果森林、糖果花园、果冻城堡三套背景、tab、章节标题、关卡状态和开始按钮切图；当前 9 张 `level-*-bg.png` 为二次优化后的关卡三态 icon 资源，完成态对勾、当前态高亮、未通关态锁定；`road-stars-1.png`、`road-stars-2.png`、`road-stars-3.png` 为完成关卡顶部星级徽章；`road-vine-connector.png` 为水果森林关卡藤曼连接线；`asset-manifest.md` 为资源清单，`_contact-sheet.png` 为本地总览图。
+- `scripts/process-level-icon-assets.py`：本轮关卡 icon 资源处理脚本，用于将 `gpt-image-2` 生成图映射到 9 个首页关卡状态资源，完成 chroma-key 透明化、去绿色溢边和内容边界裁切。
 - `src/assets/UI-ICON/profile-page/`：个人中心页面独立组件资产和页面布局参考图。
 - `src/assets/UI-ICON/settings-page/`：设置页面独立组件资产和页面布局参考图。
 - `src/assets/UI-ICON/exchange-page/`：金币兑换页面独立组件资产和页面布局参考图。
@@ -140,26 +147,26 @@
 
 ## 4. 最近验证
 
-最新验证命令均已通过：
+最近一轮（2026-06-23）已执行：
 
 ```powershell
-& 'C:\Users\youzi\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe' --test tests/*.test.mjs
 & 'C:\Users\youzi\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe' scripts/build.mjs
 & 'C:\Users\youzi\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe' scripts/smoke-browser.mjs
 ```
 
 验证结果：
 
-- 单元测试：26/26 通过。
 - 构建：成功输出到 `dist/`。
-- 浏览器 smoke：使用固定 seed 通过，覆盖首页地图、`src/assets/UI-Home/` 背景与组件切图实际渲染、首页资源框仅保留 icon/数值（体力倒计时保留）、章节 tab 移除、章节标题栏上移、兑换页箭头资源复用、个人中心/设置/金币兑换三个二级入口、二级页禁止整页设计图铺底、个人中心 UI 精修断言、设置页 UI 精修断言、金币兑换页 v2 资源实际渲染、两列/每页 6 个/共 3 页头衔商城、奖品框原图比例、价格按钮比例、金币 icon 尺寸、兑换成功弹框、金币不足弹框、旧体力/提示/洗牌兑换项移除断言、个人中心三星关卡数与首页 `bestStars` 星级节点一致性、游戏页、弹框、结果页、体力流程、首通金币、重复通关无金币文案和 0 道具不呼吸状态。
-- 首页旧设计稿与导出脚本已删除，本条验证记录不再作为当前首页设计依据。
-- 新版首页三主题设计稿已做本地文件检查：三张图片均存在，已移除截图外侧黑色阴影并保存为带透明通道的 PNG。
-- 首页资源包已做本地文件检查和渲染检查：`src/assets/UI-Home/` 下通用资源、三主题资源、`asset-manifest.md` 和 `_contact-sheet.png` 均存在，且 smoke 已确认首页背景、资源卡、章节标题、关卡底座、锁图标和开始按钮实际使用这批切图；首页左右箭头当前复用兑换页翻页按钮资源。
-- 最新截图输出目录：`output/playwright/`。
+- 完整 smoke：`scripts/smoke-browser.mjs` 通过，输出 `Smoke passed: 36 tiles rendered`，覆盖首页地图、二级页、主流程、结算弹框、通关返回首页和资源渲染。
+- 资源检查：`road-stars-1.png`、`road-stars-2.png`、`road-stars-3.png` 均为 `540px x 216px`，页面显示统一约 `66px x 26px`；1/2/3 星均按 `bestStars` 加载对应图片。
+- 首页地图检查：01 关贴近底部、30 关贴近顶部，关卡左右交替，水果森林 29 段藤曼连接线正常渲染。
+- 回归检查：通关成功后从结果页返回首页，藤曼连接线会重新按可见布局计算，未再出现贴左边错位。
 
 重点截图：
 
+- `output/home-star-coral-final.png`
+- `output/star-badges-coral-final-contact.png`
+- `output/playwright/home-after-success-return.png`
 - `output/playwright/home-map-mobile.png`
 - `output/playwright/profile-mobile.png`
 - `output/playwright/settings-mobile.png`
@@ -176,8 +183,9 @@
 
 - 当前分支：`main`
 - 远程仓库：`https://github.com/NicoKing-One/Link-Match.git`
-- 本轮提交备注：`1.1.6-首页关卡Icon优化`。
-- 本轮提交内容：重新生成首页 9 张关卡三态底座图，移除底图自带星星/星槽/黑白遮挡条和多余透明留边；关卡星星改为 CSS 按 `bestStars` 实际数量显示；首页章节箭头支持循环切换；金币 icon 资源去底色并裁切；同步 `scripts/smoke-browser.mjs` 首页关卡 icon、星级和资源回归断言以及交接文档。
+- 当前未提交内容：首页三主题背景图、9 张 `src/assets/UI-Home/level-*-bg.png`、`road-vine-connector.png`、`road-stars-1.png`、`road-stars-2.png`、`road-stars-3.png`、`src/game.js`、`src/styles.css`、`scripts/smoke-browser.mjs`、`scripts/process-level-icon-assets.py`、`docs/project-handoff.md`。
+- 当前工作区待提交；`tmp/` 为本轮 image2 后处理临时目录，不纳入提交。
+- 本轮提交备注：`1.1.7首页关卡优化`。
 
 ## 6. 运行方式
 
@@ -200,7 +208,7 @@ http://127.0.0.1:4173
 
 建议下一轮按这个顺序继续：
 
-1. 人工复核首页三主题截图：重点看水果森林、糖果花园、果冻城堡切换后的背景裁切、章节标题栏位置、左右箭头可读性、关卡节点位置、锁图标可读性和底部按钮是否贴合设计稿。
+1. 下一轮优先在真实手机视口复核首页三主题关卡地图的滑动手感、关卡遮挡、藤曼/糖果棒/水晶棒连接线风格是否还需要继续细化。
 2. 二级页后续替换正式图片/icon 时，保持当前 HTML/CSS 结构不变，只替换 `src/assets/UI-ICON/*-page/` 下的独立资源；个人中心当前版已按 demo1.1.1 收口，设置页当前版已按 demo1.1.2 收口，后续优先避免破坏已写入 smoke 的视觉和数据一致性约束。
 3. 完善头衔系统闭环：定义头衔拥有状态、已佩戴状态、金币扣除与持久化规则，并决定重复点击已拥有头衔时显示“已拥有”还是切换佩戴。
 4. 接入设置实际逻辑：音乐/音效/振动持久化；若后续重新加入清除本地进度，需要先确认新的入口位置和确认弹框样式。

@@ -55,9 +55,10 @@ const STAMINA_KEY = "lianliankan.stamina";
 const PROGRESS_KEY = "lianliankan.progress";
 const DATA_RESET_KEY = "lianliankan.dataResetVersion";
 const DATA_RESET_VERSION = "2026-06-13-full-stamina-baseline";
-const ROAD_STEP_Y = 52;
-const ROAD_TOP_Y = 36;
-const ROAD_X_PATTERN = [32, 43, 65, 72, 58, 37];
+const ROAD_STEP_Y = 110;
+const ROAD_TOP_Y = 34;
+const ROAD_BOTTOM_Y = 38;
+const ROAD_X_PATTERN = [30, 70];
 const HOME_THEME_CLASSES = CHAPTERS.map((chapter) => `home-theme-${chapter.id}`);
 const EXCHANGE_TITLE_PAGE_SIZE = 6;
 const EXCHANGE_TITLES = [
@@ -368,11 +369,11 @@ function renderRoadMap() {
   const chapter = CHAPTERS[state.chapterIndex];
   const chapterLevels = getLevelsForChapter(chapter.id);
   const chapterStatus = getChapterStatus(chapter, state.progress);
-  const roadHeight = ROAD_TOP_Y * 2 + (chapterLevels.length - 1) * ROAD_STEP_Y;
+  const roadHeight = ROAD_TOP_Y + ROAD_BOTTOM_Y + (chapterLevels.length - 1) * ROAD_STEP_Y;
   const points = chapterLevels.map((level, index) => ({
     level,
     x: ROAD_X_PATTERN[index % ROAD_X_PATTERN.length],
-    y: roadHeight - ROAD_TOP_Y - index * ROAD_STEP_Y,
+    y: roadHeight - ROAD_BOTTOM_Y - index * ROAD_STEP_Y,
   }));
 
   elements.chapterSummary.textContent = `${chapter.name} · ${chapter.startLevel}-${chapter.endLevel}关`;
@@ -386,7 +387,7 @@ function renderRoadMap() {
   screens.start.classList.add(`home-theme-${chapter.id}`);
   elements.levelRoad.className = `level-road ${chapter.backgroundClass}`;
   elements.levelRoad.style.height = `${roadHeight}px`;
-  elements.levelRoad.innerHTML = buildRoadSvg(points, roadHeight);
+  elements.levelRoad.innerHTML = chapter.id === "fruit-forest" ? "" : buildRoadSvg(points, roadHeight);
 
   points.forEach(({ level, x, y }) => {
     const status = getLevelStatus(level.number, state.progress);
@@ -400,15 +401,48 @@ function renderRoadMap() {
     button.setAttribute("aria-label", `${formatLevelTitle(level)} ${getLevelStatusText(status)}`);
     button.innerHTML =
       status === "locked"
-        ? `<img class="road-lock-icon" src="./assets/UI-Home/icon-lock.png" alt="" aria-hidden="true" /><strong>${String(
-            level.number,
-          ).padStart(2, "0")}</strong>${renderMiniStars(record.bestStars)}`
+        ? `<strong>${String(level.number).padStart(2, "0")}</strong>${renderMiniStars(record.bestStars)}`
         : `<strong>${String(level.number).padStart(2, "0")}</strong>${renderMiniStars(record.bestStars)}`;
     button.addEventListener("click", () => requestStartGame(level));
     elements.levelRoad.append(button);
   });
   window.requestAnimationFrame(() => {
+    renderRoadConnectors(points, chapter.id);
     elements.roadScroll.scrollTop = elements.roadScroll.scrollHeight;
+  });
+}
+
+function renderRoadConnectors(points, chapterId, attempt = 0) {
+  elements.levelRoad.querySelectorAll(".road-vine-image-segment").forEach((node) => node.remove());
+  if (chapterId !== "fruit-forest") return;
+
+  const roadWidth =
+    elements.levelRoad.getBoundingClientRect().width ||
+    elements.levelRoad.clientWidth ||
+    elements.roadScroll.getBoundingClientRect().width ||
+    elements.roadScroll.clientWidth;
+  if (roadWidth <= 0) {
+    if (attempt < 2) {
+      window.requestAnimationFrame(() => renderRoadConnectors(points, chapterId, attempt + 1));
+    }
+    return;
+  }
+
+  points.slice(0, -1).forEach((start, index) => {
+    const end = points[index + 1];
+    const startX = (start.x / 100) * roadWidth;
+    const endX = (end.x / 100) * roadWidth;
+    const dx = endX - startX;
+    const dy = end.y - start.y;
+    const length = Math.hypot(dx, dy);
+    const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
+    const connector = document.createElement("span");
+    connector.className = "road-vine-image-segment";
+    connector.style.left = `${startX}px`;
+    connector.style.top = `${start.y}px`;
+    connector.style.width = `${length}px`;
+    connector.style.transform = `translateY(-50%) rotate(${angle}deg)`;
+    elements.levelRoad.append(connector);
   });
 }
 
@@ -886,16 +920,43 @@ function switchChapter(direction) {
 
 function buildRoadSvg(points, height) {
   const data = points.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`).join(" ");
-  return `<svg class="road-path" viewBox="0 0 100 ${height}" preserveAspectRatio="none" aria-hidden="true"><path d="${data}" /></svg>`;
+  return `<svg class="road-path" viewBox="0 0 100 ${height}" preserveAspectRatio="none" aria-hidden="true">
+    <path class="road-line-shadow" d="${data}" />
+    <path class="road-line-outer" d="${data}" />
+    <path class="road-line-main" d="${data}" />
+    <path class="road-line-highlight" d="${data}" />
+    <path class="road-line-accent" d="${data}" />
+    ${buildRoadVineDecorations(points)}
+  </svg>`;
+}
+
+function buildRoadVineDecorations(points) {
+  const decorations = [];
+  points.slice(0, -1).forEach((start, index) => {
+    const end = points[index + 1];
+    const angle = (Math.atan2(end.y - start.y, end.x - start.x) * 180) / Math.PI;
+    [0.34, 0.66].forEach((progress, leafIndex) => {
+      const cx = start.x + (end.x - start.x) * progress;
+      const cy = start.y + (end.y - start.y) * progress;
+      const side = (index + leafIndex) % 2 === 0 ? -1 : 1;
+      const leafAngle = angle + side * 54;
+      const leafX = cx + side * 0.9;
+      const leafY = cy - 1.5;
+      const budX = cx - side * 0.8;
+      const budY = cy + 2;
+      decorations.push(
+        `<ellipse class="road-vine-leaf" cx="${leafX.toFixed(2)}" cy="${leafY.toFixed(2)}" rx="1.35" ry="2.7" transform="rotate(${leafAngle.toFixed(1)} ${leafX.toFixed(2)} ${leafY.toFixed(2)})" />`,
+        `<circle class="road-vine-bud" cx="${budX.toFixed(2)}" cy="${budY.toFixed(2)}" r="0.9" />`,
+      );
+    });
+  });
+  return `<g class="road-vine-decorations">${decorations.join("")}</g>`;
 }
 
 function renderMiniStars(count) {
   const filledCount = Math.min(3, Math.max(0, Number(count) || 0));
-  const stars = [];
-  for (let index = 1; index <= filledCount; index += 1) {
-    stars.push(`<span class="filled"></span>`);
-  }
-  return `<span class="road-stars" aria-hidden="true">${stars.join("")}</span>`;
+  if (filledCount <= 0) return `<span class="road-stars" aria-hidden="true"></span>`;
+  return `<span class="road-stars road-stars--${filledCount}" aria-label="${filledCount}星"><img src="./assets/UI-Home/road-stars-${filledCount}.png" alt="" aria-hidden="true" /></span>`;
 }
 
 function getLevelStatusText(status) {
