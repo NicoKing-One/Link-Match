@@ -1198,6 +1198,16 @@ button:disabled {
   filter: drop-shadow(0 4px 2px rgba(37, 88, 30, 0.2));
 }
 
+.road-candy-image-segment {
+  position: absolute;
+  z-index: 1;
+  height: 30px;
+  pointer-events: none;
+  background: url("./assets/UI-Home/road-candy-connector.png") center / 100% 100% no-repeat;
+  transform-origin: left center;
+  filter: drop-shadow(0 4px 2px rgba(166, 62, 111, 0.22));
+}
+
 .road-vine-decorations {
   display: none;
 }
@@ -1300,6 +1310,10 @@ button:disabled {
   clip: rect(0 0 0 0);
 }
 
+.road-level-main {
+  display: none;
+}
+
 .road-stars {
   position: absolute;
   left: 50%;
@@ -1320,6 +1334,101 @@ button:disabled {
   width: 100%;
   height: auto;
   object-fit: contain;
+}
+
+.theme-fruit-forest .road-level,
+.theme-candy-garden .road-level,
+.theme-jelly-castle .road-level {
+  width: 84px;
+  height: 96px;
+  padding: 0;
+  color: #ffffff;
+  background: none;
+  text-shadow:
+    0 2px 0 rgba(188, 80, 105, 0.86),
+    0 4px 6px rgba(111, 53, 75, 0.18);
+}
+
+.theme-fruit-forest .road-level.current,
+.theme-candy-garden .road-level.current,
+.theme-jelly-castle .road-level.current {
+  width: 84px;
+  height: 96px;
+  background: none;
+  transform-origin: 50% 100%;
+  animation: currentLevelPulse 1.4s ease-in-out infinite;
+}
+
+.theme-fruit-forest .road-level-main,
+.theme-candy-garden .road-level-main,
+.theme-jelly-castle .road-level-main {
+  position: absolute;
+  inset: 13px 0 0;
+  z-index: 2;
+  display: block;
+  background: var(--level-not-started-bg) center / contain no-repeat;
+  pointer-events: none;
+}
+
+.theme-fruit-forest .road-level.completed .road-level-main,
+.theme-candy-garden .road-level.completed .road-level-main,
+.theme-jelly-castle .road-level.completed .road-level-main {
+  background-image: var(--level-completed-bg);
+}
+
+.theme-fruit-forest .road-level.current .road-level-main,
+.theme-candy-garden .road-level.current .road-level-main,
+.theme-jelly-castle .road-level.current .road-level-main {
+  background-image: var(--level-current-bg);
+}
+
+.theme-fruit-forest .road-level.available .road-level-main,
+.theme-fruit-forest .road-level.locked .road-level-main,
+.theme-candy-garden .road-level.available .road-level-main,
+.theme-candy-garden .road-level.locked .road-level-main,
+.theme-jelly-castle .road-level.available .road-level-main,
+.theme-jelly-castle .road-level.locked .road-level-main {
+  background-image: var(--level-not-started-bg);
+}
+
+.theme-fruit-forest .road-level-number,
+.theme-fruit-forest .road-level.locked .road-level-number,
+.theme-candy-garden .road-level-number,
+.theme-candy-garden .road-level.locked .road-level-number,
+.theme-jelly-castle .road-level-number,
+.theme-jelly-castle .road-level.locked .road-level-number {
+  position: absolute;
+  left: 50%;
+  bottom: 1px;
+  z-index: 4;
+  display: grid;
+  box-sizing: border-box;
+  min-width: 46px;
+  height: 26px;
+  padding: 5px 10px;
+  align-items: center;
+  justify-items: center;
+  overflow: visible;
+  clip: auto;
+  color: #ffffff;
+  font-size: 0.9rem;
+  line-height: 1;
+  transform: translateX(-50%);
+}
+
+.theme-fruit-forest .road-level.current .road-level-number,
+.theme-candy-garden .road-level.current .road-level-number,
+.theme-jelly-castle .road-level.current .road-level-number {
+  bottom: 1px;
+  font-size: 0.9rem;
+}
+
+.theme-fruit-forest .road-stars,
+.theme-candy-garden .road-stars,
+.theme-jelly-castle .road-stars {
+  top: 15px;
+  width: 62px;
+  transform: translate(-50%, -50%);
 }
 
 .chapter-lock {
@@ -1382,6 +1491,16 @@ button:disabled {
   }
   50% {
     transform: translate(-50%, -50%) scale(1.08);
+  }
+}
+
+@keyframes currentLevelMainBreath {
+  0%,
+  100% {
+    filter: brightness(1) drop-shadow(0 2px 0 rgba(255, 255, 255, 0));
+  }
+  50% {
+    filter: brightness(1.12) drop-shadow(0 0 10px rgba(255, 255, 255, 0.72));
   }
 }
 

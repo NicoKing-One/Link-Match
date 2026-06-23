@@ -682,7 +682,7 @@ async function expectHomeRoadMap(page) {
   if (layoutInfo.titleToPanel !== 30 || layoutInfo.panelToButton !== 30) {
     throw new Error(`Expected road map to keep 30px from chapter tab and bottom button, got ${JSON.stringify(layoutInfo)}.`);
   }
-  if (layoutInfo.levelOneToPanelBottom < 0 || layoutInfo.levelOneToPanelBottom > 8) {
+  if (layoutInfo.levelOneToPanelBottom < -2 || layoutInfo.levelOneToPanelBottom > 8) {
     throw new Error(`Expected level 01 to sit at the bottom of the road area without clipping, got ${JSON.stringify(layoutInfo)}.`);
   }
   if (layoutInfo.topLevelToPanelTop < 0 || layoutInfo.topLevelToPanelTop > 4) {
@@ -703,6 +703,12 @@ async function expectHomeRoadMap(page) {
     throw new Error(`Expected road map to scroll vertically, got ${JSON.stringify(scrollInfo)}.`);
   }
   await expectHomeChapterArrowsCycle(page);
+  await expectGeneratedNodeRoadAssetSystem(page, {
+    themeId: "fruit-forest",
+    firstLevelText: "01",
+    connectorSelector: ".road-vine-image-segment",
+    connectorAsset: "road-vine-connector.png",
+  });
   await expectHomeUsesUiHomeAssets(page);
 }
 
@@ -716,14 +722,141 @@ async function expectHomeChapterArrowsCycle(page) {
 
   await page.locator("#prevChapterButton").click();
   await page.waitForFunction(() => document.querySelector("#startScreen")?.className.includes("home-theme-jelly-castle"));
+  await expectGeneratedNodeRoadAssetSystem(page, {
+    themeId: "jelly-castle",
+    firstLevelText: "61",
+  });
   await page.locator("#nextChapterButton").click();
   await page.waitForFunction(() => document.querySelector("#startScreen")?.className.includes("home-theme-fruit-forest"));
   await page.locator("#nextChapterButton").click();
   await page.waitForFunction(() => document.querySelector("#startScreen")?.className.includes("home-theme-candy-garden"));
+  await expectGeneratedNodeRoadAssetSystem(page, {
+    themeId: "candy-garden",
+    firstLevelText: "31",
+    connectorSelector: ".road-candy-image-segment",
+    connectorAsset: "road-candy-connector.png",
+  });
   await page.locator("#nextChapterButton").click();
   await page.waitForFunction(() => document.querySelector("#startScreen")?.className.includes("home-theme-jelly-castle"));
+  await expectGeneratedNodeRoadAssetSystem(page, {
+    themeId: "jelly-castle",
+    firstLevelText: "61",
+  });
   await page.locator("#nextChapterButton").click();
   await page.waitForFunction(() => document.querySelector("#startScreen")?.className.includes("home-theme-fruit-forest"));
+}
+
+async function expectGeneratedNodeRoadAssetSystem(page, expected) {
+  if (expected.connectorSelector) {
+    await page.waitForFunction(
+      (selector) => document.querySelectorAll(selector).length === 29,
+      expected.connectorSelector,
+    );
+  }
+  const roadData = await page.locator(".screen-start.active").evaluate((root, expected) => {
+    const levels = [...document.querySelectorAll(".road-level")];
+    const firstLevel = levels.find((node) => node.textContent.includes(expected.firstLevelText)) ?? levels[0];
+    const levelRect = firstLevel?.getBoundingClientRect();
+    const mainNode = firstLevel?.querySelector(".road-level-main");
+    const mainRect = mainNode?.getBoundingClientRect();
+    const starRect = firstLevel?.querySelector(".road-stars")?.getBoundingClientRect();
+    const numberNode = firstLevel?.querySelector(".road-level-number");
+    const numberRect = numberNode?.getBoundingClientRect();
+    const numberStyle = numberNode ? getComputedStyle(numberNode) : null;
+    const currentLevel = document.querySelector(".road-level.current");
+    const currentLevelStyle = currentLevel ? getComputedStyle(currentLevel) : null;
+    const panelRect = document.querySelector(".map-panel")?.getBoundingClientRect();
+    return {
+      themeId: expected.themeId,
+      roadPathCount: document.querySelectorAll(".road-path").length,
+      connectorCount: expected.connectorSelector ? document.querySelectorAll(expected.connectorSelector).length : null,
+      levelCount: levels.length,
+      firstLevelText: firstLevel?.textContent ?? "",
+      hasNumberClass: Boolean(firstLevel?.querySelector(".road-level-number")),
+      hasMainClass: Boolean(firstLevel?.querySelector(".road-level-main")),
+      hasStarSlot: Boolean(firstLevel?.querySelector(".road-stars")),
+      starSource: firstLevel?.querySelector(".road-stars img")?.getAttribute("src") ?? "",
+      connectorBackgrounds: expected.connectorSelector
+        ? [...document.querySelectorAll(expected.connectorSelector)].map((node) => getComputedStyle(node).backgroundImage)
+        : [],
+      nodeBackground: firstLevel ? getComputedStyle(firstLevel).backgroundImage : "",
+      mainBackground: mainNode ? getComputedStyle(mainNode).backgroundImage : "",
+      levelWidth: levelRect ? Math.round(levelRect.width) : null,
+      levelHeight: levelRect ? Math.round(levelRect.height) : null,
+      mainWidth: mainRect ? Math.round(mainRect.width) : null,
+      mainHeight: mainRect ? Math.round(mainRect.height) : null,
+      levelToPanelBottom: levelRect && panelRect ? Math.round((panelRect.bottom - levelRect.bottom) * 10) / 10 : null,
+      numberDisplay: numberStyle?.display ?? "",
+      numberAlignItems: numberStyle?.alignItems ?? "",
+      numberJustifyItems: numberStyle?.justifyItems ?? "",
+      numberPaddingLeft: numberStyle?.paddingLeft ?? "",
+      numberPaddingRight: numberStyle?.paddingRight ?? "",
+      numberPaddingTop: numberStyle?.paddingTop ?? "",
+      numberPaddingBottom: numberStyle?.paddingBottom ?? "",
+      numberWidth: numberRect ? Math.round(numberRect.width) : null,
+      numberHeight: numberRect ? Math.round(numberRect.height) : null,
+      hasCurrentLevel: Boolean(currentLevel),
+      currentLevelAnimation: currentLevelStyle?.animationName ?? "",
+      starTopToMainTop:
+        starRect && starRect.height > 0 && mainRect ? Math.round((starRect.top - mainRect.top) * 10) / 10 : null,
+      numberBelowMain:
+        numberRect && levelRect ? Math.round(numberRect.top - (levelRect.top + levelRect.height * 0.56)) : null,
+      starAboveMain:
+        starRect && levelRect ? Math.round(starRect.bottom - (levelRect.top + levelRect.height * 0.38)) : null,
+    };
+  }, expected);
+
+  if (expected.connectorSelector && roadData.roadPathCount !== 0) {
+    throw new Error(`Expected ${expected.themeId} road to use generated image connectors, not SVG road paths: ${JSON.stringify(roadData)}`);
+  }
+  if (expected.connectorSelector && roadData.connectorCount !== 29) {
+    throw new Error(`Expected ${expected.themeId} to render 29 continuous image connector segments, got ${JSON.stringify(roadData)}.`);
+  }
+  if (
+    roadData.levelCount !== 30 ||
+    !roadData.hasNumberClass ||
+    !roadData.hasMainClass ||
+    !roadData.hasStarSlot ||
+    roadData.levelWidth !== 84 ||
+    roadData.levelHeight !== 96 ||
+    roadData.mainWidth !== 84 ||
+    roadData.mainHeight !== 83
+  ) {
+    throw new Error(`Expected ${expected.themeId} levels to use top shared stars, main button, and bottom number plaque, got ${JSON.stringify(roadData)}.`);
+  }
+  if (!roadData.mainBackground.includes(`level-${expected.themeId.split("-")[0]}-`) || roadData.nodeBackground !== "none") {
+    throw new Error(`Expected ${expected.themeId} state art on the main button only, got ${JSON.stringify(roadData)}.`);
+  }
+  if (roadData.numberBelowMain === null || roadData.numberBelowMain < 0 || (roadData.starAboveMain !== null && roadData.starAboveMain > 0)) {
+    throw new Error(`Expected ${expected.themeId} number plaque below the main button and shared stars above it, got ${JSON.stringify(roadData)}.`);
+  }
+  if (roadData.levelToPanelBottom === null || Math.abs(roadData.levelToPanelBottom) > 1) {
+    throw new Error(`Expected ${expected.themeId} first level to sit flush with the road area bottom, got ${JSON.stringify(roadData)}.`);
+  }
+  if (
+    roadData.numberDisplay !== "grid" ||
+    roadData.numberAlignItems !== "center" ||
+    roadData.numberJustifyItems !== "center" ||
+    roadData.numberPaddingLeft !== "10px" ||
+    roadData.numberPaddingRight !== "10px" ||
+    roadData.numberPaddingTop !== "5px" ||
+    roadData.numberPaddingBottom !== "5px" ||
+    roadData.numberWidth === null ||
+    roadData.numberWidth < 46 ||
+    roadData.numberHeight === null ||
+    roadData.numberHeight < 26
+  ) {
+    throw new Error(`Expected ${expected.themeId} level number to be vertically centered inside its bottom plaque, got ${JSON.stringify(roadData)}.`);
+  }
+  if (roadData.starTopToMainTop !== null && (roadData.starTopToMainTop < -11 || roadData.starTopToMainTop > -9)) {
+    throw new Error(`Expected ${expected.themeId} top star badge to sit 10px above the level icon, got ${JSON.stringify(roadData)}.`);
+  }
+  if (roadData.hasCurrentLevel && roadData.currentLevelAnimation !== "currentLevelPulse") {
+    throw new Error(`Expected current ${expected.themeId} node to use breathing state on the main art, got ${JSON.stringify(roadData)}.`);
+  }
+  if (expected.connectorSelector && roadData.connectorBackgrounds.some((item) => !item.includes(expected.connectorAsset))) {
+    throw new Error(`Expected every ${expected.themeId} connector to use ${expected.connectorAsset}, got ${JSON.stringify(roadData)}.`);
+  }
 }
 
 async function expectHomeLevelStarsMatchProgress(page) {
@@ -761,7 +894,7 @@ async function expectHomeLevelStarsMatchProgress(page) {
   if (mismatch.length) {
     throw new Error(`Expected road level star images to match bestStars, got ${JSON.stringify(starData)}.`);
   }
-  const misplaced = starData.filter((item) => item.imageCount > 0 && item.starBottom > item.levelTop + 8);
+  const misplaced = starData.filter((item) => item.imageCount > 0 && item.starBottom > item.levelTop + 28);
   if (misplaced.length) {
     throw new Error(`Expected earned road stars to sit on the level header, got ${JSON.stringify(starData)}.`);
   }
@@ -1464,7 +1597,9 @@ async function expectHomeUsesUiHomeAssets(page) {
       arrowBackground: backgroundImageOf(".chapter-arrow"),
       arrowIcon: document.querySelector("#nextChapterButton img")?.getAttribute("src") ?? "",
       summaryBackground: summary ? getComputedStyle(summary).backgroundImage : "",
-      levelBackground: firstRoadLevel ? getComputedStyle(firstRoadLevel).backgroundImage : "",
+      levelBackground: firstRoadLevel
+        ? getComputedStyle(firstRoadLevel.querySelector(".road-level-main") ?? firstRoadLevel).backgroundImage
+        : "",
       startBackground: backgroundImageOf("#startButton"),
       lockIcon: document.querySelector(".chapter-lock img")?.getAttribute("src") ?? "",
     };

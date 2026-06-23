@@ -22,6 +22,7 @@ Generated for the Link Match home screen from the three approved home UI design 
 - `level-fruit-current-bg.png`
 - `level-fruit-completed-bg.png`
 - `level-fruit-not-started-bg.png`
+- Fruit Forest level nodes use generated `1024px x 1024px` state icons with a shared `912px` visible height and preserved source aspect ratio: top universal stars, middle state button, bottom number plaque.
 - `start-button-fruit-bg.png`
 
 ## Candy Garden
@@ -33,6 +34,8 @@ Generated for the Link Match home screen from the three approved home UI design 
 - `level-candy-current-bg.png`
 - `level-candy-completed-bg.png`
 - `level-candy-not-started-bg.png`
+- `road-candy-connector.png` - generated continuous candy-stick connector for the Candy Garden road
+- Candy Garden level nodes use generated `1024px x 1024px` state icons with a shared `912px` visible height and preserved source aspect ratio: top universal stars, middle state button, bottom number plaque.
 - `start-button-candy-bg.png`
 
 ## Jelly Castle
@@ -44,8 +47,17 @@ Generated for the Link Match home screen from the three approved home UI design 
 - `level-jelly-current-bg.png`
 - `level-jelly-completed-bg.png`
 - `level-jelly-not-started-bg.png`
+- Jelly Castle level nodes use generated `1024px x 1024px` state icons with a shared `912px` visible height and preserved source aspect ratio: top universal stars, middle state button, bottom number plaque.
 - `start-button-jelly-bg.png`
 
 ## Preview
 
 - `_contact-sheet.png` - local overview sheet for quick visual review
+- `output/home-road-node-assets-preview.png` - generated 3x3 preview for the current nine level-node state icons
+
+## Level Node Icon Notes
+
+- The nine `level-*-bg.png` state icons are generated image assets, not slices from a shared sheet.
+- Their canvas and visible height are normalized with uniform scaling; the source aspect ratio is preserved to avoid stretching.
+- Completed states contain a check mark, current states are blank active buttons animated by CSS breathing, and locked states contain a lock.
+- The post-processing script only removes chroma-key background, normalizes the canvas with uniform scaling, and seals internal transparent holes.

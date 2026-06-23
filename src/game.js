@@ -58,6 +58,7 @@ const DATA_RESET_VERSION = "2026-06-13-full-stamina-baseline";
 const ROAD_STEP_Y = 110;
 const ROAD_TOP_Y = 34;
 const ROAD_BOTTOM_Y = 38;
+const GENERATED_ROAD_NODE_PADDING_Y = 48;
 const ROAD_X_PATTERN = [30, 70];
 const HOME_THEME_CLASSES = CHAPTERS.map((chapter) => `home-theme-${chapter.id}`);
 const EXCHANGE_TITLE_PAGE_SIZE = 6;
@@ -369,11 +370,13 @@ function renderRoadMap() {
   const chapter = CHAPTERS[state.chapterIndex];
   const chapterLevels = getLevelsForChapter(chapter.id);
   const chapterStatus = getChapterStatus(chapter, state.progress);
-  const roadHeight = ROAD_TOP_Y + ROAD_BOTTOM_Y + (chapterLevels.length - 1) * ROAD_STEP_Y;
+  const roadTopY = getRoadNodeEdgePadding(chapter.id, "top");
+  const roadBottomY = getRoadNodeEdgePadding(chapter.id, "bottom");
+  const roadHeight = roadTopY + roadBottomY + (chapterLevels.length - 1) * ROAD_STEP_Y;
   const points = chapterLevels.map((level, index) => ({
     level,
     x: ROAD_X_PATTERN[index % ROAD_X_PATTERN.length],
-    y: roadHeight - ROAD_BOTTOM_Y - index * ROAD_STEP_Y,
+    y: roadHeight - roadBottomY - index * ROAD_STEP_Y,
   }));
 
   elements.chapterSummary.textContent = `${chapter.name} · ${chapter.startLevel}-${chapter.endLevel}关`;
@@ -387,7 +390,8 @@ function renderRoadMap() {
   screens.start.classList.add(`home-theme-${chapter.id}`);
   elements.levelRoad.className = `level-road ${chapter.backgroundClass}`;
   elements.levelRoad.style.height = `${roadHeight}px`;
-  elements.levelRoad.innerHTML = chapter.id === "fruit-forest" ? "" : buildRoadSvg(points, roadHeight);
+  elements.levelRoad.innerHTML =
+    chapter.id === "fruit-forest" || chapter.id === "candy-garden" ? "" : buildRoadSvg(points, roadHeight);
 
   points.forEach(({ level, x, y }) => {
     const status = getLevelStatus(level.number, state.progress);
@@ -399,10 +403,7 @@ function renderRoadMap() {
     button.style.top = `${y}px`;
     button.disabled = status === "locked";
     button.setAttribute("aria-label", `${formatLevelTitle(level)} ${getLevelStatusText(status)}`);
-    button.innerHTML =
-      status === "locked"
-        ? `<strong>${String(level.number).padStart(2, "0")}</strong>${renderMiniStars(record.bestStars)}`
-        : `<strong>${String(level.number).padStart(2, "0")}</strong>${renderMiniStars(record.bestStars)}`;
+    button.innerHTML = `${renderMiniStars(record.bestStars)}<span class="road-level-main" aria-hidden="true"></span><strong class="road-level-number">${String(level.number).padStart(2, "0")}</strong>`;
     button.addEventListener("click", () => requestStartGame(level));
     elements.levelRoad.append(button);
   });
@@ -414,7 +415,8 @@ function renderRoadMap() {
 
 function renderRoadConnectors(points, chapterId, attempt = 0) {
   elements.levelRoad.querySelectorAll(".road-vine-image-segment").forEach((node) => node.remove());
-  if (chapterId !== "fruit-forest") return;
+  elements.levelRoad.querySelectorAll(".road-candy-image-segment").forEach((node) => node.remove());
+  if (chapterId !== "fruit-forest" && chapterId !== "candy-garden") return;
 
   const roadWidth =
     elements.levelRoad.getBoundingClientRect().width ||
@@ -437,13 +439,20 @@ function renderRoadConnectors(points, chapterId, attempt = 0) {
     const length = Math.hypot(dx, dy);
     const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
     const connector = document.createElement("span");
-    connector.className = "road-vine-image-segment";
+    connector.className = chapterId === "candy-garden" ? "road-candy-image-segment" : "road-vine-image-segment";
     connector.style.left = `${startX}px`;
     connector.style.top = `${start.y}px`;
     connector.style.width = `${length}px`;
     connector.style.transform = `translateY(-50%) rotate(${angle}deg)`;
     elements.levelRoad.append(connector);
   });
+}
+
+function getRoadNodeEdgePadding(chapterId, edge) {
+  if (chapterId === "fruit-forest" || chapterId === "candy-garden" || chapterId === "jelly-castle") {
+    return GENERATED_ROAD_NODE_PADDING_Y;
+  }
+  return edge === "top" ? ROAD_TOP_Y : ROAD_BOTTOM_Y;
 }
 
 function requestStartGame(level) {
