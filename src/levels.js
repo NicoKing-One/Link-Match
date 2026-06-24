@@ -29,15 +29,9 @@ export const CHAPTERS = [
 ];
 
 const DIFFICULTY_STEPS = [
-  { rows: 6, cols: 6, iconCount: 8, durationSeconds: 190, hints: 0, shuffles: 0 },
-  { rows: 6, cols: 7, iconCount: 10, durationSeconds: 210, hints: 0, shuffles: 0 },
-  { rows: 6, cols: 7, iconCount: 12, durationSeconds: 200, hints: 0, shuffles: 0 },
-  { rows: 7, cols: 8, iconCount: 12, durationSeconds: 240, hints: 0, shuffles: 0 },
-  { rows: 7, cols: 8, iconCount: 12, durationSeconds: 225, hints: 0, shuffles: 0 },
-  { rows: 8, cols: 8, iconCount: 12, durationSeconds: 260, hints: 0, shuffles: 0 },
-  { rows: 7, cols: 8, iconCount: 12, durationSeconds: 215, hints: 0, shuffles: 0 },
-  { rows: 8, cols: 8, iconCount: 12, durationSeconds: 245, hints: 0, shuffles: 0 },
-  { rows: 8, cols: 9, iconCount: 12, durationSeconds: 275, hints: 0, shuffles: 0 },
+  { tier: "easy", rows: 7, cols: 6, iconCount: 10, durationSeconds: 210, hints: 0, shuffles: 0 },
+  { tier: "normal", rows: 8, cols: 6, iconCount: 12, durationSeconds: 240, hints: 0, shuffles: 0 },
+  { tier: "hard", rows: 9, cols: 6, iconCount: 12, durationSeconds: 270, hints: 0, shuffles: 0 },
 ];
 
 export const LEVELS = Array.from({ length: 90 }, (_, index) => buildLevel(index + 1));
@@ -65,8 +59,8 @@ export function getLevelsForChapter(chapterId) {
 
 function buildLevel(number) {
   const chapter = getChapterForNumber(number);
-  const step = DIFFICULTY_STEPS[Math.floor((number - 1) / 10)];
   const localNumber = number - chapter.startLevel + 1;
+  const step = getDifficultyStep(localNumber);
 
   return {
     ...step,
@@ -77,6 +71,12 @@ function buildLevel(number) {
     chapterId: chapter.id,
     coinReward: calculateCoinReward(localNumber),
   };
+}
+
+function getDifficultyStep(localNumber) {
+  if (localNumber <= 10) return DIFFICULTY_STEPS[0];
+  if (localNumber <= 20) return DIFFICULTY_STEPS[1];
+  return DIFFICULTY_STEPS[2];
 }
 
 function getChapterForNumber(number) {

@@ -47,6 +47,7 @@ Generated for the Link Match home screen from the three approved home UI design 
 - `level-jelly-current-bg.png`
 - `level-jelly-completed-bg.png`
 - `level-jelly-not-started-bg.png`
+- `road-jelly-connector.png` - generated continuous ice-crystal connector for the Jelly Castle road, chroma-keyed and trimmed with no transparent edge padding
 - Jelly Castle level nodes use generated `1024px x 1024px` state icons with a shared `912px` visible height and preserved source aspect ratio: top universal stars, middle state button, bottom number plaque.
 - `start-button-jelly-bg.png`
 

@@ -82,6 +82,8 @@ try {
     throw new Error(`Expected full stamina countdown to show reset time, got: ${initialCountdown}`);
   }
   await expectHomeRoadMap(page);
+  await expectCurrentRoadLevelCentered(page);
+  await expectCurrentRoadLevelCenteredAfterGameReturn(page);
   await page.screenshot({ path: join(outputDir, "home-map-mobile.png"), fullPage: true });
   await seedProfileThreeStarState(page);
   await expectHomeLevelStarsMatchProgress(page);
@@ -149,6 +151,7 @@ try {
     throw new Error(`Expected mismatch to shake both selected tiles, got ${shakingAfterMismatch}.`);
   }
 
+  await expectZeroToolCounts(page);
   await exhaustTool(page, "#hintButton");
   await expectHintToolDoesNotBreathe(page);
   await page.locator("#hintButton").click();
@@ -320,6 +323,15 @@ async function exhaustTool(page, selector) {
     if (guard > 8) {
       throw new Error(`Expected ${selector} count to deplete, still got ${count} after ${guard} clicks.`);
     }
+  }
+}
+
+async function expectZeroToolCounts(page) {
+  const counts = await page.locator(".screen-game.active .tool-count").evaluateAll((nodes) =>
+    nodes.map((node) => node.textContent?.trim() ?? ""),
+  );
+  if (counts.length !== 2 || counts.some((count) => count !== "0")) {
+    throw new Error(`Expected hint and shuffle tools to show zero counts, got ${JSON.stringify(counts)}.`);
   }
 }
 
@@ -571,7 +583,9 @@ async function expectHomeRoadMap(page) {
   const visibleRoadLevelCount = await page.locator(".screen-start.active .road-level").count();
   const currentLevelText = await page.locator(".screen-start.active .road-level.current").innerText();
   const lockedCount = await page.locator(".screen-start.active .road-level.locked").count();
+  const availableCount = await page.locator(".screen-start.active .road-level.available").count();
   const continueText = await page.locator("#startButton").innerText();
+  const clearButtonCount = await page.locator("#clearProgressButton").count();
   const homeTitleCount = await page.locator(".screen-start.active .home-brand h1, .screen-start.active .home-brand .eyebrow").count();
   const homeStaminaButtonCount = await page.locator(".screen-start.active .getStaminaButton").count();
   const homeStatLabelCount = await page.locator(".screen-start.active .home-stat-label").count();
@@ -646,11 +660,14 @@ async function expectHomeRoadMap(page) {
   if (!currentLevelText.includes("01")) {
     throw new Error(`Expected level 01 to be current, got: ${currentLevelText}.`);
   }
-  if (lockedCount < 20) {
-    throw new Error(`Expected most future levels to be locked, got levels=${lockedCount}.`);
+  if (lockedCount !== 0 || availableCount < 20) {
+    throw new Error(`Expected test mode to unlock future levels, got locked=${lockedCount}, available=${availableCount}.`);
   }
   if (!continueText.includes("闯关")) {
     throw new Error(`Expected start button to use start/continue challenge copy, got: ${continueText}.`);
+  }
+  if (clearButtonCount !== 1) {
+    throw new Error(`Expected home screen to expose one clear data test button, got ${clearButtonCount}.`);
   }
   if (homeTitleCount !== 0) {
     throw new Error(`Expected home title text to be removed, got ${homeTitleCount} title nodes.`);
@@ -665,7 +682,7 @@ async function expectHomeRoadMap(page) {
     !layoutInfo.hasDock ||
     layoutInfo.buttonWidth < layoutInfo.viewportWidth * 0.7 ||
     Math.abs(layoutInfo.buttonRatio - 1115 / 276) > 0.12 ||
-    layoutInfo.dockPaddingBottom !== "30px"
+    layoutInfo.dockPaddingBottom !== "22px"
   ) {
     throw new Error(`Expected continue button to fill its dock at the source image aspect ratio, got ${JSON.stringify(layoutInfo)}.`);
   }
@@ -712,6 +729,67 @@ async function expectHomeRoadMap(page) {
   await expectHomeUsesUiHomeAssets(page);
 }
 
+async function expectCurrentRoadLevelCentered(page) {
+  await page.evaluate(() => {
+    localStorage.setItem("lianliankan.dataResetVersion", "2026-06-13-full-stamina-baseline");
+    localStorage.setItem(
+      "lianliankan.progress",
+      JSON.stringify({
+        highestUnlockedLevel: 6,
+        coins: 10,
+        records: {
+          1: { completed: true, bestScore: 1200, bestStars: 3 },
+          2: { completed: true, bestScore: 1100, bestStars: 3 },
+          3: { completed: true, bestScore: 1000, bestStars: 3 },
+          4: { completed: true, bestScore: 950, bestStars: 3 },
+          5: { completed: true, bestScore: 900, bestStars: 3 },
+        },
+      }),
+    );
+    localStorage.setItem("lianliankan.stamina", JSON.stringify({ stamina: 8, updatedAt: Date.now(), adClaims: 0 }));
+  });
+  await page.reload({ waitUntil: "networkidle" });
+  await page.waitForSelector(".screen-start.active .road-level.current", { timeout: 2000 });
+  await page.waitForFunction(() => document.querySelector(".screen-start.active .road-level.current")?.textContent.includes("06"));
+  await expectVisibleCurrentRoadLevel(page, "06");
+}
+
+async function expectCurrentRoadLevelCenteredAfterGameReturn(page) {
+  await page.locator("#startButton").click();
+  await page.waitForSelector(".screen-game.active .tile:not(.empty)", { timeout: 2000 });
+  await page.locator("#gameHomeButton").click();
+  await page.waitForSelector("#exitModal:not(.hidden)", { timeout: 2000 });
+  await page.locator("#confirmHomeButton").click();
+  await page.waitForSelector(".screen-start.active .road-level.current", { timeout: 2000 });
+  await expectVisibleCurrentRoadLevel(page, "06");
+
+  await page.locator("#startButton").click();
+  await page.waitForSelector(".screen-game.active .tile:not(.empty)", { timeout: 2000 });
+  await page.locator("#pauseButton").click();
+  await page.waitForSelector("#pauseModal:not(.hidden)", { timeout: 2000 });
+  await page.locator("#pauseHomeButton").click();
+  await page.waitForSelector(".screen-start.active .road-level.current", { timeout: 2000 });
+  await expectVisibleCurrentRoadLevel(page, "06");
+}
+
+async function expectVisibleCurrentRoadLevel(page, expectedText) {
+  const currentPosition = await page.evaluate(() => {
+    const roadScroll = document.querySelector("#roadScroll");
+    const currentLevel = document.querySelector(".screen-start.active .road-level.current");
+    const scrollRect = roadScroll.getBoundingClientRect();
+    const currentRect = currentLevel.getBoundingClientRect();
+    return {
+      currentText: currentLevel.textContent.trim(),
+      deltaFromCenter: Math.round((currentRect.top + currentRect.bottom) / 2 - (scrollRect.top + scrollRect.bottom) / 2),
+      scrollTop: Math.round(roadScroll.scrollTop),
+    };
+  });
+
+  if (!currentPosition.currentText.includes(expectedText) || Math.abs(currentPosition.deltaFromCenter) > 36) {
+    throw new Error(`Expected current level ${expectedText} to be centered in the visible road map, got ${JSON.stringify(currentPosition)}.`);
+  }
+}
+
 async function expectHomeChapterArrowsCycle(page) {
   const initialDisabledState = await page.locator(".screen-start.active .chapter-arrow").evaluateAll((nodes) =>
     nodes.map((node) => node.disabled),
@@ -725,6 +803,8 @@ async function expectHomeChapterArrowsCycle(page) {
   await expectGeneratedNodeRoadAssetSystem(page, {
     themeId: "jelly-castle",
     firstLevelText: "61",
+    connectorSelector: ".road-jelly-image-segment",
+    connectorAsset: "road-jelly-connector.png",
   });
   await page.locator("#nextChapterButton").click();
   await page.waitForFunction(() => document.querySelector("#startScreen")?.className.includes("home-theme-fruit-forest"));
@@ -741,6 +821,8 @@ async function expectHomeChapterArrowsCycle(page) {
   await expectGeneratedNodeRoadAssetSystem(page, {
     themeId: "jelly-castle",
     firstLevelText: "61",
+    connectorSelector: ".road-jelly-image-segment",
+    connectorAsset: "road-jelly-connector.png",
   });
   await page.locator("#nextChapterButton").click();
   await page.waitForFunction(() => document.querySelector("#startScreen")?.className.includes("home-theme-fruit-forest"));
@@ -1801,8 +1883,8 @@ async function expectMobileResultDesignSystem(page) {
   if (!cardBackground.includes("assets/ui-cut/modal-card-bg.png")) {
     throw new Error(`Expected result card background to use modal-card-bg.png, got: ${cardBackground}`);
   }
-  if (overlay.alpha < 0.35) {
-    throw new Error(`Expected result screen to use a dark translucent overlay, got: ${JSON.stringify(overlay)}.`);
+  if (overlay.alpha < 0.2) {
+    throw new Error(`Expected result screen to keep a translucent game-background overlay, got: ${JSON.stringify(overlay)}.`);
   }
   if (resultStaminaCount !== 0 || resultEyebrowCount !== 0) {
     throw new Error(`Expected result screen without stamina panel and eyebrow, got stamina=${resultStaminaCount}, eyebrow=${resultEyebrowCount}.`);

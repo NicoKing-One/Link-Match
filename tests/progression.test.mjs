@@ -48,6 +48,28 @@ test("each chapter awards 100 coins across first clears", () => {
   }
 });
 
+test("each chapter repeats easy, normal and hard board tiers locally", () => {
+  const expectedTiers = [
+    ...Array(10).fill({ tier: "easy", rows: 7, cols: 6 }),
+    ...Array(10).fill({ tier: "normal", rows: 8, cols: 6 }),
+    ...Array(10).fill({ tier: "hard", rows: 9, cols: 6 }),
+  ];
+
+  for (const chapter of CHAPTERS) {
+    const levels = LEVELS.filter((level) => level.chapterId === chapter.id);
+
+    assert.deepEqual(
+      levels.map((level) => ({
+        localNumber: level.localNumber,
+        tier: level.tier,
+        rows: level.rows,
+        cols: level.cols,
+      })),
+      expectedTiers.map((tier, index) => ({ localNumber: index + 1, ...tier })),
+    );
+  }
+});
+
 test("starts with only level 1 playable and later chapters locked", () => {
   const progress = createInitialProgress();
 

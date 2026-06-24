@@ -125,7 +125,7 @@ button:disabled {
   gap: 10px;
   padding: 18px 8px 192px;
   min-height: 0;
-  background: url("./assets/jelly-fruit/page-bg.png") center top / cover no-repeat;
+  background: url("./assets/jelly-fruit/page-bg-saturated-jelly-v2.png") center top / cover no-repeat;
 }
 
 .brand-panel,
@@ -972,9 +972,12 @@ button:disabled {
 
 .home-bottom-dock {
   display: flex;
+  flex-direction: column;
   flex: 0 0 auto;
+  gap: 8px;
+  align-items: center;
   justify-content: center;
-  padding: 20px 24px 30px;
+  padding: 20px 24px 22px;
 }
 
 .home-bottom-dock .primary-button {
@@ -991,6 +994,23 @@ button:disabled {
   text-shadow: 0 2px 0 rgba(0, 108, 98, 0.68);
   background: var(--home-start-button-bg) center / 100% 100% no-repeat;
   box-shadow: none;
+}
+
+.home-clear-button {
+  display: grid;
+  place-items: center;
+  width: min(100%, 210px);
+  min-height: 34px;
+  padding: 0 18px 2px;
+  border: 2px solid rgba(255, 255, 255, 0.78);
+  border-radius: 999px;
+  color: #ffffff;
+  background: linear-gradient(180deg, #ff8a72 0%, #e55049 100%);
+  box-shadow: 0 8px 16px rgba(130, 48, 40, 0.2);
+  font-size: 0.86rem;
+  font-weight: 900;
+  line-height: 1;
+  text-shadow: 0 1px 0 rgba(114, 32, 28, 0.45);
 }
 
 .chapter-shell {
@@ -1208,6 +1228,16 @@ button:disabled {
   filter: drop-shadow(0 4px 2px rgba(166, 62, 111, 0.22));
 }
 
+.road-jelly-image-segment {
+  position: absolute;
+  z-index: 1;
+  height: 34px;
+  pointer-events: none;
+  background: url("./assets/UI-Home/road-jelly-connector.png") center / 100% 100% no-repeat;
+  transform-origin: left center;
+  filter: drop-shadow(0 4px 3px rgba(68, 55, 182, 0.24));
+}
+
 .road-vine-decorations {
   display: none;
 }
@@ -1382,13 +1412,17 @@ button:disabled {
   background-image: var(--level-current-bg);
 }
 
-.theme-fruit-forest .road-level.available .road-level-main,
 .theme-fruit-forest .road-level.locked .road-level-main,
-.theme-candy-garden .road-level.available .road-level-main,
 .theme-candy-garden .road-level.locked .road-level-main,
-.theme-jelly-castle .road-level.available .road-level-main,
 .theme-jelly-castle .road-level.locked .road-level-main {
   background-image: var(--level-not-started-bg);
+}
+
+.theme-fruit-forest .road-level.available .road-level-main,
+.theme-candy-garden .road-level.available .road-level-main,
+.theme-jelly-castle .road-level.available .road-level-main {
+  background-image: var(--level-current-bg);
+  filter: saturate(0.9) brightness(0.96);
 }
 
 .theme-fruit-forest .road-level-number,
@@ -1978,18 +2012,11 @@ h2 {
 .board-wrap {
   position: relative;
   flex: 0 0 auto;
-  padding: 11px;
+  padding: 12px;
   margin: auto 0;
   isolation: isolate;
   border-radius: 30px;
-  border: 2px solid rgba(255, 255, 255, 0.74);
-  background:
-    radial-gradient(circle at 12% 8%, rgba(255, 255, 255, 0.32) 0 10%, transparent 11%),
-    linear-gradient(180deg, rgba(199, 255, 238, 0.34), rgba(187, 255, 229, 0.22));
-  box-shadow:
-    inset 0 3px 0 rgba(255, 255, 255, 0.54),
-    inset 0 -5px 0 rgba(22, 168, 146, 0.08),
-    0 12px 26px rgba(34, 122, 112, 0.12);
+  border: 4px solid #fff9df;
 }
 
 .board-meta {
@@ -2244,16 +2271,45 @@ h2 {
   left: calc(50% + 15px);
   display: grid;
   place-items: center;
-  width: 30px;
+  width: 42px;
   height: 30px;
   padding-bottom: 2px;
-  background: url("./assets/ui-cut/tool-badge.png") center / contain no-repeat;
+  background: url("./assets/ui-cut/tool-badge.png") center / 100% 100% no-repeat;
   color: #fff;
-  font-size: 0.9rem;
+  font-size: 0.68rem;
   font-weight: 900;
   line-height: 1;
   text-shadow: 0 1px 2px rgba(162, 29, 75, 0.35);
   white-space: nowrap;
+}
+
+.screen-game[data-board-tier="normal"],
+.screen-game[data-board-tier="hard"] {
+  padding-bottom: 128px;
+}
+
+.screen-game[data-board-tier="normal"] .toolbar,
+.screen-game[data-board-tier="hard"] .toolbar {
+  bottom: 8px;
+  min-height: 94px;
+  padding: 7px 24px 6px;
+}
+
+.screen-game[data-board-tier="normal"] .tool-button,
+.screen-game[data-board-tier="hard"] .tool-button {
+  grid-template-rows: 60px auto;
+  min-height: 78px;
+}
+
+.screen-game[data-board-tier="normal"] .tool-art,
+.screen-game[data-board-tier="hard"] .tool-art {
+  width: 64px;
+  height: 64px;
+}
+
+.screen-game[data-board-tier="normal"] .tool-label,
+.screen-game[data-board-tier="hard"] .tool-label {
+  font-size: 0.82rem;
 }
 
 .tool-button.danger {
@@ -2274,8 +2330,8 @@ h2 {
   height: 100vh;
   height: 100dvh;
   padding: max(16px, env(safe-area-inset-top)) 14px max(16px, env(safe-area-inset-bottom));
-  background: rgba(12, 22, 24, 0.58);
-  backdrop-filter: blur(1px);
+  background: rgba(23, 64, 74, 0.28);
+  backdrop-filter: none;
 }
 
 .result-card {
@@ -2649,13 +2705,16 @@ h2 {
 .modal-actions .ghost-button,
 .result-card > .primary-button,
 .result-card > .ghost-button {
-  width: fit-content;
-  min-width: 128px;
-  max-width: min(100%, 304px);
-  min-height: 48px;
-  padding: 10px 30px;
-  border-radius: 18px;
+  display: grid;
+  place-items: center;
+  width: 160px;
+  height: 50px;
+  min-height: 50px;
+  padding: 0 28px 4px;
+  border-radius: 0;
   border: 0;
+  line-height: 1;
+  text-align: center;
   box-shadow: none;
   background-position: center;
   background-size: 100% 100%;
@@ -2668,7 +2727,7 @@ h2 {
 
 .result-card > .primary-button,
 .result-card > .ghost-button {
-  display: block;
+  display: grid;
   margin-top: 0;
   margin-right: auto;
   margin-left: auto;
@@ -2697,6 +2756,35 @@ h2 {
   background-image: url("./assets/ui-cut/modal-button-secondary.png");
   background-color: transparent;
   color: #173e47;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+#exitModal #confirmHomeButton {
+  background-image: url("./assets/ui-cut/modal-button-secondary.png");
+  color: #173e47;
+  font-size: inherit;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+#pauseModal #resumeButton {
+  background-image: url("./assets/ui-cut/modal-button-secondary.png");
+  color: #173e47;
+  font-size: inherit;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+#toolModal #watchAdButton {
+  background-image: url("./assets/ui-cut/modal-button-secondary.png");
+  color: #173e47;
+  font-size: inherit;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+#nextLevelButton,
+#againButton {
+  background-image: url("./assets/ui-cut/modal-button-secondary.png");
+  color: #173e47;
+  font-size: inherit;
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.72);
 }
 

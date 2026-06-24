@@ -1,16 +1,19 @@
 # Link Match 连连看项目交接文档
 
-更新时间：2026-06-23
+更新时间：2026-06-24
 
 ## 1. 项目定位
 
 - 项目名称：Link Match 连连看
 - 项目路径：`D:\工作文件\游戏\连连看`
 - 项目类型：移动端竖屏 H5 单机连连看 MVP
-- 当前阶段：`1.1.9首页优化` 本地实现完成：三主题 9 张关卡三态 icon 已统一为生成图资源并保持等比不拉伸；顶部通用星星徽章已下移到关卡主 icon 顶部上方约 `10px` 的贴合位置；正在玩的关卡恢复为整体循环放大缩小的 `currentLevelPulse` 呼吸动画，并将缩放原点设为底部中心，避免第 01 关在呼吸放大时超出关卡区域底部；三主题关卡数字层已按最新反馈调整为 `bottom: 1px`。
+- 当前阶段：`1.2.1首页优化` 本地实现完成：测试阶段首页已放开所有关卡并新增“清空数据”按钮；首页进入和从游戏/暂停/结算等入口返回时会自动切回当前进度所在章节，并将当前关卡滚动到地图可视区域中部；提示/洗牌道具保持 0 次；游戏页已替换为更饱和的果冻花园背景，棋盘外框改为浅色实线边框。
 
 ## 2. 当前进度
 
+- 2026-06-24 `1.2.1首页优化`：测试阶段首页关卡入口已全部放开，未来关卡不再以锁定状态禁用，便于逐关测试；首页底部新增 `#clearProgressButton` “清空数据”按钮，点击后重置进度、金币、星星和关卡记录，体力回满 `50/50` 并返回首页。`renderHome({ syncToCurrentLevel: true })` 作为进入/返回首页的统一入口，首次进入、游戏页左上返回、暂停弹框返回、结算页返回和清空数据后都会同步到当前进度所在章节，并将 `.road-level.current` 居中到 `#roadScroll` 可视区域；左右章节箭头仍可手动浏览其它主题。提示和洗牌道具继续显示 `0`，点击 0 次道具仍弹“道具用完”弹框。游戏页背景已替换为 `src/assets/jelly-fruit/page-bg-saturated-jelly-v2.png`，该资源为 `gpt-image-2` 独立生成的完整不透明 9:16 候选背景，不切图、不截图、无透明留白；`.board-wrap` 已去掉背景和阴影，只保留浅色实线边框。
+- 2026-06-24 `1.1.10水晶城堡连接线优化`：按反馈选择第一种冰晶碎片/冰晶链方向，生成独立横向连接线资源 `src/assets/UI-Home/road-jelly-connector.png`，源图为 `gpt-image-2` 生成图，不从背景图截图、不切整图；本地后处理仅做绿幕抠底、透明边缘贴边裁剪和内部透明洞封闭，最终资源尺寸为 `1981px x 303px`，alpha bbox 为整张图。`src/game.js` 已将 `jelly-castle` 纳入图片连接线渲染，移除该主题旧 SVG `road-path`；`src/styles.css` 新增 `.road-jelly-image-segment`，每段使用同一张冰晶链图片按两点间距拉伸/旋转；`scripts/check-home-road-node-assets.py` 已校验 `road-jelly-connector.png` 无透明边缘留白，`scripts/smoke-browser.mjs` 已增加水晶城堡 29 段 `.road-jelly-image-segment`、0 条 `.road-path`、背景图引用 `road-jelly-connector.png` 的回归断言；实际截图输出到 `output/playwright/home-jelly-castle-connector.png`。
+- 2026-06-24 `关卡难度棋盘规则调整`：关卡难度改为按每个主题内的局部关卡号循环，而不是按 90 关全局序号计算。每个主题各 30 关：主题内 1-10 关为简单棋盘 `6列 x 7行`，11-20 关为中等棋盘 `6列 x 8行`，21-30 关为困难棋盘 `6列 x 9行`；布局宽度保持 6 列不变，只随难度纵向增加 1-2 行。`tests/progression.test.mjs` 已增加每章本地难度档回归测试，`tests/engine.test.mjs` 已同步锁定 easy/normal/hard 的 42/48/54 格配置。
 - 2026-06-23 `1.1.9首页优化`：提交前收口当前首页关卡优化。三主题 9 张关卡三态 icon 均来自 `gpt-image-2` 生成图，并经 `scripts/process-home-road-node-assets.py` 绿幕去底、等比缩放、居中贴底和内部透明小孔封闭，不切图、不做非等比拉伸；糖果花园连接线使用 `road-candy-connector.png` 粉白糖果棒生成图分段渲染。按最新反馈将三主题 `.road-stars` 从 `top: 6px` 调整为 `top: 15px`，对应星星图片上边缘约在 `.road-level-main` 顶部上方 `10px`，让顶部星星贴合关卡 icon；正在玩的关卡 `.road-level.current` 恢复 `currentLevelPulse 1.4s ease-in-out infinite` 循环缩放呼吸动画，并补 `transform-origin: 50% 100%`，避免底部首关随缩放向下溢出；三主题 `.road-level-number` 及当前态数字 override 均已调整为 `bottom: 1px`。`scripts/check-home-road-node-assets.py` 覆盖 9 张 icon 尺寸、等比、内部透明洞和糖果连接线透明缝检查；`scripts/smoke-browser.mjs` 覆盖星星相对主 icon 顶部约 `-10px`、当前关卡整体动画为 `currentLevelPulse`、图片连接线和节点结构断言。
 - 2026-06-23 `1.1.9-首页三主题关卡节点统一`：按最新反馈重新生成水果森林、糖果花园、果冻城堡三主题 9 张关卡三态 icon，全部来自 `gpt-image-2` 独立生成图，后处理只做绿幕去底、统一 `1024px x 1024px` 画布、等比缩放到 `912px` 可见高度、居中贴底和内部透明小孔封闭，不从整图切片，也不做非等比拉伸。9 张资源均通过 `scripts/check-home-road-node-assets.py` 校验，确认画布尺寸一致、可见高度一致、源图宽高比与输出 bbox 宽高比一致且内部没有全透明空洞；预览图输出到 `output/home-road-node-assets-preview.png`。`src/styles.css` 已将果冻城堡纳入同一套 `84px x 96px` 节点结构，当前态改为 `.road-level-main` 亮度/阴影呼吸，不再缩放整个节点；底部数字牌使用 `padding: 5px 10px`、`height: 26px`、grid 居中。`src/game.js` 已将果冻城堡地图上下边距同步为 48px，保证首关贴合关卡区域底部。`scripts/smoke-browser.mjs` 已扩展三主题节点结构、数字 padding、当前态呼吸、糖果/水果图片连接线和底部贴边断言。
 - 2026-06-23 `1.1.7-首页关卡优化`：首页关卡区域已按反馈改为红框内左右交替排布，01 关贴近底部、30 关贴近顶部，并保持与章节栏/底部按钮 30px 间距；水果森林关卡连接线改为 `src/assets/UI-Home/road-vine-connector.png` 藤曼图片分段渲染，糖果花园/果冻城堡保留主题化 SVG 连接线风格。完成关卡星级从 CSS 星星改为图片徽章，`renderMiniStars()` 按 `bestStars` 动态选择 `road-stars-1.png`、`road-stars-2.png`、`road-stars-3.png`；最终采用 C 珊瑚粉底色，1 星为 1 实星 + 2 空心星，2 星为 2 实星 + 1 空心星，3 星为 3 实星。三张星级徽章均由 `gpt-image-2` 独立生成并替换，后处理只做纯色底移除和紧缩透明画布，最终尺寸统一为 `540px x 216px`，页面显示统一为 `66px x 26px`。修复完成关卡 icon 黑色脏阴影问题，并修复通关成功从结果页返回首页后藤曼连接线因隐藏态宽度计算错误而贴到左侧的 bug；`scripts/smoke-browser.mjs` 已新增星级图片、星级尺寸一致、关卡上下边距、左右交替布局、29 段藤曼、通关返回首页藤曼对齐等回归断言。
@@ -106,6 +109,7 @@
 - 玩法和系统：
   - 棋盘核心规则可用：相同图案、最多两次转弯、允许棋盘外侧绕线。
   - 关卡配置已拆成 90 关章节数据，关卡可独立配置棋盘尺寸、图案数量、时间、提示、洗牌和金币奖励。
+  - 难度按每个主题内 30 关单独计算：1-10 关简单 `6列 x 7行`，11-20 关中等 `6列 x 8行`，21-30 关困难 `6列 x 9行`；不是按 90 关总序号切前中后。
   - 初始只开放第 1 关；通关第 N 关后解锁第 N+1 关。
   - 当前数据重置基线为：金币 0、星星 0、通关记录清空、第 1 关未通关、体力 50/50、广告领取次数 0、提示 0、洗牌 0。
   - 游戏正常入口保持随机棋盘；自动化 smoke 可通过 `?boardSeed=smoke-easy` 使用固定棋盘，避免随机局面导致验收偶发失败。
@@ -124,7 +128,7 @@
 - `src/index.html`：首页地图结构、二级页面结构、游戏页结构、弹框结构、结果页结构。
 - `src/styles.css`：移动端布局、首页地图、首页纯色背景、二级页面组件布局、游戏页背景、果冻糖果风 UI、弹框、按钮、胶囊标题、滚动锁定。
 - `src/game.js`：游戏状态、首页地图渲染、二级页面切换、个人中心/兑换页数据同步、设置开关前端状态、弹框流程、关卡标题同步、清档基线、道具和结算逻辑。
-- `src/levels.js`：3 个主题章节、90 关配置、主题内首通金币档位、初始提示/洗牌次数。
+- `src/levels.js`：3 个主题章节、90 关配置、主题内 1-10/11-20/21-30 难度棋盘档、主题内首通金币档位、初始提示/洗牌次数。
 - `src/progression.js`：关卡解锁、每关记录、星星统计、三星关卡统计、首次通关判断和金币奖励规则。
 - `src/game-rules.js`：体力、星级、广告/购买占位规则。
 - `src/engine.js`：连连看棋盘生成、固定随机种子、连线判断、洗牌和可消除对检查。
@@ -142,30 +146,37 @@
 - `docs/ui-design-drafts/home-ui-design-v2-fruit-forest.png`：新版首页水果森林主题完整 UI 设计稿。
 - `docs/ui-design-drafts/home-ui-design-v2-candy-garden.png`：新版首页糖果花园主题完整 UI 设计稿。
 - `docs/ui-design-drafts/home-ui-design-v2-jelly-castle.png`：新版首页果冻城堡主题完整 UI 设计稿。
-- `src/assets/UI-Home/`：新版首页三主题资源包，包含通用顶部按钮/资源卡/箭头/锁/icon，以及水果森林、糖果花园、果冻城堡三套背景、tab、章节标题、关卡状态和开始按钮切图；当前 9 张 `level-*-bg.png` 均为 `gpt-image-2` 生成的关卡三态 icon 资源，最终统一为 `1024px x 1024px` 画布、`912px` 可见高度并保留源图宽高比，完成态对勾、当前态高亮呼吸、未解锁态锁定；三主题节点均为顶部通用星级图、中间状态按钮、底部数字牌的新版结构；`road-stars-1.png`、`road-stars-2.png`、`road-stars-3.png` 为完成关卡顶部通用星级徽章；`road-vine-connector.png` 为水果森林关卡藤曼连接线，`road-candy-connector.png` 为糖果花园粉白糖果棒连接线；`asset-manifest.md` 为资源清单，`_contact-sheet.png` 为本地总览图。
+- `src/assets/UI-Home/`：新版首页三主题资源包，包含通用顶部按钮/资源卡/箭头/锁/icon，以及水果森林、糖果花园、果冻城堡三套背景、tab、章节标题、关卡状态和开始按钮切图；当前 9 张 `level-*-bg.png` 均为 `gpt-image-2` 生成的关卡三态 icon 资源，最终统一为 `1024px x 1024px` 画布、`912px` 可见高度并保留源图宽高比，完成态对勾、当前态高亮呼吸、未解锁态锁定；三主题节点均为顶部通用星级图、中间状态按钮、底部数字牌的新版结构；`road-stars-1.png`、`road-stars-2.png`、`road-stars-3.png` 为完成关卡顶部通用星级徽章；`road-vine-connector.png` 为水果森林关卡藤曼连接线，`road-candy-connector.png` 为糖果花园粉白糖果棒连接线，`road-jelly-connector.png` 为果冻/水晶城堡冰晶链连接线；`asset-manifest.md` 为资源清单，`_contact-sheet.png` 为本地总览图。
 - `scripts/process-home-road-node-assets.py`：本轮首页关卡节点资源处理脚本，用于将 `gpt-image-2` 生成的三主题 9 张关卡节点、糖果背景和糖果连接线写入 `src/assets/UI-Home/`，并对透明资源执行 chroma-key 透明化、等比缩放、居中贴底和内部透明小孔封闭。
-- `scripts/check-home-road-node-assets.py`：9 张关卡节点资源校验脚本，检查画布尺寸统一为 `1024px x 1024px`、可见高度统一为 `912px`，源图宽高比与输出 bbox 宽高比一致，且不存在内部全透明空洞。
+- `scripts/check-home-road-node-assets.py`：9 张关卡节点资源和图片连接线校验脚本，检查关卡节点画布尺寸统一为 `1024px x 1024px`、可见高度统一为 `912px`，源图宽高比与输出 bbox 宽高比一致，且不存在内部全透明空洞；同时检查糖果/水晶连接线无透明边缘留白。
 - `scripts/process-level-icon-assets.py`：本轮关卡 icon 资源处理脚本，用于将 `gpt-image-2` 生成图映射到 9 个首页关卡状态资源，完成 chroma-key 透明化、去绿色溢边和内容边界裁切。
 - `src/assets/UI-ICON/profile-page/`：个人中心页面独立组件资产和页面布局参考图。
 - `src/assets/UI-ICON/settings-page/`：设置页面独立组件资产和页面布局参考图。
 - `src/assets/UI-ICON/exchange-page/`：金币兑换页面独立组件资产和页面布局参考图。
-- `scripts/smoke-browser.mjs`：浏览器自动化验收脚本，使用固定 `boardSeed`，包含首页地图、首页资源卡精简、章节 tab 移除、章节标题栏/兑换页箭头资源渲染、个人中心三星关卡一致性断言、设置页 UI 精修断言、金币兑换页布局断言、头衔商城翻页和兑换结果弹框断言、旧体力/提示/洗牌兑换项移除断言、移动端截图和主流程 UI 断言。
+- `src/assets/jelly-fruit/page-bg-saturated-jelly-v2.png`：当前游戏页使用的高饱和果冻花园背景，来源为 `gpt-image-2` 独立生成完整图，不切图、不截图、不留透明留白。
+- `scripts/smoke-browser.mjs`：浏览器自动化验收脚本，使用固定 `boardSeed`，包含首页地图、三主题图片连接线、当前关卡居中、游戏/暂停返回首页后仍定位当前关卡、首页清空数据按钮、首页资源卡精简、章节 tab 移除、章节标题栏/兑换页箭头资源渲染、个人中心三星关卡一致性断言、设置页 UI 精修断言、金币兑换页布局断言、头衔商城翻页和兑换结果弹框断言、旧体力/提示/洗牌兑换项移除断言、移动端截图和主流程 UI 断言。
 
 ## 4. 最近验证
 
-最近一轮（2026-06-23）已执行：
+最近一轮（2026-06-24）已执行：
 
 ```powershell
+& 'C:\Users\youzi\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe' --test tests/*.test.mjs
+& 'C:\Users\youzi\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' scripts/check-home-road-node-assets.py
 & 'C:\Users\youzi\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe' scripts/build.mjs
 & 'C:\Users\youzi\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe' scripts/smoke-browser.mjs
 ```
 
 验证结果：
 
+- 单测：`tests/*.test.mjs` 通过，覆盖引擎固定随机、关卡难度档、进度和金币规则。
+- 资源检查：`scripts/check-home-road-node-assets.py` 通过；`road-jelly-connector.png` 尺寸为 `1981px x 303px`，alpha bbox 为 `(0, 0, 1981, 303)`，确认没有透明边缘留白。
 - 构建：成功输出到 `dist/`。
-- 完整 smoke：`scripts/smoke-browser.mjs` 通过，输出 `Smoke passed: 36 tiles rendered`，覆盖首页地图、水果森林/糖果花园图片连接线与新节点结构、底部首关贴边、数字牌居中、二级页、主流程、结算弹框、通关返回首页和资源渲染。
-- 首页截图检查：`output/home-road-node-assets-preview.png` 为三主题 9 张关卡三态 icon 总览；`output/playwright/home-map-mobile.png` 为本轮 smoke 生成的首页地图截图；糖果花园检查到 29 条 `.road-candy-image-segment`、0 条 `.road-path`，三主题关卡节点均为 `84px x 96px`，数字盒为 grid 且带 `5px 10px` 内边距。
-- 资源检查：`road-stars-1.png`、`road-stars-2.png`、`road-stars-3.png` 均为 `540px x 216px`，页面显示统一约 `66px x 26px`；1/2/3 星均按 `bestStars` 加载对应图片。
+- 完整 smoke：`scripts/smoke-browser.mjs` 通过，输出 `Smoke passed: 42 tiles rendered`，覆盖首页地图、水果森林/糖果花园/水晶城堡图片连接线与新节点结构、底部首关贴边、数字牌居中、二级页、主流程、结算弹框、通关返回首页和资源渲染。
+- 当前关卡定位：smoke 已模拟进度到第 6 关，验证首页初次进入、游戏页返回首页和暂停弹框返回首页后，第 06 关会居中显示在关卡地图可视区域。
+- 游戏页视觉：smoke 截图 `output/playwright/game-initial-mobile.png` 已确认新高饱和果冻花园背景渲染正常，`.board-wrap` 保留浅色实线边框且无背景/阴影覆盖。
+- 首页截图检查：`output/home-road-node-assets-preview.png` 为三主题 9 张关卡三态 icon 总览；`output/playwright/home-map-mobile.png` 为本轮 smoke 生成的首页地图截图；`output/playwright/home-jelly-castle-connector.png` 为水晶城堡连接线实际效果截图；水晶城堡检查到 29 条 `.road-jelly-image-segment`、0 条 `.road-path`，三主题关卡节点均为 `84px x 96px`，数字盒为 grid 且带 `5px 10px` 内边距。
+- 星级资源检查：`road-stars-1.png`、`road-stars-2.png`、`road-stars-3.png` 均为 `540px x 216px`，页面显示统一约 `66px x 26px`；1/2/3 星均按 `bestStars` 加载对应图片。
 - 首页地图检查：01 关贴近底部、30 关贴近顶部，关卡左右交替，水果森林 29 段藤曼连接线正常渲染。
 - 回归检查：通关成功后从结果页返回首页，藤曼连接线会重新按可见布局计算，未再出现贴左边错位。
 
@@ -177,6 +188,7 @@
 - `output/playwright/home-map-mobile.png`
 - `output/playwright/home-fruit-forest-node-sync.png`
 - `output/playwright/home-candy-garden-node-fix.png`
+- `output/playwright/home-jelly-castle-connector.png`
 - `output/playwright/home-candy-garden-updated.png`
 - `output/playwright/home-candy-garden-unlocked-updated.png`
 - `output/playwright/profile-mobile.png`
@@ -194,9 +206,8 @@
 
 - 当前分支：`main`
 - 远程仓库：`https://github.com/NicoKing-One/Link-Match.git`
-- 当前未提交内容：水果森林/糖果花园/果冻城堡 9 张三态节点、糖果花园背景图、`src/assets/UI-Home/road-candy-connector.png`、`src/game.js`、`src/styles.css`、`scripts/smoke-browser.mjs`、`scripts/process-home-road-node-assets.py`、`scripts/check-home-road-node-assets.py`、`src/assets/UI-Home/asset-manifest.md`、`docs/project-handoff.md`。
-- 当前工作区待提交；`tmp/` 为本轮 image2 后处理临时目录，不纳入提交。
-- 本轮提交备注：`1.1.8首页关卡节点同步优化`。
+- 本轮收口内容：`1.2.1首页优化`，包含首页测试阶段全关卡放开、首页清空数据按钮、返回首页时当前关卡居中、提示/洗牌保持 0 次、水晶城堡图片连接线、主题内关卡难度棋盘规则、游戏页高饱和背景替换和棋盘外框样式调整。
+- 本轮提交备注：`1.2.1首页优化`。
 
 ## 6. 运行方式
 

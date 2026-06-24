@@ -55,12 +55,20 @@ const STAMINA_KEY = "lianliankan.stamina";
 const PROGRESS_KEY = "lianliankan.progress";
 const DATA_RESET_KEY = "lianliankan.dataResetVersion";
 const DATA_RESET_VERSION = "2026-06-13-full-stamina-baseline";
+const TEST_UNLOCK_ALL_LEVELS = true;
+const TEST_UNLIMITED_TOOLS = false;
+const UNLIMITED_TOOL_COUNT_TEXT = "不限";
 const ROAD_STEP_Y = 110;
 const ROAD_TOP_Y = 34;
 const ROAD_BOTTOM_Y = 38;
 const GENERATED_ROAD_NODE_PADDING_Y = 48;
 const ROAD_X_PATTERN = [30, 70];
 const HOME_THEME_CLASSES = CHAPTERS.map((chapter) => `home-theme-${chapter.id}`);
+const IMAGE_ROAD_CONNECTOR_CLASS_BY_CHAPTER = {
+  "fruit-forest": "road-vine-image-segment",
+  "candy-garden": "road-candy-image-segment",
+  "jelly-castle": "road-jelly-image-segment",
+};
 const EXCHANGE_TITLE_PAGE_SIZE = 6;
 const EXCHANGE_TITLES = [
   { name: "萌新果冻", price: 20 },
@@ -210,7 +218,7 @@ if (state.chapterIndex < 0) state.chapterIndex = 0;
 bindEvents();
 refreshStamina();
 startStaminaTimer();
-renderHome();
+renderHome({ syncToCurrentLevel: true });
 showScreen("start");
 
 function bindEvents() {
@@ -234,7 +242,7 @@ function bindEvents() {
     button.addEventListener("click", () => toggleSettingButton(button));
   });
   elements.clearProgressButton?.addEventListener("click", () => {
-    showHomeNotice("清除进度功能待接入");
+    clearAllPlayerData();
   });
   elements.exchangePrevPageButton.addEventListener("click", () => switchExchangePage(-1));
   elements.exchangeNextPageButton.addEventListener("click", () => switchExchangePage(1));
@@ -262,7 +270,7 @@ function bindEvents() {
   elements.againButton.addEventListener("click", () => requestStartGame(state.level));
   elements.homeButton.addEventListener("click", () => {
     stopTimer();
-    renderHome();
+    renderHome({ syncToCurrentLevel: true });
     showScreen("start");
   });
 }
@@ -273,12 +281,13 @@ function openSecondaryPage(name) {
   hideToast();
   hideModals();
   if (name === "exchange") state.exchangePageIndex = 0;
-  renderHome();
+  renderHome({ syncToCurrentLevel: true });
   showScreen(name);
 }
 
-function renderHome() {
+function renderHome({ syncToCurrentLevel = false } = {}) {
   const currentLevel = LEVELS[state.progress.highestUnlockedLevel - 1] ?? LEVELS[0];
+  if (syncToCurrentLevel) syncChapterIndexToLevel(currentLevel);
   elements.startButton.textContent = calculateCompletedLevels(state.progress) > 0 ? "继续闯关" : "开始闯关";
   elements.coinText.textContent = state.progress.coins;
   elements.starText.textContent = `${calculateTotalStars(state.progress)}/${MAX_LEVEL_NUMBER * 3}`;
@@ -288,6 +297,13 @@ function renderHome() {
   renderSecondaryPages(currentLevel);
   renderChapterSwitcher();
   renderRoadMap();
+}
+
+function syncChapterIndexToLevel(level) {
+  const nextChapterIndex = CHAPTERS.findIndex(
+    (chapter) => level.number >= chapter.startLevel && level.number <= chapter.endLevel,
+  );
+  if (nextChapterIndex >= 0) state.chapterIndex = nextChapterIndex;
 }
 
 function renderSecondaryPages(currentLevel) {
@@ -369,7 +385,7 @@ function renderChapterSwitcher() {
 function renderRoadMap() {
   const chapter = CHAPTERS[state.chapterIndex];
   const chapterLevels = getLevelsForChapter(chapter.id);
-  const chapterStatus = getChapterStatus(chapter, state.progress);
+  const chapterStatus = getDisplayChapterStatus(chapter);
   const roadTopY = getRoadNodeEdgePadding(chapter.id, "top");
   const roadBottomY = getRoadNodeEdgePadding(chapter.id, "bottom");
   const roadHeight = roadTopY + roadBottomY + (chapterLevels.length - 1) * ROAD_STEP_Y;
@@ -390,11 +406,10 @@ function renderRoadMap() {
   screens.start.classList.add(`home-theme-${chapter.id}`);
   elements.levelRoad.className = `level-road ${chapter.backgroundClass}`;
   elements.levelRoad.style.height = `${roadHeight}px`;
-  elements.levelRoad.innerHTML =
-    chapter.id === "fruit-forest" || chapter.id === "candy-garden" ? "" : buildRoadSvg(points, roadHeight);
+  elements.levelRoad.innerHTML = IMAGE_ROAD_CONNECTOR_CLASS_BY_CHAPTER[chapter.id] ? "" : buildRoadSvg(points, roadHeight);
 
   points.forEach(({ level, x, y }) => {
-    const status = getLevelStatus(level.number, state.progress);
+    const status = getDisplayLevelStatus(level);
     const record = state.progress.records[String(level.number)] ?? { bestStars: 0 };
     const button = document.createElement("button");
     button.type = "button";
@@ -409,14 +424,29 @@ function renderRoadMap() {
   });
   window.requestAnimationFrame(() => {
     renderRoadConnectors(points, chapter.id);
-    elements.roadScroll.scrollTop = elements.roadScroll.scrollHeight;
+    scrollRoadToCurrentLevel();
   });
+}
+
+function scrollRoadToCurrentLevel() {
+  const currentLevel = elements.levelRoad.querySelector(".road-level.current");
+  if (!currentLevel) {
+    elements.roadScroll.scrollTop = elements.roadScroll.scrollHeight;
+    return;
+  }
+
+  const levelCenterY = Number.parseFloat(currentLevel.style.top) || currentLevel.offsetTop;
+  const maxScrollTop = Math.max(0, elements.roadScroll.scrollHeight - elements.roadScroll.clientHeight);
+  const targetScrollTop = levelCenterY - elements.roadScroll.clientHeight / 2;
+  elements.roadScroll.scrollTop = Math.min(maxScrollTop, Math.max(0, targetScrollTop));
 }
 
 function renderRoadConnectors(points, chapterId, attempt = 0) {
   elements.levelRoad.querySelectorAll(".road-vine-image-segment").forEach((node) => node.remove());
   elements.levelRoad.querySelectorAll(".road-candy-image-segment").forEach((node) => node.remove());
-  if (chapterId !== "fruit-forest" && chapterId !== "candy-garden") return;
+  elements.levelRoad.querySelectorAll(".road-jelly-image-segment").forEach((node) => node.remove());
+  const connectorClass = IMAGE_ROAD_CONNECTOR_CLASS_BY_CHAPTER[chapterId];
+  if (!connectorClass) return;
 
   const roadWidth =
     elements.levelRoad.getBoundingClientRect().width ||
@@ -439,7 +469,7 @@ function renderRoadConnectors(points, chapterId, attempt = 0) {
     const length = Math.hypot(dx, dy);
     const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
     const connector = document.createElement("span");
-    connector.className = chapterId === "candy-garden" ? "road-candy-image-segment" : "road-vine-image-segment";
+    connector.className = connectorClass;
     connector.style.left = `${startX}px`;
     connector.style.top = `${start.y}px`;
     connector.style.width = `${length}px`;
@@ -456,7 +486,7 @@ function getRoadNodeEdgePadding(chapterId, edge) {
 }
 
 function requestStartGame(level) {
-  if (getLevelStatus(level.number, state.progress) === "locked") {
+  if (getDisplayLevelStatus(level) === "locked") {
     showHomeNotice("先通关上一关才能挑战这里");
     return;
   }
@@ -493,12 +523,13 @@ function startGame(level) {
   state.score = 0;
   state.moves = 0;
   state.remainingSeconds = level.durationSeconds;
-  state.hints = level.hints;
-  state.shuffles = level.shuffles;
+  state.hints = TEST_UNLIMITED_TOOLS ? Number.POSITIVE_INFINITY : level.hints;
+  state.shuffles = TEST_UNLIMITED_TOOLS ? Number.POSITIVE_INFINITY : level.shuffles;
   state.paused = false;
   state.busy = false;
   hideModals();
 
+  screens.game.dataset.boardTier = level.tier ?? "easy";
   elements.levelName.textContent = formatLevelTitle(level);
   updatePlaqueLevelLabels();
   renderBoard();
@@ -611,7 +642,7 @@ function handleBoardProgress() {
 
 function useHint() {
   if (state.paused || state.busy) return;
-  if (state.hints <= 0) {
+  if (!TEST_UNLIMITED_TOOLS && state.hints <= 0) {
     openToolModal("提示");
     return;
   }
@@ -620,7 +651,7 @@ function useHint() {
     showToast("没有可连接组合了，请使用洗牌道具");
     return;
   }
-  state.hints -= 1;
+  if (!TEST_UNLIMITED_TOOLS) state.hints -= 1;
   state.selected = null;
   updateHud();
   clearHints();
@@ -632,11 +663,11 @@ function useHint() {
 
 function useShuffle() {
   if (state.paused || state.busy) return;
-  if (state.shuffles <= 0) {
+  if (!TEST_UNLIMITED_TOOLS && state.shuffles <= 0) {
     openToolModal("洗牌");
     return;
   }
-  state.shuffles -= 1;
+  if (!TEST_UNLIMITED_TOOLS) state.shuffles -= 1;
   state.selected = null;
   state.board = shuffleBoard(state.board);
   let guard = 0;
@@ -734,8 +765,8 @@ function updateHud() {
   elements.timeText.textContent = formatTime(Math.max(0, state.remainingSeconds));
   elements.remainingText.textContent = countRemainingTiles(state.board);
   elements.scoreText.textContent = state.score;
-  elements.hintCount.textContent = state.hints;
-  elements.shuffleCount.textContent = state.shuffles;
+  elements.hintCount.textContent = formatToolCount(state.hints);
+  elements.shuffleCount.textContent = formatToolCount(state.shuffles);
 }
 
 function updatePlaqueLevelLabels() {
@@ -897,11 +928,48 @@ function resetStoredPlayerDataIfNeeded() {
   try {
     if (localStorage.getItem(DATA_RESET_KEY) === DATA_RESET_VERSION) return;
     localStorage.setItem(PROGRESS_KEY, JSON.stringify(createInitialProgress()));
-    localStorage.setItem(STAMINA_KEY, JSON.stringify({ stamina: MAX_STAMINA, updatedAt: Date.now(), adClaims: 0 }));
+    localStorage.setItem(STAMINA_KEY, JSON.stringify(createFullStaminaState()));
     localStorage.setItem(DATA_RESET_KEY, DATA_RESET_VERSION);
   } catch {
     // Ignore storage failures; normal loaders still fall back to zeroed defaults.
   }
+}
+
+function clearAllPlayerData() {
+  stopTimer();
+  state.paused = false;
+  state.busy = false;
+  state.selected = null;
+  state.board = [];
+  state.score = 0;
+  state.moves = 0;
+  state.remainingSeconds = 0;
+  state.hints = 0;
+  state.shuffles = 0;
+  state.progress = createInitialProgress();
+  state.stamina = normalizeStaminaState(createFullStaminaState());
+  state.level = LEVELS[0];
+  state.chapterIndex = 0;
+  state.exchangePageIndex = 0;
+  try {
+    localStorage.setItem(PROGRESS_KEY, JSON.stringify(state.progress));
+    localStorage.setItem(STAMINA_KEY, JSON.stringify(state.stamina));
+    localStorage.setItem(DATA_RESET_KEY, DATA_RESET_VERSION);
+  } catch {
+    // The in-memory reset still lets the current test session continue.
+  }
+  clearHints();
+  clearLink();
+  hideToast();
+  hideModals();
+  updateStaminaView();
+  renderHome({ syncToCurrentLevel: true });
+  showScreen("start");
+  showHomeNotice("数据已清空");
+}
+
+function createFullStaminaState() {
+  return { stamina: MAX_STAMINA, updatedAt: Date.now(), adClaims: 0 };
 }
 
 function updateStaminaView() {
@@ -971,8 +1039,22 @@ function renderMiniStars(count) {
 function getLevelStatusText(status) {
   if (status === "completed") return "已通关";
   if (status === "current") return "当前可挑战";
-  if (status === "available") return "可重玩";
+  if (status === "available") return TEST_UNLOCK_ALL_LEVELS ? "可测试" : "可重玩";
   return "未解锁";
+}
+
+function getDisplayChapterStatus(chapter) {
+  const status = getChapterStatus(chapter, state.progress);
+  return TEST_UNLOCK_ALL_LEVELS && status === "locked" ? "active" : status;
+}
+
+function getDisplayLevelStatus(level) {
+  const status = getLevelStatus(level.number, state.progress);
+  return TEST_UNLOCK_ALL_LEVELS && status === "locked" ? "available" : status;
+}
+
+function formatToolCount(count) {
+  return Number.isFinite(count) ? String(count) : UNLIMITED_TOOL_COUNT_TEXT;
 }
 
 function formatCountdown(milliseconds) {
@@ -1101,7 +1183,7 @@ function showScreen(name) {
     name === "profile" || name === "settings" || name === "exchange",
   );
   Object.entries(screens).forEach(([screenName, screen]) => {
-    screen.classList.toggle("active", screenName === name);
+    screen.classList.toggle("active", screenName === name || (name === "result" && screenName === "game"));
   });
 }
 

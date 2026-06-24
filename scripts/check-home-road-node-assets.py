@@ -26,6 +26,7 @@ LEVEL_ICON_NAMES = [
 ]
 CONNECTOR_NAMES = [
     "road-candy-connector.png",
+    "road-jelly-connector.png",
 ]
 
 
