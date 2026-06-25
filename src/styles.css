@@ -1023,23 +1023,6 @@ button:disabled {
   box-shadow: none;
 }
 
-.home-clear-button {
-  display: grid;
-  place-items: center;
-  width: min(100%, 210px);
-  min-height: 34px;
-  padding: 0 18px 2px;
-  border: 2px solid rgba(255, 255, 255, 0.78);
-  border-radius: 999px;
-  color: #ffffff;
-  background: linear-gradient(180deg, #ff8a72 0%, #e55049 100%);
-  box-shadow: 0 8px 16px rgba(130, 48, 40, 0.2);
-  font-size: 0.86rem;
-  font-weight: 900;
-  line-height: 1;
-  text-shadow: 0 1px 0 rgba(114, 32, 28, 0.45);
-}
-
 .chapter-shell {
   position: relative;
   display: flex;
@@ -2699,7 +2682,7 @@ h2 {
   position: relative;
   overflow: visible;
   width: min(100%, 372px);
-  padding: 104px 18px 18px;
+  padding: 60px 18px 18px;
   border-radius: 34px 34px 30px 30px / 28px 28px 36px 36px;
   text-align: center;
 }
@@ -2765,9 +2748,9 @@ h2 {
 }
 
 .modal-card h2 {
-  margin: 0 0 8px;
+  margin: 0 0 20px;
   color: #00776e;
-  font-size: 1.9rem;
+  font-size: 1.5rem;
   font-weight: 900;
   line-height: 1.08;
   text-shadow: 0 2px 0 rgba(255, 255, 255, 0.72);

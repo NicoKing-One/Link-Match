@@ -682,14 +682,14 @@ async function expectHomeRoadMap(page) {
   if (!currentLevelText.includes("01")) {
     throw new Error(`Expected level 01 to be current, got: ${currentLevelText}.`);
   }
-  if (lockedCount !== 0 || availableCount < 20) {
-    throw new Error(`Expected test mode to unlock future levels, got locked=${lockedCount}, available=${availableCount}.`);
+  if (lockedCount !== 29 || availableCount !== 0) {
+    throw new Error(`Expected formal test mode to lock future levels, got locked=${lockedCount}, available=${availableCount}.`);
   }
   if (!continueText.includes("闯关")) {
     throw new Error(`Expected start button to use start/continue challenge copy, got: ${continueText}.`);
   }
-  if (clearButtonCount !== 1) {
-    throw new Error(`Expected home screen to expose one clear data test button, got ${clearButtonCount}.`);
+  if (clearButtonCount !== 0) {
+    throw new Error(`Expected home screen to hide the clear data test button, got ${clearButtonCount}.`);
   }
   if (homeTitleCount !== 0) {
     throw new Error(`Expected home title text to be removed, got ${homeTitleCount} title nodes.`);
@@ -1127,10 +1127,22 @@ async function expectSecondaryPageNavigation(page) {
   }
 
   await page.locator("#homeExchangeButton").click({ force: true });
-  await page.waitForSelector("#exchangeScreen.active", { timeout: 1200 });
-  if (!(await page.locator("#exchangeScreen.active").innerText()).includes("兑换商城")) {
-    throw new Error("Expected dedicated home exchange entry to open the exchange shop page.");
+  await page.waitForSelector("#comingSoonModal:not(.hidden)", { timeout: 1200 });
+  if ((await page.locator("#exchangeScreen.active").count()) !== 0) {
+    throw new Error("Expected dedicated home exchange entry to stay on the home page.");
   }
+  const comingSoonText = await page.locator("#comingSoonTitle").innerText();
+  if (comingSoonText !== "敬请期待") {
+    throw new Error(`Expected dedicated home exchange entry to show coming soon modal, got: ${comingSoonText}`);
+  }
+  await page.locator("#comingSoonCloseButton").click();
+  await page.locator("#comingSoonModal").waitFor({ state: "hidden", timeout: 1200 });
+
+  await page.evaluate(() => {
+    document.querySelectorAll(".screen").forEach((screen) => screen.classList.remove("active"));
+    document.querySelector("#exchangeScreen")?.classList.add("active");
+  });
+  await page.waitForSelector("#exchangeScreen.active", { timeout: 1200 });
   await expectSecondaryPageBuiltFromLayout(page, "#exchangeScreen", ".exchange-layout");
   await expectExchangePageRemovesConsumableOffers(page);
   await expectExchangeCoinCardCompactLayout(page);

@@ -62,7 +62,6 @@
         </section>
         <div class="home-bottom-dock">
           <button class="primary-button" id="startButton" type="button">开始闯关</button>
-          <button class="home-clear-button" id="clearProgressButton" type="button">清空数据</button>
         </div>
         <div class="home-toast" id="homeToast" role="status" aria-live="polite"></div>
       </section>
@@ -415,6 +414,25 @@
           <button class="primary-button" id="staminaAdButton" type="button">看广告获取体力</button>
           <button class="ghost-button" id="staminaBuyButton" type="button">购买体力</button>
           <button class="ghost-button" id="staminaCloseButton" type="button">稍后再说</button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      class="modal hidden mobile-modal"
+      id="comingSoonModal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="comingSoonTitle"
+      data-visual-target="docs/ui-design-drafts/mobile-modal-result-design.png"
+    >
+      <div class="modal-card candy-modal-card">
+        <div class="modal-plaque" aria-hidden="true">
+          <span class="plaque-level-label">提示</span>
+        </div>
+        <h2 id="comingSoonTitle">敬请期待</h2>
+        <div class="modal-actions">
+          <button class="primary-button" id="comingSoonCloseButton" type="button">确定</button>
         </div>
       </div>
     </div>

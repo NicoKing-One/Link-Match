@@ -30,7 +30,6 @@ import {
   calculateCompletedLevels,
   calculateThreeStarLevels,
   calculateTotalStars,
-  createInitialProgress,
   getChapterStatus,
   getLevelStatus,
   normalizeProgress,
@@ -53,9 +52,7 @@ const ICON_VIEW = {
 
 const STAMINA_KEY = "lianliankan.stamina";
 const PROGRESS_KEY = "lianliankan.progress";
-const DATA_RESET_KEY = "lianliankan.dataResetVersion";
-const DATA_RESET_VERSION = "2026-06-13-full-stamina-baseline";
-const TEST_UNLOCK_ALL_LEVELS = true;
+const TEST_UNLOCK_ALL_LEVELS = false;
 const TEST_UNLIMITED_TOOLS = false;
 const UNLIMITED_TOOL_COUNT_TEXT = "不限";
 const ROAD_STEP_Y = 110;
@@ -91,8 +88,6 @@ const EXCHANGE_TITLES = [
   { name: "金币大亨", price: 5000 },
 ];
 const EXCHANGE_TITLE_PAGE_COUNT = Math.ceil(EXCHANGE_TITLES.length / EXCHANGE_TITLE_PAGE_SIZE);
-
-resetStoredPlayerDataIfNeeded();
 
 const screens = {
   start: document.querySelector("#startScreen"),
@@ -135,7 +130,6 @@ const elements = {
   exchangeResultMessage: document.querySelector("#exchangeResultMessage"),
   exchangeResultCloseButton: document.querySelector("#exchangeResultCloseButton"),
   settingToggles: document.querySelectorAll(".settings-toggle"),
-  clearProgressButton: document.querySelector("#clearProgressButton"),
   startButton: document.querySelector("#startButton"),
   coinText: document.querySelector("#coinText"),
   starText: document.querySelector("#starText"),
@@ -179,6 +173,8 @@ const elements = {
   staminaAdButton: document.querySelector("#staminaAdButton"),
   staminaBuyButton: document.querySelector("#staminaBuyButton"),
   staminaCloseButton: document.querySelector("#staminaCloseButton"),
+  comingSoonModal: document.querySelector("#comingSoonModal"),
+  comingSoonCloseButton: document.querySelector("#comingSoonCloseButton"),
   resultBadgeArt: document.querySelector("#resultBadgeArt"),
   resultTitle: document.querySelector("#resultTitle"),
   resultSummary: document.querySelector("#resultSummary"),
@@ -230,7 +226,7 @@ function bindEvents() {
   elements.nextChapterButton.addEventListener("click", () => switchChapter(1));
   elements.profileButton.addEventListener("click", () => openSecondaryPage("profile"));
   elements.settingsButton.addEventListener("click", () => openSecondaryPage("settings"));
-  elements.homeExchangeButton.addEventListener("click", () => openSecondaryPage("exchange"));
+  elements.homeExchangeButton.addEventListener("click", openComingSoonModal);
   [
     elements.profileBackButton,
     elements.profileHomeButton,
@@ -243,9 +239,6 @@ function bindEvents() {
   });
   elements.settingToggles.forEach((button) => {
     button.addEventListener("click", () => toggleSettingButton(button));
-  });
-  elements.clearProgressButton?.addEventListener("click", () => {
-    clearAllPlayerData();
   });
   elements.exchangePrevPageButton.addEventListener("click", () => switchExchangePage(-1));
   elements.exchangeNextPageButton.addEventListener("click", () => switchExchangePage(1));
@@ -269,6 +262,7 @@ function bindEvents() {
   elements.staminaAdButton.addEventListener("click", claimStaminaFromAd);
   elements.staminaBuyButton.addEventListener("click", buyStamina);
   elements.staminaCloseButton.addEventListener("click", closeStaminaModal);
+  elements.comingSoonCloseButton.addEventListener("click", closeComingSoonModal);
   elements.doubleCoinsButton.addEventListener("click", claimDoubleCoins);
   elements.nextLevelButton.addEventListener("click", requestNextLevel);
   elements.againButton.addEventListener("click", () => requestStartGame(state.level));
@@ -897,6 +891,15 @@ function closeStaminaModal() {
   elements.staminaModal.classList.add("hidden");
 }
 
+function openComingSoonModal() {
+  hideToast();
+  elements.comingSoonModal.classList.remove("hidden");
+}
+
+function closeComingSoonModal() {
+  elements.comingSoonModal.classList.add("hidden");
+}
+
 function claimStaminaFromAd() {
   refreshStamina();
   const result = claimAdStamina(state.stamina);
@@ -934,6 +937,7 @@ function hideModals() {
   elements.exitModal.classList.add("hidden");
   elements.staminaModal.classList.add("hidden");
   elements.exchangeResultModal.classList.add("hidden");
+  elements.comingSoonModal.classList.add("hidden");
 }
 
 function renderResultStars(count) {
@@ -990,50 +994,6 @@ function loadProgressState() {
   } catch {
     return normalizeProgress(null);
   }
-}
-
-function resetStoredPlayerDataIfNeeded() {
-  try {
-    if (localStorage.getItem(DATA_RESET_KEY) === DATA_RESET_VERSION) return;
-    localStorage.setItem(PROGRESS_KEY, JSON.stringify(createInitialProgress()));
-    localStorage.setItem(STAMINA_KEY, JSON.stringify(createFullStaminaState()));
-    localStorage.setItem(DATA_RESET_KEY, DATA_RESET_VERSION);
-  } catch {
-    // Ignore storage failures; normal loaders still fall back to zeroed defaults.
-  }
-}
-
-function clearAllPlayerData() {
-  stopTimer();
-  state.paused = false;
-  state.busy = false;
-  state.selected = null;
-  state.board = [];
-  state.score = 0;
-  state.moves = 0;
-  state.remainingSeconds = 0;
-  state.hints = 0;
-  state.shuffles = 0;
-  state.progress = createInitialProgress();
-  state.stamina = normalizeStaminaState(createFullStaminaState());
-  state.level = LEVELS[0];
-  state.chapterIndex = 0;
-  state.exchangePageIndex = 0;
-  try {
-    localStorage.setItem(PROGRESS_KEY, JSON.stringify(state.progress));
-    localStorage.setItem(STAMINA_KEY, JSON.stringify(state.stamina));
-    localStorage.setItem(DATA_RESET_KEY, DATA_RESET_VERSION);
-  } catch {
-    // The in-memory reset still lets the current test session continue.
-  }
-  clearHints();
-  clearLink();
-  hideToast();
-  hideModals();
-  updateStaminaView();
-  renderHome({ syncToCurrentLevel: true });
-  showScreen("start");
-  showHomeNotice("数据已清空");
 }
 
 function createFullStaminaState() {
