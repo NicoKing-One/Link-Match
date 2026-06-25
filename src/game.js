@@ -35,18 +35,18 @@ import {
 } from "./progression.js";
 
 const ICON_VIEW = {
-  flower: { label: "草莓", src: "./assets/jelly-fruit/tiles/flower.png" },
-  star: { label: "蓝莓", src: "./assets/jelly-fruit/tiles/star.png" },
-  moon: { label: "葡萄", src: "./assets/jelly-fruit/tiles/moon.png" },
-  sun: { label: "柠檬糖", src: "./assets/jelly-fruit/tiles/sun.png" },
-  leaf: { label: "橙子", src: "./assets/jelly-fruit/tiles/leaf.png" },
-  gem: { label: "猕猴桃", src: "./assets/jelly-fruit/tiles/gem.png" },
-  heart: { label: "西瓜", src: "./assets/jelly-fruit/tiles/heart.png" },
-  cloud: { label: "樱桃", src: "./assets/jelly-fruit/tiles/cloud.png" },
-  bolt: { label: "棒棒糖", src: "./assets/jelly-fruit/tiles/bolt.png" },
-  drop: { label: "蜜桃糖", src: "./assets/jelly-fruit/tiles/drop.png" },
-  music: { label: "青苹果", src: "./assets/jelly-fruit/tiles/music.png" },
-  crown: { label: "紫糖球", src: "./assets/jelly-fruit/tiles/crown.png" },
+  flower: { label: "草莓", src: "./assets/image/flower.png" },
+  star: { label: "蓝莓", src: "./assets/image/star.png" },
+  moon: { label: "葡萄", src: "./assets/image/moon.png" },
+  sun: { label: "柠檬糖", src: "./assets/image/sun.png" },
+  leaf: { label: "橙子", src: "./assets/image/leaf.png" },
+  gem: { label: "猕猴桃", src: "./assets/image/gem.png" },
+  heart: { label: "西瓜", src: "./assets/image/heart.png" },
+  cloud: { label: "樱桃", src: "./assets/image/cloud.png" },
+  bolt: { label: "棒棒糖", src: "./assets/image/bolt.png" },
+  drop: { label: "蜜桃糖", src: "./assets/image/drop.png" },
+  music: { label: "青苹果", src: "./assets/image/music.png" },
+  crown: { label: "紫糖球", src: "./assets/image/crown.png" },
 };
 
 const STAMINA_KEY = "lianliankan.stamina";
@@ -65,34 +65,10 @@ const IMAGE_ROAD_CONNECTOR_CLASS_BY_CHAPTER = {
   "candy-garden": "road-candy-image-segment",
   "jelly-castle": "road-jelly-image-segment",
 };
-const EXCHANGE_TITLE_PAGE_SIZE = 6;
-const EXCHANGE_TITLES = [
-  { name: "萌新果冻", price: 20 },
-  { name: "水果新星", price: 35 },
-  { name: "糖果学徒", price: 55 },
-  { name: "连线小将", price: 80 },
-  { name: "森林旅人", price: 120 },
-  { name: "甜心队长", price: 180 },
-  { name: "闪光萌主", price: 260 },
-  { name: "果冻骑士", price: 360 },
-  { name: "蜜糖达人", price: 520 },
-  { name: "星辉领主", price: 650 },
-  { name: "彩虹旅者", price: 820 },
-  { name: "宝石猎人", price: 1000 },
-  { name: "果香名人", price: 1250 },
-  { name: "甜梦伯爵", price: 1600 },
-  { name: "泡泡冠军", price: 2100 },
-  { name: "糖霜大师", price: 2800 },
-  { name: "金牌连线", price: 3600 },
-  { name: "金币大亨", price: 5000 },
-];
-const EXCHANGE_TITLE_PAGE_COUNT = Math.ceil(EXCHANGE_TITLES.length / EXCHANGE_TITLE_PAGE_SIZE);
-
 const screens = {
   start: document.querySelector("#startScreen"),
   profile: document.querySelector("#profileScreen"),
   settings: document.querySelector("#settingsScreen"),
-  exchange: document.querySelector("#exchangeScreen"),
   game: document.querySelector("#gameScreen"),
   result: document.querySelector("#resultScreen"),
 };
@@ -113,21 +89,11 @@ const elements = {
   profileHomeButton: document.querySelector("#profileHomeButton"),
   settingsBackButton: document.querySelector("#settingsBackButton"),
   settingsHomeButton: document.querySelector("#settingsHomeButton"),
-  exchangeBackButton: document.querySelector("#exchangeBackButton"),
-  exchangeHomeButton: document.querySelector("#exchangeHomeButton"),
   profileCurrentLevelText: document.querySelector("#profileCurrentLevelText"),
   profileStarText: document.querySelector("#profileStarText"),
   profileCoinText: document.querySelector("#profileCoinText"),
   profileCompletedText: document.querySelector("#profileCompletedText"),
   profileThreeStarText: document.querySelector("#profileThreeStarText"),
-  exchangeCoinText: document.querySelector("#exchangeCoinText"),
-  exchangeShopGrid: document.querySelector("#exchangeShopGrid"),
-  exchangeShopPageText: document.querySelector("#exchangeShopPageText"),
-  exchangePrevPageButton: document.querySelector("#exchangePrevPageButton"),
-  exchangeNextPageButton: document.querySelector("#exchangeNextPageButton"),
-  exchangeResultModal: document.querySelector("#exchangeResultModal"),
-  exchangeResultMessage: document.querySelector("#exchangeResultMessage"),
-  exchangeResultCloseButton: document.querySelector("#exchangeResultCloseButton"),
   settingToggles: document.querySelectorAll(".settings-toggle"),
   startButton: document.querySelector("#startButton"),
   coinText: document.querySelector("#coinText"),
@@ -204,7 +170,6 @@ const state = {
   stamina: loadStaminaState(),
   progress: loadProgressState(),
   chapterIndex: 0,
-  exchangePageIndex: 0,
   paused: false,
   busy: false,
   doubleCoinReward: null,
@@ -235,17 +200,12 @@ function bindEvents() {
     elements.profileHomeButton,
     elements.settingsBackButton,
     elements.settingsHomeButton,
-    elements.exchangeBackButton,
-    elements.exchangeHomeButton,
   ].filter(Boolean).forEach((button) => {
     button.addEventListener("click", returnHome);
   });
   elements.settingToggles.forEach((button) => {
     button.addEventListener("click", () => toggleSettingButton(button));
   });
-  elements.exchangePrevPageButton.addEventListener("click", () => switchExchangePage(-1));
-  elements.exchangeNextPageButton.addEventListener("click", () => switchExchangePage(1));
-  elements.exchangeResultCloseButton.addEventListener("click", closeExchangeResultModal);
   elements.getStaminaButtons.forEach((button) => {
     button.addEventListener("click", claimStaminaFromAd);
   });
@@ -283,7 +243,6 @@ function openSecondaryPage(name) {
   state.paused = false;
   hideToast();
   hideModals();
-  if (name === "exchange") state.exchangePageIndex = 0;
   renderHome({ syncToCurrentLevel: true });
   showScreen(name);
 }
@@ -319,58 +278,6 @@ function renderSecondaryPages(currentLevel) {
   elements.profileCoinText.textContent = state.progress.coins;
   elements.profileCompletedText.textContent = `${completedLevels}关`;
   elements.profileThreeStarText.textContent = `${threeStarLevels}关`;
-  elements.exchangeCoinText.textContent = state.progress.coins;
-  renderExchangeShop();
-}
-
-function renderExchangeShop() {
-  const pageStart = state.exchangePageIndex * EXCHANGE_TITLE_PAGE_SIZE;
-  const titles = EXCHANGE_TITLES.slice(pageStart, pageStart + EXCHANGE_TITLE_PAGE_SIZE);
-  elements.exchangeShopGrid.innerHTML = "";
-  titles.forEach((title) => {
-    const item = document.createElement("article");
-    item.className = "exchange-shop-item";
-
-    const badge = document.createElement("div");
-    badge.className = "exchange-title-badge";
-    badge.textContent = title.name;
-
-    const button = document.createElement("button");
-    button.className = "exchange-price-button";
-    button.type = "button";
-    button.dataset.price = String(title.price);
-    button.dataset.titleName = title.name;
-    button.setAttribute("aria-label", `兑换${title.name}，需要${title.price}金币`);
-
-    const coinIcon = document.createElement("img");
-    coinIcon.src = "./assets/UI-ICON/exchange-page/icon-coin.png";
-    coinIcon.alt = "";
-    coinIcon.setAttribute("aria-hidden", "true");
-
-    const price = document.createElement("span");
-    price.textContent = String(title.price);
-
-    button.append(coinIcon, price);
-    button.addEventListener("click", () => openExchangeResultModal(state.progress.coins >= title.price));
-    item.append(badge, button);
-    elements.exchangeShopGrid.append(item);
-  });
-  elements.exchangeShopPageText.textContent = `第 ${state.exchangePageIndex + 1} / ${EXCHANGE_TITLE_PAGE_COUNT} 页`;
-}
-
-function switchExchangePage(direction) {
-  state.exchangePageIndex =
-    (state.exchangePageIndex + direction + EXCHANGE_TITLE_PAGE_COUNT) % EXCHANGE_TITLE_PAGE_COUNT;
-  renderExchangeShop();
-}
-
-function openExchangeResultModal(success) {
-  elements.exchangeResultMessage.textContent = success ? "已兑换成功" : "金币不足";
-  elements.exchangeResultModal.classList.remove("hidden");
-}
-
-function closeExchangeResultModal() {
-  elements.exchangeResultModal.classList.add("hidden");
 }
 
 function toggleSettingButton(button) {
@@ -764,11 +671,11 @@ function finishGame(won) {
   elements.resultTitle.classList.add("result-title--compact");
   elements.resultTitle.classList.toggle("result-title--coin", showCoinReward);
   elements.resultTitle.innerHTML = showCoinReward
-    ? `通关成功，获得<span class="result-coin-count">${result.coinsAdded}</span><img class="result-coin-icon" src="./assets/ui-cut/result-coin.png" alt="金币" />`
+    ? `通关成功，获得<span class="result-coin-count">${result.coinsAdded}</span><img class="result-coin-icon" src="./assets/image/result-coin.png" alt="金币" />`
     : won
       ? "恭喜通关，重复关卡无法获得金币。"
       : "挑战失败，再来一次吧。";
-  elements.resultBadgeArt.src = won ? "./assets/ui-cut/result-pass-badge.png" : "./assets/ui-cut/result-fail-badge.png";
+  elements.resultBadgeArt.src = won ? "./assets/image/result-pass-badge.png" : "./assets/image/result-fail-badge.png";
   screens.result.dataset.result = won ? "success" : "failure";
   elements.resultSummary.textContent = won
     ? `用 ${state.moves} 步清空棋盘，新增 ${result.starsAdded} 星。`
@@ -889,7 +796,6 @@ function isRewardedAdComplete(result) {
 function updateProgressTextViews() {
   elements.coinText.textContent = state.progress.coins;
   elements.profileCoinText.textContent = state.progress.coins;
-  elements.exchangeCoinText.textContent = state.progress.coins;
 }
 
 function updateHud() {
@@ -933,7 +839,7 @@ function shakeTile(point) {
 function openToolModal(toolName) {
   state.paused = true;
   state.timerLastTickAt = Date.now();
-  elements.toolModalIcon.src = toolName === "洗牌" ? "./assets/ui-cut/tool-shuffle.png" : "./assets/ui-cut/tool-hint.png";
+  elements.toolModalIcon.src = toolName === "洗牌" ? "./assets/image/tool-shuffle.png" : "./assets/image/tool-hint.png";
   elements.toolTitle.textContent = `${toolName}用完了`;
   elements.toolMessage.textContent = `${toolName}次数已经用完，可以看广告获取，或购买更多道具。`;
   elements.toolModal.classList.remove("hidden");
@@ -1012,7 +918,6 @@ function hideModals() {
   elements.toolModal.classList.add("hidden");
   elements.exitModal.classList.add("hidden");
   elements.staminaModal.classList.add("hidden");
-  elements.exchangeResultModal.classList.add("hidden");
   elements.comingSoonModal.classList.add("hidden");
 }
 
@@ -1024,7 +929,7 @@ function renderResultStars(count) {
     star.className = `star result-star${index <= count ? " filled" : ""}`;
     const art = document.createElement("img");
     art.className = `result-star-art${index <= count ? " filled" : ""}`;
-    art.src = "./assets/ui-cut/best-star.png";
+    art.src = "./assets/image/best-star.png";
     art.alt = "";
     art.setAttribute("aria-hidden", "true");
     star.append(art);
@@ -1137,7 +1042,7 @@ function buildRoadVineDecorations(points) {
 function renderMiniStars(count) {
   const filledCount = Math.min(3, Math.max(0, Number(count) || 0));
   if (filledCount <= 0) return `<span class="road-stars" aria-hidden="true"></span>`;
-  return `<span class="road-stars road-stars--${filledCount}" aria-label="${filledCount}星"><img src="./assets/UI-Home/road-stars-${filledCount}.png" alt="" aria-hidden="true" /></span>`;
+  return `<span class="road-stars road-stars--${filledCount}" aria-label="${filledCount}星"><img src="./assets/image/road-stars-${filledCount}.png" alt="" aria-hidden="true" /></span>`;
 }
 
 function getLevelStatusText(status) {
@@ -1299,10 +1204,7 @@ function pointToSvg(point) {
 }
 
 function showScreen(name) {
-  elements.appShell.classList.toggle(
-    "is-secondary-active",
-    name === "profile" || name === "settings" || name === "exchange",
-  );
+  elements.appShell.classList.toggle("is-secondary-active", name === "profile" || name === "settings");
   Object.entries(screens).forEach(([screenName, screen]) => {
     screen.classList.toggle("active", screenName === name || (name === "result" && screenName === "game"));
   });

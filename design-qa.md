@@ -1,8 +1,8 @@
-source visual truth path: `D:\工作文件\游戏\连连看\docs\visual-references\jelly-fruit-direction.png`
-implementation screenshot path: `D:\工作文件\游戏\连连看\output\playwright\game-initial-mobile.png`
+source visual truth path: archived/removed from tracked repo during asset cleanup; current runtime images live under `src/assets/image/`
+implementation screenshot path: transient smoke artifact under `output/playwright/`; output files are cleaned from the repo after verification
 viewport: 390 x 844 mobile portrait
 state: standard mode, initial playable board after stamina reward smoke setup
-full-view comparison evidence: `D:\工作文件\游戏\连连看\output\playwright\design-comparison.png`
+full-view comparison evidence: transient smoke artifact under `output/playwright/`; output files are cleaned from the repo after verification
 focused region comparison evidence: not needed for this pass; the key fidelity surfaces are visible in the full mobile comparison.
 
 **Findings**
@@ -42,12 +42,8 @@ final result: passed
 
 2026-06-10 UI 统一回归
 
-source visual truth path: `D:\工作文件\游戏\连连看\docs\visual-references\jelly-fruit-direction.png`
-implementation screenshot paths:
-- `D:\工作文件\游戏\连连看\output\playwright\game-initial-mobile.png`
-- `D:\工作文件\游戏\连连看\output\playwright\tool-modal-mobile.png`
-- `D:\工作文件\游戏\连连看\output\playwright\exit-modal-mobile.png`
-- `D:\工作文件\游戏\连连看\output\playwright\result-stars-mobile.png`
+source visual truth path: archived/removed from tracked repo during asset cleanup; current runtime images live under `src/assets/image/`
+implementation screenshot paths: transient smoke artifacts under `output/playwright/`; output files are cleaned from the repo after verification
 viewport: 390 x 844 mobile portrait
 
 **Findings**
@@ -69,27 +65,27 @@ viewport: 390 x 844 mobile portrait
 
 2026-06-10 draft-03 设计稿对齐回归
 
-source visual truth path: `D:\工作文件\游戏\连连看\docs\ui-design-drafts\ui-design-draft-03.png`
-implementation screenshot path: `D:\工作文件\游戏\连连看\output\playwright\game-initial-mobile.png`
+source visual truth path: archived/removed from tracked repo during asset cleanup; current runtime images live under `src/assets/image/`
+implementation screenshot path: transient smoke artifact under `output/playwright/`; output files are cleaned from the repo after verification
 viewport: 390 x 844 mobile portrait
 
 **Findings**
 - No P0/P1/P2 findings remain for this pass.
 
 **Passed Surfaces**
-- Game screen records `docs/ui-design-drafts/ui-design-draft-03.png` as its visual target.
+- Game screen no longer records a deleted design-draft path; current visual QA relies on runtime UI structure and screenshots.
 - Top HUD now uses an organic cream frame and teal jelly title plaque instead of the previous flat card layout.
 - Level title now follows the user requirement: `01关`, `02关`, `010关`.
 - Board area now uses a translucent glass tray and cream tile cells.
 - Fruit art is visually enlarged inside the cream tiles.
 - Bottom toolbar now uses a cream tray and three large colored circular tool buttons with red count badges.
-- Browser smoke verifies `draft-three-shell`, `organic-hud-frame`, `glass-board-frame`, and `cream-tool-tray`.
+- Browser smoke verifies `draft-three-shell`, `organic-hud-frame`, `glass-board-frame`, and `cream-tool-tray` without requiring deleted design-draft files.
 
 **2026-06-10 User Reference Patch**
 - Easy board changed to 6x7 and browser smoke verifies 42 active tiles.
 - Default best score changed to `最佳3093分`.
 - Best score strip now uses a crown image and image-based UI stars.
-- HUD icons and bottom tool buttons now use standalone `ui-cut` image assets instead of CSS-drawn symbols.
+- HUD icons and bottom tool buttons now use standalone image assets from `src/assets/image/` instead of CSS-drawn symbols.
 - Global font family is now Microsoft YaHei / 微软雅黑.
 
 **Remaining P3 Polish**
@@ -99,18 +95,18 @@ final result: passed
 
 ---
 
-2026-06-10 independent ui-cut asset pass
-source visual truth path: `D:\工作文件\游戏\连连看\docs\visual-references\jelly-fruit-direction.png`
-implementation screenshot path: `D:\工作文件\游戏\连连看\output\playwright\game-initial-mobile.png`
+2026-06-10 independent flat image asset pass
+source visual truth path: archived/removed from tracked repo during asset cleanup; current runtime images live under `src/assets/image/`
+implementation screenshot path: transient smoke artifact under `output/playwright/`; output files are cleaned from the repo after verification
 viewport: 390 x 844 mobile portrait
 
 **Findings**
 - No P0/P1/P2 findings remain for this pass.
 
 **Passed Surfaces**
-- Title plaque, home button, HUD metric icons, best crown, best score stars, tool buttons, and count badge now come from `src/assets/ui-cut/`.
-- The `ui-cut` assets were generated as standalone chroma-key image assets and locally processed into transparent PNGs; they are not cropped from the current full-page screenshot.
-- Browser smoke verifies that active game UI image sources use `./assets/ui-cut/` and that the title plaque background is `assets/ui-cut/title-plaque.png`.
+- Title plaque, home button, HUD metric icons, best crown, best score stars, tool buttons, and count badge now come from `src/assets/image/`.
+- These assets were generated as standalone chroma-key image assets and locally processed into transparent PNGs; they are not cropped from the current full-page screenshot.
+- Browser smoke verifies that active game UI image sources use `./assets/image/` and that the title plaque background is `assets/image/title-plaque.png`.
 - Initial game screenshot shows 6x7 / 42 fruit tiles, `01关`, `最佳3093分`, image stars, and Microsoft YaHei text.
 
 final result: passed

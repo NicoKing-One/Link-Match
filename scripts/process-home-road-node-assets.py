@@ -6,7 +6,7 @@ from PIL import Image, ImageDraw
 
 
 GENERATED_DIR = Path(r"C:\Users\youzi\.codex\generated_images\019ef2bf-99cb-7501-b596-ea707085eed9")
-ASSET_DIR = Path("src/assets/UI-Home")
+ASSET_DIR = Path("src/assets/image")
 BACKUP_DIR = Path("output/_backup-home-road-nodes-20260623")
 PREVIEW_PATH = Path("output/home-road-node-assets-preview.png")
 LEVEL_ICON_SIZE = (1024, 1024)

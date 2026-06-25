@@ -1,4 +1,4 @@
-﻿import { createReadStream, existsSync } from "node:fs";
+import { createReadStream, existsSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import { createServer } from "node:http";
 import { createRequire } from "node:module";
@@ -18,8 +18,7 @@ const { chromium } = require("playwright");
 
 const root = join(process.cwd(), "src");
 const outputDir = join(process.cwd(), "output", "playwright");
-const modalDesignDraft = join(process.cwd(), "docs", "ui-design-drafts", "mobile-modal-result-design.png");
-const modalCardBackground = join(process.cwd(), "src", "assets", "ui-cut", "modal-card-bg.png");
+const modalCardBackground = join(process.cwd(), "src", "assets", "image", "modal-card-bg.png");
 const browserExecutable = findBrowserExecutable();
 const types = {
   ".html": "text/html; charset=utf-8",
@@ -53,9 +52,6 @@ const address = server.address();
 const url = `http://127.0.0.1:${address.port}`;
 const smokeUrl = `${url}?boardSeed=smoke-easy`;
 await mkdir(outputDir, { recursive: true });
-if (!existsSync(modalDesignDraft)) {
-  throw new Error(`Expected mobile popup/result design draft to exist: ${modalDesignDraft}`);
-}
 if (!existsSync(modalCardBackground)) {
   throw new Error(`Expected mobile popup/result card background to exist: ${modalCardBackground}`);
 }
@@ -128,7 +124,7 @@ try {
   }
   await expectPolishedGameUi(page);
   await expectDraftThreeVisualSystem(page);
-  await expectUiCutAssets(page);
+  await expectFlatImageAssets(page);
   await expectPageDoesNotScroll(page);
   if (tileArtRatio < 0.82 || tileArtRatio > 1.12) {
     throw new Error(`Expected tile art to occupy most of the tile, got ratio=${tileArtRatio.toFixed(2)}.`);
@@ -468,22 +464,22 @@ async function expectToastDoesNotCoverBoard(page) {
   }
 }
 
-async function expectUiCutAssets(page) {
+async function expectFlatImageAssets(page) {
   const imageSources = await page
     .locator(
       ".screen-game.active .hud-icon, .screen-game.active .tool-art, .screen-game.active .home-art",
     )
     .evaluateAll((nodes) => nodes.map((node) => node.getAttribute("src") ?? ""));
-  const badSource = imageSources.find((source) => !source.includes("./assets/ui-cut/"));
+  const badSource = imageSources.find((source) => !source.includes("./assets/image/"));
   if (badSource) {
-    throw new Error(`Expected game UI to use independent ui-cut assets, got ${badSource}.`);
+    throw new Error(`Expected game UI to use flat assets/image files, got ${badSource}.`);
   }
 
   const bannerBackground = await page
     .locator(".screen-game.active .stage-banner")
     .evaluate((node) => getComputedStyle(node).backgroundImage);
-  if (!bannerBackground.includes("assets/ui-cut/title-plaque.png")) {
-    throw new Error(`Expected stage banner to use ui-cut title plaque, got ${bannerBackground}.`);
+  if (!bannerBackground.includes("assets/image/title-plaque.png")) {
+    throw new Error(`Expected stage banner to use flat title-plaque.png, got ${bannerBackground}.`);
   }
 }
 
@@ -492,15 +488,11 @@ async function expectDraftThreeVisualSystem(page) {
   const organicHud = await page.locator(".screen-game.active .organic-hud-frame").count();
   const glassBoard = await page.locator(".screen-game.active .glass-board-frame").count();
   const creamToolbar = await page.locator(".screen-game.active .cream-tool-tray").count();
-  const targetPath = await page.locator(".screen-game.active").getAttribute("data-visual-target");
 
   if (visualShell !== 1 || organicHud !== 1 || glassBoard !== 1 || creamToolbar !== 1) {
     throw new Error(
       `Expected draft-03 visual structure, got shell=${visualShell}, hud=${organicHud}, board=${glassBoard}, toolbar=${creamToolbar}.`,
     );
-  }
-  if (!targetPath?.includes("ui-design-draft-03.png")) {
-    throw new Error(`Expected game screen to record draft-03 as visual target, got: ${targetPath}`);
   }
 }
 
@@ -519,7 +511,6 @@ async function expectMobileModalDesignSystem(page, selector) {
     .evaluateAll((nodes) => nodes.map((node) => node.getAttribute("src") ?? ""));
   const plaqueLabelText = await page.locator(`${selector}:not(.hidden) .plaque-level-label`).innerText();
   const plaqueDecorCount = await page.locator(`${selector}:not(.hidden) .modal-plaque .icon-decor-art`).count();
-  const visualTarget = await page.locator(`${selector}:not(.hidden)`).getAttribute("data-visual-target");
   const cardBackground = await page
     .locator(`${selector}:not(.hidden) .candy-modal-card`)
     .evaluate((node) => getComputedStyle(node).backgroundImage);
@@ -536,18 +527,15 @@ async function expectMobileModalDesignSystem(page, selector) {
   if (cardCount !== 1 || plaqueCount !== 1) {
     throw new Error(`Expected ${selector} to use candy mobile modal structure, got card=${cardCount}, plaque=${plaqueCount}.`);
   }
-  if (!visualTarget?.includes("mobile-modal-result-design.png")) {
-    throw new Error(`Expected ${selector} to record the mobile popup design draft, got ${visualTarget}.`);
-  }
-  if (iconSources.length !== 1 || iconSources.some((source) => !source.includes("./assets/ui-cut/"))) {
-    throw new Error(`Expected ${selector} icon to use one ui-cut image, got: ${iconSources.join(", ")}`);
+  if (iconSources.length !== 1 || iconSources.some((source) => !source.includes("./assets/image/"))) {
+    throw new Error(`Expected ${selector} icon to use one flat assets/image file, got: ${iconSources.join(", ")}`);
   }
   if (!/^第\d{2}关$/.test(plaqueLabelText) || plaqueDecorCount !== 0) {
     throw new Error(
       `Expected ${selector} title plaque to show level text without star decorators, got label=${plaqueLabelText}, decor=${plaqueDecorCount}.`,
     );
   }
-  if (!cardBackground.includes("assets/ui-cut/modal-card-bg.png")) {
+  if (!cardBackground.includes("assets/image/modal-card-bg.png")) {
     throw new Error(`Expected ${selector} card background to use modal-card-bg.png, got: ${cardBackground}`);
   }
   if (
@@ -1137,221 +1125,6 @@ async function expectSecondaryPageNavigation(page) {
   }
   await page.locator("#comingSoonCloseButton").click();
   await page.locator("#comingSoonModal").waitFor({ state: "hidden", timeout: 1200 });
-
-  await page.evaluate(() => {
-    document.querySelectorAll(".screen").forEach((screen) => screen.classList.remove("active"));
-    document.querySelector("#exchangeScreen")?.classList.add("active");
-  });
-  await page.waitForSelector("#exchangeScreen.active", { timeout: 1200 });
-  await expectSecondaryPageBuiltFromLayout(page, "#exchangeScreen", ".exchange-layout");
-  await expectExchangePageRemovesConsumableOffers(page);
-  await expectExchangeCoinCardCompactLayout(page);
-  await expectExchangeTitleShop(page);
-  await expectSecondaryPageOptimizedLikeProfile(page, "#exchangeScreen", ".exchange-layout", ".exchange-coin-card, .exchange-shop-panel", {
-    allowPageScroll: true,
-  });
-  await page.locator("#exchangeScreen.active .exchange-layout").evaluate((layout) => {
-    layout.scrollTop = 0;
-  });
-  await page.locator("#exchangeScreen.active .exchange-shop-grid").evaluate((grid) => {
-    grid.scrollTop = 0;
-  });
-  await page.screenshot({ path: join(outputDir, "exchange-mobile.png"), fullPage: true });
-  await page.locator("#exchangeBackButton").click();
-  await page.waitForSelector(".screen-start.active", { timeout: 1200 });
-}
-
-async function expectExchangePageRemovesConsumableOffers(page) {
-  const exchangeData = await page.locator("#exchangeScreen.active").evaluate((screen) => ({
-    buttonCount: screen.querySelectorAll(".exchange-button").length,
-    itemCount: screen.querySelectorAll(".exchange-item").length,
-    text: screen.innerText,
-  }));
-  if (exchangeData.itemCount !== 0 || exchangeData.buttonCount !== 0) {
-    throw new Error(
-      `Expected coin exchange page to remove stamina/hint/shuffle offers, got items=${exchangeData.itemCount}, buttons=${exchangeData.buttonCount}.`,
-    );
-  }
-  for (const label of ["体力 +30", "提示 +1", "洗牌 +1", "20 金币", "15 金币"]) {
-    if (exchangeData.text.includes(label)) {
-      throw new Error(`Expected coin exchange page not to show old consumable offer text: ${label}.`);
-    }
-  }
-}
-
-async function expectExchangeCoinCardCompactLayout(page) {
-  const coinCardData = await page.locator("#exchangeScreen.active .exchange-coin-card").evaluate((card) => {
-    const cardBox = card.getBoundingClientRect();
-    const coinIcon = card.querySelector(":scope > img");
-    const coinIconBox = coinIcon?.getBoundingClientRect();
-    const coinText = card.querySelector("#exchangeCoinText");
-    const coinTextStyle = coinText ? getComputedStyle(coinText) : null;
-    const coinIconStyle = coinIcon ? getComputedStyle(coinIcon) : null;
-    const cardStyle = getComputedStyle(card);
-    return {
-      cardHeight: Math.round(cardBox.height),
-      cardMinHeight: Number.parseFloat(cardStyle.minHeight),
-      cardWidth: Math.round(cardBox.width),
-      coinIconHeight: Math.round(coinIconBox?.height ?? 0),
-      coinIconMarginLeft: coinIconStyle ? Number.parseFloat(coinIconStyle.marginLeft) : 0,
-      coinIconWidth: Math.round(coinIconBox?.width ?? 0),
-      coinText: coinText?.textContent ?? "",
-      labelText: card.querySelector(".secondary-label-row span")?.textContent ?? "",
-      fontSize: coinTextStyle ? Number.parseFloat(coinTextStyle.fontSize) : 0,
-      marginTop: coinTextStyle ? Number.parseFloat(coinTextStyle.marginTop) : 0,
-      paddingBottom: Number.parseFloat(cardStyle.paddingBottom),
-      paddingTop: Number.parseFloat(cardStyle.paddingTop),
-    };
-  });
-  if (
-    coinCardData.cardMinHeight !== 80 ||
-    Math.abs(coinCardData.cardWidth - 248) > 2 ||
-    coinCardData.coinIconHeight !== 45 ||
-    coinCardData.coinIconMarginLeft !== 20 ||
-    coinCardData.coinIconWidth !== 45 ||
-    coinCardData.coinText !== "86" ||
-    coinCardData.labelText !== "我的金币" ||
-    Math.abs(coinCardData.fontSize - 22.4) > 0.5 ||
-    coinCardData.marginTop !== 5 ||
-    coinCardData.paddingBottom !== 10 ||
-    coinCardData.paddingTop !== 10
-  ) {
-    throw new Error(`Expected compact exchange coin card, got ${JSON.stringify(coinCardData)}.`);
-  }
-}
-
-async function expectExchangeTitleShop(page) {
-  await expectExchangeShopUsesV2Assets(page);
-  const firstPageData = await page.locator("#exchangeScreen.active").evaluate((screen) => ({
-    itemCount: screen.querySelectorAll(".exchange-shop-item").length,
-    pageText: screen.querySelector("#exchangeShopPageText")?.textContent ?? "",
-    titleTexts: [...screen.querySelectorAll(".exchange-title-badge")].map((node) => node.textContent?.trim() ?? ""),
-  }));
-  if (
-    firstPageData.itemCount !== 6 ||
-    firstPageData.pageText !== "第 1 / 3 页" ||
-    !firstPageData.titleTexts.includes("萌新果冻")
-  ) {
-    throw new Error(`Expected exchange title shop page 1 with 6 titles, got ${JSON.stringify(firstPageData)}.`);
-  }
-
-  await page.locator("#exchangeNextPageButton").click();
-  const secondPageData = await page.locator("#exchangeScreen.active").evaluate((screen) => ({
-    itemCount: screen.querySelectorAll(".exchange-shop-item").length,
-    pageText: screen.querySelector("#exchangeShopPageText")?.textContent ?? "",
-    titleTexts: [...screen.querySelectorAll(".exchange-title-badge")].map((node) => node.textContent?.trim() ?? ""),
-  }));
-  if (
-    secondPageData.itemCount !== 6 ||
-    secondPageData.pageText !== "第 2 / 3 页" ||
-    !secondPageData.titleTexts.includes("闪光萌主")
-  ) {
-    throw new Error(`Expected exchange title shop page 2 with 6 titles, got ${JSON.stringify(secondPageData)}.`);
-  }
-
-  await page.locator("#exchangeNextPageButton").click();
-  const thirdPageData = await page.locator("#exchangeScreen.active").evaluate((screen) => ({
-    itemCount: screen.querySelectorAll(".exchange-shop-item").length,
-    pageText: screen.querySelector("#exchangeShopPageText")?.textContent ?? "",
-    titleTexts: [...screen.querySelectorAll(".exchange-title-badge")].map((node) => node.textContent?.trim() ?? ""),
-  }));
-  if (
-    thirdPageData.itemCount !== 6 ||
-    thirdPageData.pageText !== "第 3 / 3 页" ||
-    !thirdPageData.titleTexts.includes("金币大亨")
-  ) {
-    throw new Error(`Expected exchange title shop page 3 with 6 titles, got ${JSON.stringify(thirdPageData)}.`);
-  }
-
-  await page.locator("#exchangeNextPageButton").click();
-  await page.locator("#exchangeScreen.active .exchange-price-button").first().click();
-  await page.waitForSelector("#exchangeResultModal:not(.hidden)", { timeout: 1200 });
-  const successText = await page.locator("#exchangeResultMessage").innerText();
-  if (successText !== "已兑换成功") {
-    throw new Error(`Expected successful title exchange modal, got: ${successText}`);
-  }
-  await page.locator("#exchangeResultCloseButton").click();
-  await page.locator("#exchangeResultModal").waitFor({ state: "hidden", timeout: 1200 });
-
-  await page.locator("#exchangeNextPageButton").click();
-  await page.locator("#exchangeNextPageButton").click();
-  await page.locator("#exchangeScreen.active .exchange-price-button").last().click();
-  await page.waitForSelector("#exchangeResultModal:not(.hidden)", { timeout: 1200 });
-  const failText = await page.locator("#exchangeResultMessage").innerText();
-  if (failText !== "金币不足") {
-    throw new Error(`Expected insufficient coin title exchange modal, got: ${failText}`);
-  }
-  await page.locator("#exchangeResultCloseButton").click();
-  await page.locator("#exchangeResultModal").waitFor({ state: "hidden", timeout: 1200 });
-  await page.locator("#exchangeNextPageButton").click();
-}
-
-async function expectExchangeShopUsesV2Assets(page) {
-  const assetData = await page.locator("#exchangeScreen.active").evaluate((screen) => {
-    const backgroundImageOf = (selector) => getComputedStyle(screen.querySelector(selector)).backgroundImage;
-    const panelStyle = getComputedStyle(screen.querySelector(".exchange-shop-panel"));
-    const gridStyle = getComputedStyle(screen.querySelector(".exchange-shop-grid"));
-    const item = screen.querySelector(".exchange-shop-item");
-    const itemStyle = getComputedStyle(item);
-    const itemBox = item.getBoundingClientRect();
-    const titleBadge = item.querySelector(".exchange-title-badge");
-    const titleBadgeBox = titleBadge.getBoundingClientRect();
-    const titleBadgeStyle = getComputedStyle(titleBadge);
-    const priceButton = item.querySelector(".exchange-price-button");
-    const priceButtonBox = priceButton.getBoundingClientRect();
-    const priceIconBox = priceButton.querySelector("img").getBoundingClientRect();
-    return {
-      panelBackground: backgroundImageOf(".exchange-shop-panel"),
-      itemBackground: backgroundImageOf(".exchange-shop-item"),
-      itemBackgroundSize: itemStyle.backgroundSize,
-      itemWidth: Math.round(itemBox.width),
-      itemRatio: itemBox.width / itemBox.height,
-      priceButtonRatio: priceButtonBox.width / priceButtonBox.height,
-      priceIconHeight: Math.round(priceIconBox.height),
-      priceIconWidth: Math.round(priceIconBox.width),
-      priceButtonBackground: backgroundImageOf(".exchange-price-button"),
-      titleBadgeAlignItems: titleBadgeStyle.alignItems,
-      titleBadgeCenterDelta: Math.round(Math.abs((titleBadgeBox.top + titleBadgeBox.bottom) / 2 - titleBadgeBox.top - titleBadgeBox.height / 2)),
-      titleBadgeDisplay: titleBadgeStyle.display,
-      titleBadgeJustifyContent: titleBadgeStyle.justifyContent,
-      arrowBackground: backgroundImageOf(".exchange-page-arrow"),
-      panelMinHeight: panelStyle.minHeight,
-      shopColumnCount: gridStyle.gridTemplateColumns.split(" ").filter(Boolean).length,
-    };
-  });
-  const expected = [
-    ["panelBackground", "exchange-shop-panel-bg-v2.png"],
-    ["itemBackground", "exchange-title-card-bg-v2.png"],
-    ["priceButtonBackground", "exchange-price-button-bg-v2.png"],
-    ["arrowBackground", "exchange-page-arrow-bg-v2.png"],
-  ];
-  const missing = expected.filter(([key, fileName]) => !String(assetData[key]).includes(fileName));
-  if (missing.length) {
-    throw new Error(`Expected exchange shop to use v2 generated assets, got ${JSON.stringify({ assetData, missing })}.`);
-  }
-  if (assetData.panelMinHeight !== "auto" || assetData.shopColumnCount !== 2) {
-    throw new Error(`Expected exchange shop panel to use auto min-height with 2 columns, got ${JSON.stringify(assetData)}.`);
-  }
-  if (assetData.itemBackgroundSize !== "contain" || Math.abs(assetData.itemRatio - 943 / 1228) > 0.02) {
-    throw new Error(`Expected exchange shop item background to keep original image ratio, got ${JSON.stringify(assetData)}.`);
-  }
-  if (assetData.itemWidth !== 117) {
-    throw new Error(`Expected exchange shop items to be 117px wide, got ${JSON.stringify(assetData)}.`);
-  }
-  if (
-    Math.abs(assetData.priceButtonRatio - 1224 / 427) > 0.04 ||
-    assetData.priceIconHeight !== 16 ||
-    assetData.priceIconWidth !== 16
-  ) {
-    throw new Error(`Expected exchange price button and coin icon to keep normal size, got ${JSON.stringify(assetData)}.`);
-  }
-  if (
-    assetData.titleBadgeDisplay !== "flex" ||
-    assetData.titleBadgeAlignItems !== "center" ||
-    assetData.titleBadgeJustifyContent !== "center"
-  ) {
-    throw new Error(`Expected exchange title text to be centered in the green badge, got ${JSON.stringify(assetData)}.`);
-  }
 }
 
 async function expectSecondaryPageBuiltFromLayout(page, screenSelector, layoutSelector) {
@@ -1746,20 +1519,20 @@ async function expectHomeUsesUiHomeAssets(page) {
   });
 
   const expected = [
-    ["screenBackground", "UI-Home/background-fruit-full.png"],
-    ["profileIcon", "UI-Home/icon-profile.png"],
-    ["settingsIcon", "UI-Home/icon-settings.png"],
-    ["statBackground", "UI-Home/resource-card-bg.png"],
-    ["arrowBackground", "UI-ICON/exchange-page/exchange-page-arrow-bg-v2.png"],
-    ["arrowIcon", "UI-ICON/exchange-page/exchange-page-arrow-bg-v2.png"],
-    ["summaryBackground", "UI-Home/chapter-title-fruit-bg.png"],
-    ["levelBackground", "UI-Home/level-fruit-current-bg.png"],
-    ["startBackground", "UI-Home/start-button-fruit-bg.png"],
-    ["lockIcon", "UI-Home/icon-lock.png"],
+    ["screenBackground", "background-fruit-full.png"],
+    ["profileIcon", "icon-profile.png"],
+    ["settingsIcon", "icon-settings.png"],
+    ["statBackground", "resource-card-bg.png"],
+    ["arrowBackground", "exchange-page-arrow-bg-v2.png"],
+    ["arrowIcon", "exchange-page-arrow-bg-v2.png"],
+    ["summaryBackground", "chapter-title-fruit-bg.png"],
+    ["levelBackground", "level-fruit-current-bg.png"],
+    ["startBackground", "start-button-fruit-bg.png"],
+    ["lockIcon", "icon-lock.png"],
   ];
   const missing = expected.filter(([key, value]) => !String(assets[key]).includes(value));
   if (!assets.screenClass.includes("home-theme-fruit-forest") || missing.length) {
-    throw new Error(`Expected home screen to render UI-Home sliced assets, got ${JSON.stringify({ assets, missing })}.`);
+    throw new Error(`Expected home screen to render flattened image assets, got ${JSON.stringify({ assets, missing })}.`);
   }
 }
 
@@ -1843,7 +1616,6 @@ async function expectMobileResultDesignSystem(page) {
   const starSources = await page
     .locator(".screen-result.active .result-star-art")
     .evaluateAll((nodes) => nodes.map((node) => node.getAttribute("src") ?? ""));
-  const visualTarget = await page.locator(".screen-result.active").getAttribute("data-visual-target");
   const cardBackground = await page
     .locator(".screen-result.active .candy-result-card")
     .evaluate((node) => getComputedStyle(node).backgroundImage);
@@ -1908,11 +1680,10 @@ async function expectMobileResultDesignSystem(page) {
   if (shellCount !== 1 || cardCount !== 1) {
     throw new Error(`Expected result screen to use mobile candy result structure, got shell=${shellCount}, card=${cardCount}.`);
   }
-  if (!visualTarget?.includes("mobile-modal-result-design.png")) {
-    throw new Error(`Expected result screen to record the mobile result design draft, got ${visualTarget}.`);
-  }
-  if (!badgeSource?.includes("./assets/ui-cut/") || starSources.some((source) => !source.includes("./assets/ui-cut/"))) {
-    throw new Error(`Expected result badge and stars to use ui-cut image assets, got badge=${badgeSource}, stars=${starSources.join(", ")}`);
+  if (!badgeSource?.includes("./assets/image/") || starSources.some((source) => !source.includes("./assets/image/"))) {
+    throw new Error(
+      `Expected result badge and stars to use flat assets/image files, got badge=${badgeSource}, stars=${starSources.join(", ")}`,
+    );
   }
   if (!badgeSource.includes("result-pass-badge.png")) {
     throw new Error(`Expected success result badge to use generated pass badge icon, got badge=${badgeSource}.`);
@@ -1941,7 +1712,7 @@ async function expectMobileResultDesignSystem(page) {
       `Expected result title plaque to show level text without star decorators, got label=${plaqueLabelText}, decor=${plaqueDecorCount}.`,
     );
   }
-  if (!cardBackground.includes("assets/ui-cut/modal-card-bg.png")) {
+  if (!cardBackground.includes("assets/image/modal-card-bg.png")) {
     throw new Error(`Expected result card background to use modal-card-bg.png, got: ${cardBackground}`);
   }
   if (overlay.alpha < 0.2) {
@@ -2011,9 +1782,9 @@ async function expectDesignedUiCutButtons(page, selector) {
   if (buttonData.length === 0) {
     throw new Error(`Expected designed buttons for ${selector}, got none.`);
   }
-  const badBackground = buttonData.find((item) => !item.background.includes("assets/ui-cut/modal-button-"));
+  const badBackground = buttonData.find((item) => !item.background.includes("assets/image/modal-button-"));
   if (badBackground) {
-    throw new Error(`Expected ${selector} to use ui-cut button slices, got ${badBackground.background}.`);
+    throw new Error(`Expected ${selector} to use flat modal button image assets, got ${badBackground.background}.`);
   }
   const deformed = buttonData.find((item) => item.height < 48 || item.width / item.height > 4.8);
   if (deformed) {

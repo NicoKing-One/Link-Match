@@ -6,7 +6,7 @@ from PIL import Image
 
 
 GENERATED_DIR = Path(r"C:\Users\youzi\.codex\generated_images\019ededb-88bb-74a3-95a9-c47ac4d74fd7")
-ASSET_DIR = Path("src/assets/UI-Home")
+ASSET_DIR = Path("src/assets/image")
 BACKUP_DIR = Path("output/_backup-level-icons-20260619-1630")
 
 MAPPING = [

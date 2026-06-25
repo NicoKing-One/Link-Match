@@ -8,7 +8,7 @@ from PIL import Image
 sys.dont_write_bytecode = True
 
 
-ASSET_DIR = Path("src/assets/UI-Home")
+ASSET_DIR = Path("src/assets/image")
 EXPECTED_SIZE = (1024, 1024)
 EXPECTED_LEVEL_VISIBLE_HEIGHT = 912
 MIN_LEVEL_VISIBLE_WIDTH = 960
