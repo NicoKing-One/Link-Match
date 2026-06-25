@@ -20,7 +20,6 @@ import {
   calculateRecoveredStamina,
   calculateStarCount,
   claimAdStamina,
-  claimPurchasedStamina,
   normalizeStaminaState,
   spendStartStamina,
 } from "./game-rules.js";
@@ -182,6 +181,8 @@ const elements = {
   resultToast: document.querySelector("#resultToast"),
   doubleCoinsButton: document.querySelector("#doubleCoinsButton"),
   nextLevelButton: document.querySelector("#nextLevelButton"),
+  reviveButton: document.querySelector("#reviveButton"),
+  resultBuyToolsButton: document.querySelector("#resultBuyToolsButton"),
   againButton: document.querySelector("#againButton"),
   homeButton: document.querySelector("#homeButton"),
 };
@@ -194,6 +195,7 @@ const state = {
   moves: 0,
   remainingSeconds: 0,
   timer: null,
+  timerLastTickAt: 0,
   staminaTimer: null,
   toastTimer: null,
   resultToastTimer: null,
@@ -206,6 +208,7 @@ const state = {
   paused: false,
   busy: false,
   doubleCoinReward: null,
+  revivedThisRun: false,
 };
 
 state.level = LEVELS[state.progress.highestUnlockedLevel - 1] ?? LEVELS[0];
@@ -265,6 +268,8 @@ function bindEvents() {
   elements.comingSoonCloseButton.addEventListener("click", closeComingSoonModal);
   elements.doubleCoinsButton.addEventListener("click", claimDoubleCoins);
   elements.nextLevelButton.addEventListener("click", requestNextLevel);
+  elements.reviveButton.addEventListener("click", reviveAfterAd);
+  elements.resultBuyToolsButton.addEventListener("click", buyResultTools);
   elements.againButton.addEventListener("click", () => requestStartGame(state.level));
   elements.homeButton.addEventListener("click", () => {
     stopTimer();
@@ -525,6 +530,7 @@ function startGame(level) {
   state.shuffles = TEST_UNLIMITED_TOOLS ? Number.POSITIVE_INFINITY : level.shuffles;
   state.paused = false;
   state.busy = false;
+  state.revivedThisRun = false;
   hideModals();
 
   screens.game.dataset.boardTier = level.tier ?? "easy";
@@ -680,24 +686,39 @@ function useShuffle() {
 function pauseGame() {
   if (!screens.game.classList.contains("active")) return;
   state.paused = true;
+  state.timerLastTickAt = Date.now();
   elements.pauseModal.classList.remove("hidden");
 }
 
 function resumeGame() {
   state.paused = false;
+  state.timerLastTickAt = Date.now();
   elements.pauseModal.classList.add("hidden");
 }
 
 function startTimer() {
+  stopTimer();
+  state.timerLastTickAt = Date.now();
   updateHud();
-  state.timer = window.setInterval(() => {
-    if (state.paused || state.busy) return;
-    state.remainingSeconds -= 1;
-    updateHud();
-    if (state.remainingSeconds <= 0) {
-      finishGame(false);
-    }
-  }, 1000);
+  state.timer = window.setInterval(tickTimer, 250);
+}
+
+function tickTimer() {
+  const now = Date.now();
+  if (state.paused) {
+    state.timerLastTickAt = now;
+    return;
+  }
+
+  const elapsedSeconds = Math.floor((now - state.timerLastTickAt) / 1000);
+  if (elapsedSeconds <= 0) return;
+
+  state.timerLastTickAt += elapsedSeconds * 1000;
+  state.remainingSeconds = Math.max(0, state.remainingSeconds - elapsedSeconds);
+  updateHud();
+  if (state.remainingSeconds <= 0) {
+    finishGame(false);
+  }
 }
 
 function stopTimer() {
@@ -705,6 +726,7 @@ function stopTimer() {
     window.clearInterval(state.timer);
     state.timer = null;
   }
+  state.timerLastTickAt = 0;
 }
 
 function returnHome() {
@@ -757,6 +779,11 @@ function finishGame(won) {
   elements.doubleCoinsButton.textContent = "双倍金币";
   elements.doubleCoinsButton.classList.toggle("hidden", !state.doubleCoinReward);
   elements.nextLevelButton.classList.toggle("hidden", !won || state.level.number >= MAX_LEVEL_NUMBER);
+  elements.reviveButton.disabled = false;
+  elements.reviveButton.textContent = "复活";
+  elements.reviveButton.classList.toggle("hidden", won);
+  elements.resultBuyToolsButton.classList.toggle("hidden", won);
+  elements.againButton.textContent = "再玩一局";
   updateStaminaView();
   showScreen("result");
 }
@@ -792,6 +819,48 @@ async function claimDoubleCoins() {
   updateProgressTextViews();
   elements.doubleCoinsButton.disabled = false;
   showResultToast(`获得双倍金币 +${reward.amount}`);
+}
+
+async function reviveAfterAd() {
+  if (screens.result.dataset.result !== "failure") {
+    showResultToast("当前不能复活");
+    return;
+  }
+
+  if (state.revivedThisRun) {
+    showResultToast("本局已用完");
+    return;
+  }
+
+  elements.reviveButton.disabled = true;
+  showResultToast("广告播放中，请看完后复活");
+
+  const completed = await playRewardedAd("revive");
+  if (!completed) {
+    elements.reviveButton.disabled = false;
+    showResultToast("复活失败，广告没看完");
+    return;
+  }
+
+  state.revivedThisRun = true;
+  state.remainingSeconds = state.level.durationSeconds;
+  state.paused = false;
+  state.busy = false;
+  state.selected = null;
+  hideResultToast();
+  hideToast();
+  hideModals();
+  clearHints();
+  clearLink();
+  renderBoard();
+  updateHud();
+  showScreen("game");
+  startTimer();
+  showToast("复活成功，继续挑战");
+}
+
+function buyResultTools() {
+  showResultToast("购买功能待接入");
 }
 
 async function playRewardedAd(placement) {
@@ -863,6 +932,7 @@ function shakeTile(point) {
 
 function openToolModal(toolName) {
   state.paused = true;
+  state.timerLastTickAt = Date.now();
   elements.toolModalIcon.src = toolName === "洗牌" ? "./assets/ui-cut/tool-shuffle.png" : "./assets/ui-cut/tool-hint.png";
   elements.toolTitle.textContent = `${toolName}用完了`;
   elements.toolMessage.textContent = `${toolName}次数已经用完，可以看广告获取，或购买更多道具。`;
@@ -871,6 +941,7 @@ function openToolModal(toolName) {
 
 function closeToolModal(message) {
   state.paused = false;
+  state.timerLastTickAt = Date.now();
   elements.toolModal.classList.add("hidden");
   if (message) showToast(message);
 }
@@ -880,14 +951,17 @@ function openStaminaModal(
   message = `看广告或购买可以获取 ${AD_STAMINA_REWARD} 点体力，广告最多获取 ${MAX_AD_STAMINA_CLAIMS} 次。`,
 ) {
   state.paused = screens.game.classList.contains("active");
+  if (state.paused) state.timerLastTickAt = Date.now();
   elements.staminaTitle.textContent = title;
   elements.staminaMessage.textContent = message;
-  elements.staminaAdButton.disabled = state.stamina.adClaims >= MAX_AD_STAMINA_CLAIMS;
+  elements.staminaAdButton.disabled = false;
+  elements.staminaAdButton.textContent = "看广告获取";
   elements.staminaModal.classList.remove("hidden");
 }
 
 function closeStaminaModal() {
   state.paused = false;
+  state.timerLastTickAt = Date.now();
   elements.staminaModal.classList.add("hidden");
 }
 
@@ -905,7 +979,8 @@ function claimStaminaFromAd() {
   const result = claimAdStamina(state.stamina);
   saveStaminaState(result.state);
   if (!result.ok) {
-    openStaminaModal("领取次数已用完", `广告体力最多可以领取 ${MAX_AD_STAMINA_CLAIMS} 次，请等待体力自动恢复。`);
+    closeStaminaModal();
+    showToast("今日已达上限");
     return;
   }
 
@@ -915,19 +990,20 @@ function claimStaminaFromAd() {
 
 function buyStamina() {
   refreshStamina();
-  saveStaminaState(claimPurchasedStamina(state.stamina));
   closeStaminaModal();
-  showToast(`购买成功，获得 ${AD_STAMINA_REWARD} 点体力`);
+  showToast("购买功能待接入");
 }
 
 function openExitModal() {
   if (!screens.game.classList.contains("active")) return;
   state.paused = true;
+  state.timerLastTickAt = Date.now();
   elements.exitModal.classList.remove("hidden");
 }
 
 function closeExitModal() {
   state.paused = false;
+  state.timerLastTickAt = Date.now();
   elements.exitModal.classList.add("hidden");
 }
 
@@ -1013,8 +1089,8 @@ function updateStaminaView() {
     text.textContent = countdownText;
   });
   elements.getStaminaButtons.forEach((button) => {
-    button.disabled = state.stamina.adClaims >= MAX_AD_STAMINA_CLAIMS;
-    button.textContent = state.stamina.adClaims >= MAX_AD_STAMINA_CLAIMS ? "已领取完" : "获取体力";
+    button.disabled = false;
+    button.textContent = "获取体力";
   });
 }
 
@@ -1254,5 +1330,14 @@ function samePoint(first, second) {
 if (new URLSearchParams(window.location.search).has("boardSeed")) {
   window.__linkMatchSmoke = {
     finishGameForSmoke: finishGame,
+    setRemainingSecondsForSmoke(seconds) {
+      state.remainingSeconds = Math.max(0, Math.floor(Number(seconds) || 0));
+      state.timerLastTickAt = Date.now();
+      updateHud();
+    },
+    setTimerLastTickAtForSmoke(timestamp) {
+      state.timerLastTickAt = Number(timestamp) || Date.now();
+    },
+    tickTimerForSmoke: tickTimer,
   };
 }

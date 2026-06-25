@@ -29,9 +29,9 @@ export const CHAPTERS = [
 ];
 
 const DIFFICULTY_STEPS = [
-  { tier: "easy", rows: 7, cols: 6, iconCount: 10, durationSeconds: 210, hints: 0, shuffles: 0 },
-  { tier: "normal", rows: 8, cols: 6, iconCount: 12, durationSeconds: 240, hints: 0, shuffles: 0 },
-  { tier: "hard", rows: 9, cols: 6, iconCount: 12, durationSeconds: 270, hints: 0, shuffles: 0 },
+  { tier: "easy", rows: 7, cols: 6, iconCount: 10, durationSeconds: 180, hints: 0, shuffles: 0 },
+  { tier: "normal", rows: 8, cols: 6, iconCount: 12, durationSeconds: 150, hints: 0, shuffles: 0 },
+  { tier: "hard", rows: 9, cols: 6, iconCount: 12, durationSeconds: 120, hints: 0, shuffles: 0 },
 ];
 
 export const LEVELS = Array.from({ length: 90 }, (_, index) => buildLevel(index + 1));

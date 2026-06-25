@@ -1992,7 +1992,7 @@ async function expectMobileResultDesignSystem(page) {
   ) {
     throw new Error(`Expected result title plaque to straddle the card top edge, got ${JSON.stringify(geometry)}.`);
   }
-  await expectDesignedUiCutButtons(page, ".screen-result.active .result-card > button");
+  await expectDesignedUiCutButtons(page, ".screen-result.active .result-card > button:not(.hidden)");
 }
 
 async function expectDesignedUiCutButtons(page, selector) {
@@ -2073,6 +2073,10 @@ async function finishGameAndExpectStarsAndNoStaminaAgain(page) {
     throw new Error(`Expected completed level to show 1-3 filled stars, got ${stars}.`);
   }
 
+  const resultReplayText = await page.locator("#againButton").innerText();
+  if (resultReplayText !== "再玩一局") {
+    throw new Error(`Expected result replay button to stay as replay action, got ${JSON.stringify(resultReplayText)}.`);
+  }
   await page.locator("#againButton").click();
   await page.waitForSelector("#staminaModal:not(.hidden)", { timeout: 2000 });
   const staminaActionCount = await page.locator("#staminaModal:not(.hidden) .modal-actions button").count();
@@ -2099,10 +2103,40 @@ async function finishGameAndExpectStarsAndNoStaminaAgain(page) {
   await page.reload({ waitUntil: "networkidle" });
   await page.locator("#startButton").click();
   await page.waitForSelector("#staminaModal:not(.hidden)", { timeout: 2000 });
+  const maxClaimAdButtonDisabled = await page.locator("#staminaAdButton").isDisabled();
+  if (maxClaimAdButtonDisabled) {
+    throw new Error("Expected max-claim stamina ad button to stay clickable.");
+  }
+  const maxClaimInitialTitle = await page.locator("#staminaTitle").innerText();
+  const maxClaimInitialMessage = await page.locator("#staminaMessage").innerText();
+  if (maxClaimInitialTitle !== "体力不足" || !maxClaimInitialMessage.includes("开始一关需要 3 点体力")) {
+    throw new Error(
+      `Expected max-claim stamina modal to keep the no-stamina copy before click, got title=${JSON.stringify(maxClaimInitialTitle)}, message=${JSON.stringify(maxClaimInitialMessage)}`,
+    );
+  }
+  await page.locator("#staminaAdButton").click();
+  await page.waitForFunction(() => document.querySelector("#toast.show")?.textContent.includes("今日已达上限"));
+  const maxClaimToast = await page.locator("#toast.show").innerText();
+  const staminaAfterMaxClaimClick = await readStoredStamina(page);
+  if (
+    !maxClaimToast.includes("今日已达上限") ||
+    staminaAfterMaxClaimClick.stamina !== 1 ||
+    staminaAfterMaxClaimClick.adClaims !== 3
+  ) {
+    throw new Error(
+      `Expected max ad claim click to show a small limit toast without changing stamina, got toast=${JSON.stringify(maxClaimToast)}, stamina=${JSON.stringify(staminaAfterMaxClaimClick)}`,
+    );
+  }
+  await page.locator("#startButton").click();
+  await page.waitForSelector("#staminaModal:not(.hidden)", { timeout: 2000 });
   await page.locator("#staminaBuyButton").click();
+  await page.waitForFunction(() => document.querySelector("#toast.show")?.textContent.includes("购买功能待接入"));
+  const staminaPurchaseToast = await page.locator("#toast.show").innerText();
   const staminaAfterPurchase = await readStoredStamina(page);
-  if (staminaAfterPurchase.stamina !== 31 || staminaAfterPurchase.adClaims !== 3) {
-    throw new Error(`Expected purchase to grant 30 stamina without ad claims, got: ${JSON.stringify(staminaAfterPurchase)}`);
+  if (!staminaPurchaseToast.includes("购买功能待接入") || staminaAfterPurchase.stamina !== 1 || staminaAfterPurchase.adClaims !== 3) {
+    throw new Error(
+      `Expected stamina purchase to show buy placeholder without changing stamina, got toast=${JSON.stringify(staminaPurchaseToast)}, stamina=${JSON.stringify(staminaAfterPurchase)}`,
+    );
   }
 }
 
@@ -2291,12 +2325,22 @@ async function finishGameAndExpectFailureBadge(page) {
   await page.locator("#startButton").click();
   await page.waitForSelector(".screen-game.active .tile:not(.empty)");
 
-  const hasSmokeHook = await page.evaluate(() => typeof window.__linkMatchSmoke?.finishGameForSmoke === "function");
+  const hasSmokeHook = await page.evaluate(
+    () =>
+      typeof window.__linkMatchSmoke?.finishGameForSmoke === "function" &&
+      typeof window.__linkMatchSmoke?.setRemainingSecondsForSmoke === "function" &&
+      typeof window.__linkMatchSmoke?.setTimerLastTickAtForSmoke === "function" &&
+      typeof window.__linkMatchSmoke?.tickTimerForSmoke === "function",
+  );
   if (!hasSmokeHook) {
-    throw new Error("Expected boardSeed smoke URL to expose finishGameForSmoke hook.");
+    throw new Error("Expected boardSeed smoke URL to expose timer and finishGame smoke hooks.");
   }
 
-  await page.evaluate(() => window.__linkMatchSmoke.finishGameForSmoke(false));
+  await page.evaluate(() => {
+    window.__linkMatchSmoke.setRemainingSecondsForSmoke(5);
+    window.__linkMatchSmoke.setTimerLastTickAtForSmoke(Date.now() - 6_000);
+    window.__linkMatchSmoke.tickTimerForSmoke();
+  });
   await page.waitForSelector('.screen-result.active[data-result="failure"]', { timeout: 2000 });
   await page.screenshot({ path: join(outputDir, "result-failure-mobile.png"), fullPage: true });
 
@@ -2306,7 +2350,21 @@ async function finishGameAndExpectFailureBadge(page) {
     const title = screen.querySelector("#resultTitle");
     const nextLevelButton = screen.querySelector("#nextLevelButton");
     const doubleCoinsButton = screen.querySelector("#doubleCoinsButton");
-    if (!badge || !badgeArt || !title || !nextLevelButton || !doubleCoinsButton) {
+    const reviveButton = screen.querySelector("#reviveButton");
+    const resultBuyToolsButton = screen.querySelector("#resultBuyToolsButton");
+    const againButton = screen.querySelector("#againButton");
+    const homeButton = screen.querySelector("#homeButton");
+    if (
+      !badge ||
+      !badgeArt ||
+      !title ||
+      !nextLevelButton ||
+      !doubleCoinsButton ||
+      !reviveButton ||
+      !resultBuyToolsButton ||
+      !againButton ||
+      !homeButton
+    ) {
       return null;
     }
     if (!badgeArt.complete) {
@@ -2355,6 +2413,14 @@ async function finishGameAndExpectFailureBadge(page) {
       title: title.innerText,
       nextLevelHidden: nextLevelButton.classList.contains("hidden"),
       doubleCoinHidden: doubleCoinsButton.classList.contains("hidden"),
+      reviveHidden: reviveButton.classList.contains("hidden"),
+      reviveText: reviveButton.innerText,
+      buyToolsHidden: resultBuyToolsButton.classList.contains("hidden"),
+      buyToolsText: resultBuyToolsButton.innerText,
+      againHidden: againButton.classList.contains("hidden"),
+      againText: againButton.innerText,
+      homeHidden: homeButton.classList.contains("hidden"),
+      homeText: homeButton.innerText,
       badgeWidth: Math.round(badgeBox.width),
     };
   });
@@ -2368,6 +2434,14 @@ async function finishGameAndExpectFailureBadge(page) {
     failureData.titleTextAlign !== "center" ||
     !failureData.nextLevelHidden ||
     !failureData.doubleCoinHidden ||
+    failureData.reviveHidden ||
+    failureData.reviveText !== "复活" ||
+    failureData.buyToolsHidden ||
+    failureData.buyToolsText !== "购买道具" ||
+    failureData.againHidden ||
+    failureData.againText !== "再玩一局" ||
+    failureData.homeHidden ||
+    failureData.homeText !== "返回首页" ||
     failureData.artWidth < 120 ||
     failureData.artHeight < 120 ||
     failureData.badgeWidth < 128 ||
@@ -2381,8 +2455,86 @@ async function finishGameAndExpectFailureBadge(page) {
     throw new Error(`Expected failure result to use centered medium red-X badge, got ${JSON.stringify(failureData)}.`);
   }
 
+  await expectFailureReviveAdFlow(page);
+
   await page.locator("#homeButton").click();
   await page.waitForSelector(".screen-start.active");
+}
+
+async function expectFailureReviveAdFlow(page) {
+  await page.evaluate(() => {
+    window.__linkMatchRewardedAd = async () => ({ completed: false });
+  });
+  await page.locator("#reviveButton").click();
+  await page.waitForFunction(() => document.querySelector("#resultToast.show")?.textContent.includes("复活失败"));
+  const failedReviveData = await page.locator(".screen-result.active").evaluate((screen) => ({
+    resultStillActive: screen.classList.contains("active"),
+    reviveDisabled: screen.querySelector("#reviveButton")?.disabled ?? true,
+    timeText: document.querySelector("#timeText")?.textContent ?? "",
+  }));
+  if (!failedReviveData.resultStillActive || failedReviveData.reviveDisabled || failedReviveData.timeText !== "00:00") {
+    throw new Error(`Expected incomplete revive ad to keep failure result open and time at 00:00, got ${JSON.stringify(failedReviveData)}.`);
+  }
+
+  await page.evaluate(() => {
+    window.__linkMatchRewardedAd = async ({ placement }) => {
+      window.__lastRewardedPlacement = placement;
+      return true;
+    };
+  });
+  await page.locator("#reviveButton").click();
+  await page.waitForFunction(() => document.querySelector(".screen-game.active") && !document.querySelector(".screen-result.active"));
+  await page.waitForFunction(() => document.querySelector("#timeText")?.textContent === "03:00");
+  const revivedData = await page.evaluate(() => ({
+    placement: window.__lastRewardedPlacement,
+    resultActive: Boolean(document.querySelector(".screen-result.active")),
+    gameActive: Boolean(document.querySelector(".screen-game.active")),
+    timeText: document.querySelector("#timeText")?.textContent ?? "",
+    remainingText: document.querySelector("#remainingText")?.textContent ?? "",
+    toast: document.querySelector("#toast.show")?.textContent ?? "",
+  }));
+  if (
+    revivedData.placement !== "revive" ||
+    revivedData.resultActive ||
+    !revivedData.gameActive ||
+    revivedData.timeText !== "03:00" ||
+    Number(revivedData.remainingText) <= 0 ||
+    !revivedData.toast.includes("复活成功")
+  ) {
+    throw new Error(`Expected completed revive ad to resume the board with reset time, got ${JSON.stringify(revivedData)}.`);
+  }
+
+  await page.evaluate(() => {
+    window.__linkMatchSmoke.setRemainingSecondsForSmoke(0);
+    window.__linkMatchSmoke.finishGameForSmoke(false);
+  });
+  await page.waitForSelector('.screen-result.active[data-result="failure"]', { timeout: 2000 });
+  const secondFailureReviveData = await page.locator(".screen-result.active #reviveButton").evaluate((button) => ({
+    hidden: button.classList.contains("hidden"),
+    disabled: button.disabled,
+    text: button.innerText,
+  }));
+  if (secondFailureReviveData.hidden || secondFailureReviveData.disabled || secondFailureReviveData.text !== "复活") {
+    throw new Error(
+      `Expected revive button to remain visible after it has already been used once in the same run, got ${JSON.stringify(secondFailureReviveData)}.`,
+    );
+  }
+
+  await page.locator(".screen-result.active #reviveButton").click();
+  await page.waitForFunction(() =>
+    document.querySelector("#resultToast.show")?.textContent.includes("本局已用完"),
+  );
+  const secondFailureToast = await page.locator("#resultToast.show").innerText();
+  if (!secondFailureToast.includes("本局已用完")) {
+    throw new Error(`Expected second revive attempt to show used-up toast, got ${JSON.stringify(secondFailureToast)}.`);
+  }
+
+  await page.locator(".screen-result.active #resultBuyToolsButton").click();
+  await page.waitForFunction(() => document.querySelector("#resultToast.show")?.textContent.includes("购买功能待接入"));
+  const buyToolsToast = await page.locator("#resultToast.show").innerText();
+  if (!buyToolsToast.includes("购买功能待接入")) {
+    throw new Error(`Expected result buy-tools action to show coming-soon toast, got ${JSON.stringify(buyToolsToast)}.`);
+  }
 }
 
 async function readStoredStamina(page) {

@@ -99,12 +99,15 @@ test("easy, normal and hard levels keep six columns and grow vertically", () => 
   assert.equal(easy.rows, 7);
   assert.equal(easy.cols, 6);
   assert.equal(easy.rows * easy.cols, 42);
+  assert.equal(easy.durationSeconds, 180);
   assert.equal(normal.rows, 8);
   assert.equal(normal.cols, 6);
   assert.equal(normal.rows * normal.cols, 48);
+  assert.equal(normal.durationSeconds, 150);
   assert.equal(hard.rows, 9);
   assert.equal(hard.cols, 6);
   assert.equal(hard.rows * hard.cols, 54);
+  assert.equal(hard.durationSeconds, 120);
 });
 
 test("finds available moves and preserves pairs when shuffling", () => {

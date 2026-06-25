@@ -50,9 +50,9 @@ test("each chapter awards 100 coins across first clears", () => {
 
 test("each chapter repeats easy, normal and hard board tiers locally", () => {
   const expectedTiers = [
-    ...Array(10).fill({ tier: "easy", rows: 7, cols: 6 }),
-    ...Array(10).fill({ tier: "normal", rows: 8, cols: 6 }),
-    ...Array(10).fill({ tier: "hard", rows: 9, cols: 6 }),
+    ...Array(10).fill({ tier: "easy", rows: 7, cols: 6, durationSeconds: 180 }),
+    ...Array(10).fill({ tier: "normal", rows: 8, cols: 6, durationSeconds: 150 }),
+    ...Array(10).fill({ tier: "hard", rows: 9, cols: 6, durationSeconds: 120 }),
   ];
 
   for (const chapter of CHAPTERS) {
@@ -64,6 +64,7 @@ test("each chapter repeats easy, normal and hard board tiers locally", () => {
         tier: level.tier,
         rows: level.rows,
         cols: level.cols,
+        durationSeconds: level.durationSeconds,
       })),
       expectedTiers.map((tier, index) => ({ localNumber: index + 1, ...tier })),
     );
