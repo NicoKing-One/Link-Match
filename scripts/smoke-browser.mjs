@@ -23,6 +23,7 @@ const browserExecutable = findBrowserExecutable();
 const types = {
   ".html": "text/html; charset=utf-8",
   ".css": "text/css; charset=utf-8",
+  ".ico": "image/x-icon",
   ".js": "text/javascript; charset=utf-8",
 };
 
@@ -63,6 +64,7 @@ const browser = await chromium.launch({
 try {
   const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
   await page.goto(smokeUrl, { waitUntil: "networkidle" });
+  await expectFaviconAvailable(page, url);
   await page.evaluate(() => localStorage.clear());
   await page.reload({ waitUntil: "networkidle" });
   const initialStamina = await page.locator(".screen-start .staminaText").innerText();
@@ -78,8 +80,10 @@ try {
     throw new Error(`Expected full stamina countdown to show reset time, got: ${initialCountdown}`);
   }
   await expectHomeRoadMap(page);
+  await expectHomeScalesWithViewportWidth(page);
   await expectCurrentRoadLevelCentered(page);
   await expectCurrentRoadLevelCenteredAfterGameReturn(page);
+  await expectStartFromBrowsedLockedChapterReturnsToCurrentChapter(page);
   await page.screenshot({ path: join(outputDir, "home-map-mobile.png"), fullPage: true });
   await seedProfileThreeStarState(page);
   await expectHomeLevelStarsMatchProgress(page);
@@ -208,6 +212,23 @@ try {
 } finally {
   await browser.close();
   await new Promise((resolve) => server.close(resolve));
+}
+
+async function expectFaviconAvailable(page, baseUrl) {
+  const faviconHref = await page.locator('link[rel="icon"]').getAttribute("href");
+  if (faviconHref !== "./favicon.ico") {
+    throw new Error(`Expected document to declare ./favicon.ico, got: ${faviconHref}`);
+  }
+
+  const response = await page.request.get(`${baseUrl}/favicon.ico`);
+  if (!response.ok()) {
+    throw new Error(`Expected /favicon.ico to load without console 404 noise, got HTTP ${response.status()}.`);
+  }
+
+  const contentType = response.headers()["content-type"] ?? "";
+  if (!contentType.includes("image/x-icon")) {
+    throw new Error(`Expected /favicon.ico to be served as image/x-icon, got: ${contentType}`);
+  }
 }
 
 async function clickInvalidPair(page) {
@@ -634,7 +655,7 @@ async function expectHomeRoadMap(page) {
       roadLineLayers: lineLayers,
       vineSegmentCount,
       hasDock: Boolean(dock),
-      dockPaddingBottom: dock ? getComputedStyle(dock).paddingBottom : "",
+      dockPaddingBottom: dock ? Number.parseFloat(getComputedStyle(dock).paddingBottom) : 0,
       buttonDisplay: startButtonStyle.display,
       buttonAlignItems: startButtonStyle.alignItems,
       buttonJustifyItems: startButtonStyle.justifyItems,
@@ -651,9 +672,9 @@ async function expectHomeRoadMap(page) {
       exchangeEntryTransformOrigin: exchangeEntryStyle?.transformOrigin ?? "",
       exchangeEntryWidth: Math.round(exchangeEntryRect?.width ?? 0),
       exchangeEntryWillChange: exchangeEntryStyle?.willChange ?? "",
-      exchangeEntryStyleLeft: exchangeEntryStyle?.left ?? "",
-      exchangeEntryStyleTop: exchangeEntryStyle?.top ?? "",
-      exchangeEntryStyleWidth: exchangeEntryStyle?.width ?? "",
+      exchangeEntryStyleLeft: Number.parseFloat(exchangeEntryStyle?.left ?? "0"),
+      exchangeEntryStyleTop: Number.parseFloat(exchangeEntryStyle?.top ?? "0"),
+      exchangeEntryStyleWidth: Number.parseFloat(exchangeEntryStyle?.width ?? "0"),
       firstText: first?.textContent ?? "",
     };
   });
@@ -694,24 +715,32 @@ async function expectHomeRoadMap(page) {
   if (coinExchangeTagName !== "DIV") {
     throw new Error(`Expected top coin resource to be display-only, got tag ${coinExchangeTagName}.`);
   }
+  const exchangeEntryStyleTop = Number.parseFloat(layoutInfo.exchangeEntryStyleTop);
+  const exchangeEntryStyleLeft = Number.parseFloat(layoutInfo.exchangeEntryStyleLeft);
+  const exchangeEntryStyleWidth = Number.parseFloat(layoutInfo.exchangeEntryStyleWidth);
+  const dockPaddingBottom = Number.parseFloat(layoutInfo.dockPaddingBottom);
+  const [exchangeEntryOriginX, exchangeEntryOriginY] = layoutInfo.exchangeEntryTransformOrigin
+    .split(" ")
+    .map((value) => Number.parseFloat(value));
   if (
     !layoutInfo.exchangeEntryBackground.includes("exchange-shop-entry-icon-v1.png") ||
     layoutInfo.exchangeEntryChildCount !== 0 ||
-    layoutInfo.exchangeEntryStyleTop !== "80px" ||
-    layoutInfo.exchangeEntryStyleLeft !== "0px" ||
-    layoutInfo.exchangeEntryStyleWidth !== "60px" ||
+    Math.abs(exchangeEntryStyleTop - 80) > 0.5 ||
+    Math.abs(exchangeEntryStyleLeft) > 0.5 ||
+    Math.abs(exchangeEntryStyleWidth - 60) > 0.5 ||
     layoutInfo.exchangeEntryAnimationName !== "exchangeEntryWiggle" ||
     layoutInfo.exchangeEntryAnimationDuration !== "1.5s" ||
-    layoutInfo.exchangeEntryTransformOrigin !== "30px 76.0625px" ||
+    Math.abs(exchangeEntryOriginX - 30) > 0.5 ||
+    Math.abs(exchangeEntryOriginY - 76) > 0.5 ||
     !layoutInfo.exchangeEntryWillChange.includes("transform")
   ) {
-    throw new Error(`Expected exchange shop entry to use the generated icon, fixed position and pulse animation, got ${JSON.stringify(layoutInfo)}.`);
+    throw new Error(`Expected exchange shop entry to use the generated icon, proportional position and pulse animation, got ${JSON.stringify(layoutInfo)}.`);
   }
   if (
     !layoutInfo.hasDock ||
     layoutInfo.buttonWidth < layoutInfo.viewportWidth * 0.7 ||
     Math.abs(layoutInfo.buttonRatio - 1115 / 276) > 0.12 ||
-    layoutInfo.dockPaddingBottom !== "22px"
+    Math.abs(dockPaddingBottom - 22) > 0.5
   ) {
     throw new Error(`Expected continue button to fill its dock at the source image aspect ratio, got ${JSON.stringify(layoutInfo)}.`);
   }
@@ -758,6 +787,66 @@ async function expectHomeRoadMap(page) {
   await expectHomeUsesUiHomeAssets(page);
 }
 
+async function expectHomeScalesWithViewportWidth(page) {
+  const baseViewport = { width: 390, height: 844 };
+  const smallViewports = [
+    { width: 360, height: 780 },
+    { width: 320, height: 720 },
+  ];
+  const collect = async () =>
+    page.evaluate(() => {
+      const rectOf = (selector) => {
+        const rect = document.querySelector(selector)?.getBoundingClientRect();
+        return { width: rect?.width ?? 0, height: rect?.height ?? 0 };
+      };
+      const fontSizeOf = (selector) => Number.parseFloat(getComputedStyle(document.querySelector(selector)).fontSize);
+      const currentLevel = document.querySelector(".road-level.current") ?? document.querySelector(".road-level");
+      const currentRect = currentLevel.getBoundingClientRect();
+      const levelRoadRect = document.querySelector("#levelRoad").getBoundingClientRect();
+      return {
+        viewportWidth: window.innerWidth,
+        menuButton: rectOf(".round-menu-button"),
+        statIcon: rectOf(".home-stat-icon"),
+        chapterArrow: rectOf(".chapter-arrow"),
+        exchangeEntry: rectOf("#homeExchangeButton"),
+        currentLevel: { width: currentRect.width, height: currentRect.height, top: Number.parseFloat(currentLevel.style.top) },
+        levelRoadHeight: levelRoadRect.height,
+        startFontSize: fontSizeOf("#startButton"),
+        chapterFontSize: fontSizeOf("#chapterSummary"),
+      };
+    });
+
+  const base = await collect();
+  for (const viewport of smallViewports) {
+    await page.setViewportSize(viewport);
+    await page.waitForTimeout(180);
+    const scaled = await collect();
+    const ratio = viewport.width / baseViewport.width;
+    const checks = [
+      ["menuButton.width", scaled.menuButton.width, base.menuButton.width * ratio],
+      ["menuButton.height", scaled.menuButton.height, base.menuButton.height * ratio],
+      ["statIcon.width", scaled.statIcon.width, base.statIcon.width * ratio],
+      ["chapterArrow.width", scaled.chapterArrow.width, base.chapterArrow.width * ratio],
+      ["exchangeEntry.width", scaled.exchangeEntry.width, base.exchangeEntry.width * ratio],
+      ["currentLevel.width", scaled.currentLevel.width, base.currentLevel.width * ratio],
+      ["currentLevel.height", scaled.currentLevel.height, base.currentLevel.height * ratio],
+      ["currentLevel.top", scaled.currentLevel.top, base.currentLevel.top * ratio],
+      ["levelRoadHeight", scaled.levelRoadHeight, base.levelRoadHeight * ratio],
+      ["startFontSize", scaled.startFontSize, base.startFontSize * ratio],
+      ["chapterFontSize", scaled.chapterFontSize, base.chapterFontSize * ratio],
+    ];
+    const mismatch = checks.filter(([, actual, expected]) => Math.abs(actual - expected) > 1.25);
+    if (mismatch.length) {
+      throw new Error(
+        `Expected home UI to scale proportionally at ${viewport.width}px, got ${JSON.stringify({ base, scaled, mismatch })}.`,
+      );
+    }
+  }
+
+  await page.setViewportSize(baseViewport);
+  await page.waitForTimeout(180);
+}
+
 async function expectCurrentRoadLevelCentered(page) {
   await page.evaluate(() => {
     localStorage.setItem("lianliankan.dataResetVersion", "2026-06-13-full-stamina-baseline");
@@ -801,6 +890,43 @@ async function expectCurrentRoadLevelCenteredAfterGameReturn(page) {
   await expectVisibleCurrentRoadLevel(page, "06");
 }
 
+async function expectStartFromBrowsedLockedChapterReturnsToCurrentChapter(page) {
+  await page.evaluate(() => {
+    localStorage.clear();
+    localStorage.setItem("lianliankan.stamina", JSON.stringify({ stamina: 50, updatedAt: Date.now(), adClaims: 0 }));
+  });
+  await page.reload({ waitUntil: "networkidle" });
+  await page.waitForSelector(".screen-start.active .road-level.current", { timeout: 2000 });
+  await page.locator("#nextChapterButton").click();
+
+  const browsedChapter = await page.locator("#chapterSummary").innerText();
+  if (!browsedChapter.includes("糖果花园")) {
+    throw new Error(`Expected to browse locked candy chapter before starting, got: ${browsedChapter}`);
+  }
+
+  await page.locator("#startButton").click();
+  await page.waitForSelector(".screen-game.active .tile:not(.empty)", { timeout: 2000 });
+  const startedLevel = await page.locator("#levelName").innerText();
+  if (!startedLevel.includes("01")) {
+    throw new Error(`Expected start button to launch current level 01, got: ${startedLevel}`);
+  }
+
+  await page.locator("#gameHomeButton").click();
+  await page.waitForSelector("#exitModal:not(.hidden)", { timeout: 2000 });
+  await page.locator("#confirmHomeButton").click();
+  await page.waitForSelector(".screen-start.active .road-level.current", { timeout: 2000 });
+
+  const returnedChapter = await page.locator("#chapterSummary").innerText();
+  if (!returnedChapter.includes("水果森林")) {
+    throw new Error(`Expected returning home to sync back to current chapter, got: ${returnedChapter}`);
+  }
+  const returnedLevel = await page.locator(".screen-start.active .road-level.current").innerText();
+  if (!returnedLevel.includes("01")) {
+    throw new Error(`Expected returning home to show current level 01, got: ${returnedLevel}`);
+  }
+  await expectCurrentRoadLevelInViewport(page, "01");
+}
+
 async function expectVisibleCurrentRoadLevel(page, expectedText) {
   const currentPosition = await page.evaluate(() => {
     const roadScroll = document.querySelector("#roadScroll");
@@ -816,6 +942,30 @@ async function expectVisibleCurrentRoadLevel(page, expectedText) {
 
   if (!currentPosition.currentText.includes(expectedText) || Math.abs(currentPosition.deltaFromCenter) > 36) {
     throw new Error(`Expected current level ${expectedText} to be centered in the visible road map, got ${JSON.stringify(currentPosition)}.`);
+  }
+}
+
+async function expectCurrentRoadLevelInViewport(page, expectedText) {
+  const currentPosition = await page.evaluate(() => {
+    const roadScroll = document.querySelector("#roadScroll");
+    const currentLevel = document.querySelector(".screen-start.active .road-level.current");
+    const scrollRect = roadScroll.getBoundingClientRect();
+    const currentRect = currentLevel.getBoundingClientRect();
+    return {
+      currentText: currentLevel.textContent.trim(),
+      currentTop: Math.round(currentRect.top),
+      currentBottom: Math.round(currentRect.bottom),
+      scrollTop: Math.round(scrollRect.top),
+      scrollBottom: Math.round(scrollRect.bottom),
+    };
+  });
+
+  if (
+    !currentPosition.currentText.includes(expectedText) ||
+    currentPosition.currentBottom < currentPosition.scrollTop ||
+    currentPosition.currentTop > currentPosition.scrollBottom
+  ) {
+    throw new Error(`Expected current level ${expectedText} to be visible in the road map, got ${JSON.stringify(currentPosition)}.`);
   }
 }
 
@@ -944,14 +1094,18 @@ async function expectGeneratedNodeRoadAssetSystem(page, expected) {
   if (roadData.levelToPanelBottom === null || Math.abs(roadData.levelToPanelBottom) > 1) {
     throw new Error(`Expected ${expected.themeId} first level to sit flush with the road area bottom, got ${JSON.stringify(roadData)}.`);
   }
+  const numberPaddingLeft = Number.parseFloat(roadData.numberPaddingLeft);
+  const numberPaddingRight = Number.parseFloat(roadData.numberPaddingRight);
+  const numberPaddingTop = Number.parseFloat(roadData.numberPaddingTop);
+  const numberPaddingBottom = Number.parseFloat(roadData.numberPaddingBottom);
   if (
     roadData.numberDisplay !== "grid" ||
     roadData.numberAlignItems !== "center" ||
     roadData.numberJustifyItems !== "center" ||
-    roadData.numberPaddingLeft !== "10px" ||
-    roadData.numberPaddingRight !== "10px" ||
-    roadData.numberPaddingTop !== "5px" ||
-    roadData.numberPaddingBottom !== "5px" ||
+    Math.abs(numberPaddingLeft - 10) > 0.5 ||
+    Math.abs(numberPaddingRight - 10) > 0.5 ||
+    Math.abs(numberPaddingTop - 5) > 0.5 ||
+    Math.abs(numberPaddingBottom - 5) > 0.5 ||
     roadData.numberWidth === null ||
     roadData.numberWidth < 46 ||
     roadData.numberHeight === null ||
@@ -2285,19 +2439,10 @@ async function expectFailureReviveAdFlow(page) {
     disabled: button.disabled,
     text: button.innerText,
   }));
-  if (secondFailureReviveData.hidden || secondFailureReviveData.disabled || secondFailureReviveData.text !== "复活") {
+  if (!secondFailureReviveData.hidden) {
     throw new Error(
-      `Expected revive button to remain visible after it has already been used once in the same run, got ${JSON.stringify(secondFailureReviveData)}.`,
+      `Expected revive button to be hidden after it has already been used once in the same run, got ${JSON.stringify(secondFailureReviveData)}.`,
     );
-  }
-
-  await page.locator(".screen-result.active #reviveButton").click();
-  await page.waitForFunction(() =>
-    document.querySelector("#resultToast.show")?.textContent.includes("本局已用完"),
-  );
-  const secondFailureToast = await page.locator("#resultToast.show").innerText();
-  if (!secondFailureToast.includes("本局已用完")) {
-    throw new Error(`Expected second revive attempt to show used-up toast, got ${JSON.stringify(secondFailureToast)}.`);
   }
 
   await page.locator(".screen-result.active #resultBuyToolsButton").click();

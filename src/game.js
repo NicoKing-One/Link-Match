@@ -54,6 +54,7 @@ const PROGRESS_KEY = "lianliankan.progress";
 const TEST_UNLOCK_ALL_LEVELS = false;
 const TEST_UNLIMITED_TOOLS = false;
 const UNLIMITED_TOOL_COUNT_TEXT = "不限";
+const HOME_LAYOUT_BASE_WIDTH = 390;
 const ROAD_STEP_Y = 110;
 const ROAD_TOP_Y = 34;
 const ROAD_BOTTOM_Y = 38;
@@ -175,6 +176,7 @@ const state = {
   doubleCoinReward: null,
   revivedThisRun: false,
 };
+let homeResizeTimer = null;
 
 state.level = LEVELS[state.progress.highestUnlockedLevel - 1] ?? LEVELS[0];
 state.chapterIndex = CHAPTERS.findIndex(
@@ -236,6 +238,11 @@ function bindEvents() {
     renderHome({ syncToCurrentLevel: true });
     showScreen("start");
   });
+  window.addEventListener("resize", () => {
+    if (!screens.start.classList.contains("active")) return;
+    window.clearTimeout(homeResizeTimer);
+    homeResizeTimer = window.setTimeout(renderRoadMap, 120);
+  });
 }
 
 function openSecondaryPage(name) {
@@ -296,13 +303,15 @@ function renderRoadMap() {
   const chapter = CHAPTERS[state.chapterIndex];
   const chapterLevels = getLevelsForChapter(chapter.id);
   const chapterStatus = getDisplayChapterStatus(chapter);
-  const roadTopY = getRoadNodeEdgePadding(chapter.id, "top");
-  const roadBottomY = getRoadNodeEdgePadding(chapter.id, "bottom");
-  const roadHeight = roadTopY + roadBottomY + (chapterLevels.length - 1) * ROAD_STEP_Y;
+  const roadScale = getHomeLayoutScale();
+  const roadStepY = ROAD_STEP_Y * roadScale;
+  const roadTopY = getRoadNodeEdgePadding(chapter.id, "top") * roadScale;
+  const roadBottomY = getRoadNodeEdgePadding(chapter.id, "bottom") * roadScale;
+  const roadHeight = roadTopY + roadBottomY + (chapterLevels.length - 1) * roadStepY;
   const points = chapterLevels.map((level, index) => ({
     level,
     x: ROAD_X_PATTERN[index % ROAD_X_PATTERN.length],
-    y: roadHeight - roadBottomY - index * ROAD_STEP_Y,
+    y: roadHeight - roadBottomY - index * roadStepY,
   }));
 
   elements.chapterSummary.textContent = `${chapter.name} · ${chapter.startLevel}-${chapter.endLevel}关`;
@@ -393,6 +402,15 @@ function getRoadNodeEdgePadding(chapterId, edge) {
     return GENERATED_ROAD_NODE_PADDING_Y;
   }
   return edge === "top" ? ROAD_TOP_Y : ROAD_BOTTOM_Y;
+}
+
+function getHomeLayoutScale() {
+  const homeWidth =
+    screens.start.getBoundingClientRect().width ||
+    elements.roadScroll.getBoundingClientRect().width ||
+    window.innerWidth ||
+    HOME_LAYOUT_BASE_WIDTH;
+  return Math.max(0.1, homeWidth / HOME_LAYOUT_BASE_WIDTH);
 }
 
 function requestStartGame(level) {
@@ -645,7 +663,7 @@ function returnHome() {
   clearLink();
   hideToast();
   hideModals();
-  renderHome();
+  renderHome({ syncToCurrentLevel: true });
   showScreen("start");
 }
 
@@ -688,7 +706,7 @@ function finishGame(won) {
   elements.nextLevelButton.classList.toggle("hidden", !won || state.level.number >= MAX_LEVEL_NUMBER);
   elements.reviveButton.disabled = false;
   elements.reviveButton.textContent = "复活";
-  elements.reviveButton.classList.toggle("hidden", won);
+  elements.reviveButton.classList.toggle("hidden", won || state.revivedThisRun);
   elements.resultBuyToolsButton.classList.toggle("hidden", won);
   elements.againButton.textContent = "再玩一局";
   updateStaminaView();

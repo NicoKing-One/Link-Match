@@ -1,0 +1,76 @@
+Link Match 连连看 - 1.2.6 bug修复闭环记录
+测试日期：2026-06-25
+修复日期：2026-06-25
+测试人员：Codex
+本轮备注：1.2.6bug修复
+
+一、验证结论
+
+项目核心玩法和主要回归脚本整体可跑通，本轮 1.2.6 已修复正式测试问题汇总中的 1、2、4、5、6 项，并保留 3、7 项作为后续功能闭环。
+
+已执行验证：
+
+1. 单元测试通过：27/27
+   命令：
+   & 'C:\Users\youzi\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe' --test tests/*.test.mjs
+
+2. 首页关卡节点/连接线资源检查通过
+   命令：
+   & 'C:\Users\youzi\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' scripts/check-home-road-node-assets.py
+
+3. 构建通过
+   命令：
+   & 'C:\Users\youzi\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe' scripts/build.mjs
+
+4. 完整浏览器 smoke 通过
+   命令：
+   & 'C:\Users\youzi\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe' scripts/smoke-browser.mjs
+   输出：
+   Smoke passed: 42 tiles rendered at http://127.0.0.1:51433
+
+二、本轮已修复问题
+
+1. 复活成功后再次失败，结果页仍显示“复活”按钮
+   严重程度：高
+   状态：已修复
+   修复内容：`src/game.js` 的 `finishGame(false)` 现在会结合 `state.revivedThisRun` 判断按钮状态；同一局已经复活过后，再次失败会隐藏 `#reviveButton`，避免用户误以为还能继续复活。
+   回归覆盖：`scripts/smoke-browser.mjs` 已更新失败复活流程断言，覆盖广告未完成、广告完成复活、复活后二次失败隐藏复活按钮。
+
+2. 浏览其它章节后点击“开始闯关”，从游戏返回首页不会同步回当前进度章节
+   严重程度：高
+   状态：已修复
+   修复内容：`src/game.js` 的 `returnHome()` 已统一调用 `renderHome({ syncToCurrentLevel: true })`，从游戏页左上返回、暂停返回和结果页返回首页时都会同步回当前进度章节。
+   回归覆盖：`scripts/smoke-browser.mjs` 新增“浏览锁定糖果花园后点击开始闯关，再返回首页应回到水果森林第 01 关”的断言。
+
+3. 320/360 宽度下首页资源卡文字挤压/章节标题断行
+   严重程度：中
+   状态：已修复
+   修复内容：`src/styles.css` 为 `.app-shell` 启用容器查询宽度，首页关键间距、按钮、资源卡、章节标题、道路、节点、星级、兑换入口等尺寸改为按 390px 设计宽度等比缩放；`src/game.js` 的首页道路纵向间距和上下边距也按当前首页宽度缩放，并在首页激活时监听 resize 重算地图。
+   回归覆盖：`scripts/smoke-browser.mjs` 新增 320/360 视口比例缩放检查，覆盖菜单按钮、资源图标、章节箭头、兑换入口、当前关卡节点、道路高度、开始按钮字号和章节标题字号。
+
+4. 结果页星级区域 aria-label 是乱码
+   严重程度：中
+   状态：已修复
+   修复内容：`src/index.html` 将 `#resultStars` 的 `aria-label` 从乱码修正为“获得星星”。
+
+5. 浏览器默认请求 /favicon.ico 返回 404
+   严重程度：低
+   状态：已修复
+   修复内容：新增 `src/favicon.ico`；`src/index.html` 声明 `<link rel="icon" href="./favicon.ico" sizes="any" />`；`scripts/dev-server.mjs` 和 `scripts/smoke-browser.mjs` 均补齐 `.ico` 的 `image/x-icon` MIME。
+   回归覆盖：`scripts/smoke-browser.mjs` 新增 favicon 声明、HTTP 200 和 content-type 检查。
+
+三、仍未闭环/后续建议
+
+1. 设置页开关不持久化
+   严重程度：中
+   状态：未闭环
+   说明：当前音乐、音效、振动开关仍是前端状态切换，刷新后恢复默认值。建议下一轮接入 localStorage 持久化，并根据项目是否需要声音/振动能力决定是否接入真实控制逻辑。
+
+2. 道具获取、购买体力、购买道具仍是占位流程
+   严重程度：低到中，取决于正式测试目标
+   状态：未闭环
+   说明：当前道具广告、购买道具、购买体力仍是占位提示；体力不足弹框的“看广告获取”仍是本地加体力占位流程。正式接入广告或支付前，建议统一文案为“功能待开放”或接入真实桥。
+
+四、提交备注
+
+本轮提交备注使用：`1.2.6bug修复`
