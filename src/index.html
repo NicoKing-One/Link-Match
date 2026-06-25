@@ -27,10 +27,10 @@
             <strong class="staminaText">50/50</strong>
             <small class="staminaCountdown">恢复 03:00</small>
           </div>
-          <button class="home-stat home-stat--compact home-stat-button" id="coinExchangeButton" type="button" aria-label="打开金币兑换">
+          <div class="home-stat home-stat--compact" id="coinExchangeButton" aria-label="金币数量">
             <img class="home-stat-icon" src="./assets/UI-ICON/icon-coin.png" alt="" aria-hidden="true" />
             <strong id="coinText">0</strong>
-          </button>
+          </div>
           <div class="home-stat home-stat--compact">
             <img class="home-stat-icon" src="./assets/UI-ICON/icon-star.png" alt="" aria-hidden="true" />
             <strong id="starText">0/270</strong>
@@ -47,6 +47,8 @@
               <img src="./assets/UI-ICON/exchange-page/exchange-page-arrow-bg-v2.png" alt="" aria-hidden="true" />
             </button>
           </div>
+
+          <button class="home-exchange-button" id="homeExchangeButton" type="button" aria-label="打开兑换商城"></button>
 
           <div class="map-panel">
             <div class="chapter-lock hidden" id="chapterLockNotice">
@@ -191,7 +193,7 @@
                 <span>我的金币</span>
                 <img src="./assets/UI-ICON/text-side-leaf-right.png" alt="" aria-hidden="true" />
               </div>
-              <strong id="exchangeCoinText">0个</strong>
+              <strong id="exchangeCoinText">0</strong>
             </div>
           </section>
 
@@ -308,10 +310,8 @@
           <h2 id="resultTitle">通关成功</h2>
           <p id="resultSummary" aria-hidden="true"></p>
           <div class="result-stars" id="resultStars" aria-label="鑾峰緱鏄熸槦"></div>
-          <div class="result-stats">
-            <span id="resultScore">得分 0</span>
-            <span id="resultBest">最佳 0</span>
-          </div>
+          <div class="result-toast hidden" id="resultToast" role="status" aria-live="polite"></div>
+          <button class="primary-button hidden" id="doubleCoinsButton" type="button">双倍金币</button>
           <button class="primary-button" id="nextLevelButton" type="button">下一关</button>
           <button class="primary-button" id="againButton" type="button">再玩一局</button>
           <button class="ghost-button" id="homeButton" type="button">返回首页</button>

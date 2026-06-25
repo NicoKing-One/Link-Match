@@ -590,6 +590,8 @@ async function expectHomeRoadMap(page) {
   const homeStaminaButtonCount = await page.locator(".screen-start.active .getStaminaButton").count();
   const homeStatLabelCount = await page.locator(".screen-start.active .home-stat-label").count();
   const homeStatSmallCount = await page.locator(".screen-start.active .home-stat small").count();
+  const homeExchangeEntryCount = await page.locator("#homeExchangeButton").count();
+  const coinExchangeTagName = await page.locator("#coinExchangeButton").evaluate((node) => node.tagName);
   const scrollInfo = await page.locator("#roadScroll").evaluate((node) => ({
     clientHeight: node.clientHeight,
     scrollHeight: node.scrollHeight,
@@ -604,12 +606,17 @@ async function expectHomeRoadMap(page) {
     const levelThirty = [...document.querySelectorAll(".road-level")].find((node) => node.textContent.includes("30"));
     const chapterSummary = document.querySelector(".chapter-summary");
     const mapPanel = document.querySelector(".map-panel");
+    const exchangeEntry = document.querySelector("#homeExchangeButton");
+    const prevChapterButton = document.querySelector("#prevChapterButton");
     const roadScroll = document.querySelector("#roadScroll");
     const dock = document.querySelector(".home-bottom-dock");
     const startButtonStyle = getComputedStyle(startButton);
     const buttonRect = startButton.getBoundingClientRect();
     const summaryRect = chapterSummary.getBoundingClientRect();
     const panelRect = mapPanel.getBoundingClientRect();
+    const exchangeEntryRect = exchangeEntry?.getBoundingClientRect();
+    const exchangeEntryStyle = exchangeEntry ? getComputedStyle(exchangeEntry) : null;
+    const prevChapterButtonRect = prevChapterButton.getBoundingClientRect();
     const lineLayers = [...document.querySelectorAll(".road-path path")].map((node) => node.getAttribute("class"));
     const vineSegmentCount = document.querySelectorAll(".road-vine-image-segment").length;
     const originalScrollTop = roadScroll.scrollTop;
@@ -644,6 +651,21 @@ async function expectHomeRoadMap(page) {
       buttonAlignItems: startButtonStyle.alignItems,
       buttonJustifyItems: startButtonStyle.justifyItems,
       buttonLineHeight: startButtonStyle.lineHeight,
+      exchangeEntryHeight: Math.round(exchangeEntryRect?.height ?? 0),
+      exchangeEntryAnimationDuration: exchangeEntryStyle?.animationDuration ?? "",
+      exchangeEntryAnimationName: exchangeEntryStyle?.animationName ?? "",
+      exchangeEntryBackground: exchangeEntryStyle?.backgroundImage ?? "",
+      exchangeEntryChildCount: exchangeEntry?.children.length ?? 0,
+      exchangeEntryGapBelowLeftArrow: Math.round((exchangeEntryRect?.top ?? 0) - prevChapterButtonRect.bottom),
+      exchangeEntryLeftDeltaFromLeftArrow: Math.round((exchangeEntryRect?.left ?? 0) - prevChapterButtonRect.left),
+      exchangeEntryLeftToPanel: Math.round((exchangeEntryRect?.left ?? 0) - panelRect.left),
+      exchangeEntryTopToPanel: Math.round((exchangeEntryRect?.top ?? 0) - panelRect.top),
+      exchangeEntryTransformOrigin: exchangeEntryStyle?.transformOrigin ?? "",
+      exchangeEntryWidth: Math.round(exchangeEntryRect?.width ?? 0),
+      exchangeEntryWillChange: exchangeEntryStyle?.willChange ?? "",
+      exchangeEntryStyleLeft: exchangeEntryStyle?.left ?? "",
+      exchangeEntryStyleTop: exchangeEntryStyle?.top ?? "",
+      exchangeEntryStyleWidth: exchangeEntryStyle?.width ?? "",
       firstText: first?.textContent ?? "",
     };
   });
@@ -677,6 +699,25 @@ async function expectHomeRoadMap(page) {
   }
   if (homeStatLabelCount !== 0 || homeStatSmallCount !== 1) {
     throw new Error(`Expected resource cards to keep only stamina countdown small text, got labels=${homeStatLabelCount}, small=${homeStatSmallCount}.`);
+  }
+  if (homeExchangeEntryCount !== 1) {
+    throw new Error(`Expected a dedicated home exchange shop entry in the map area, got ${homeExchangeEntryCount}.`);
+  }
+  if (coinExchangeTagName !== "DIV") {
+    throw new Error(`Expected top coin resource to be display-only, got tag ${coinExchangeTagName}.`);
+  }
+  if (
+    !layoutInfo.exchangeEntryBackground.includes("exchange-shop-entry-icon-v1.png") ||
+    layoutInfo.exchangeEntryChildCount !== 0 ||
+    layoutInfo.exchangeEntryStyleTop !== "80px" ||
+    layoutInfo.exchangeEntryStyleLeft !== "0px" ||
+    layoutInfo.exchangeEntryStyleWidth !== "60px" ||
+    layoutInfo.exchangeEntryAnimationName !== "exchangeEntryWiggle" ||
+    layoutInfo.exchangeEntryAnimationDuration !== "1.5s" ||
+    layoutInfo.exchangeEntryTransformOrigin !== "30px 76.0625px" ||
+    !layoutInfo.exchangeEntryWillChange.includes("transform")
+  ) {
+    throw new Error(`Expected exchange shop entry to use the generated icon, fixed position and pulse animation, got ${JSON.stringify(layoutInfo)}.`);
   }
   if (
     !layoutInfo.hasDock ||
@@ -1080,10 +1121,15 @@ async function expectSecondaryPageNavigation(page) {
   await page.locator("#settingsBackButton").click();
   await page.waitForSelector(".screen-start.active", { timeout: 1200 });
 
-  await page.locator("#coinExchangeButton").click();
+  await page.locator("#coinExchangeButton").click({ force: true });
+  if ((await page.locator("#exchangeScreen.active").count()) !== 0) {
+    throw new Error("Expected top coin resource card not to open the exchange shop page.");
+  }
+
+  await page.locator("#homeExchangeButton").click({ force: true });
   await page.waitForSelector("#exchangeScreen.active", { timeout: 1200 });
   if (!(await page.locator("#exchangeScreen.active").innerText()).includes("兑换商城")) {
-    throw new Error("Expected coin resource entry to open the exchange shop page.");
+    throw new Error("Expected dedicated home exchange entry to open the exchange shop page.");
   }
   await expectSecondaryPageBuiltFromLayout(page, "#exchangeScreen", ".exchange-layout");
   await expectExchangePageRemovesConsumableOffers(page);
@@ -1151,7 +1197,7 @@ async function expectExchangeCoinCardCompactLayout(page) {
     coinCardData.coinIconHeight !== 45 ||
     coinCardData.coinIconMarginLeft !== 20 ||
     coinCardData.coinIconWidth !== 45 ||
-    coinCardData.coinText !== "86个" ||
+    coinCardData.coinText !== "86" ||
     coinCardData.labelText !== "我的金币" ||
     Math.abs(coinCardData.fontSize - 22.4) > 0.5 ||
     coinCardData.marginTop !== 5 ||
@@ -1791,11 +1837,14 @@ async function expectMobileResultDesignSystem(page) {
     .evaluate((node) => getComputedStyle(node).backgroundImage);
   const resultStaminaCount = await page.locator(".screen-result.active .result-stamina").count();
   const resultEyebrowCount = await page.locator(".screen-result.active .result-eyebrow").count();
+  const resultStatsCount = await page.locator(".screen-result.active .result-stats").count();
   const resultTitle = page.locator(".screen-result.active #resultTitle");
   const resultTitleText = await resultTitle.innerText();
   const resultCoinCount = page.locator(".screen-result.active #resultTitle .result-coin-count");
   const resultCoinCountText = await resultCoinCount.innerText().catch(() => "");
   const resultCoinIcon = page.locator(".screen-result.active #resultTitle .result-coin-icon");
+  const doubleCoinButtonCount = await page.locator(".screen-result.active #doubleCoinsButton:not(.hidden)").count();
+  const doubleCoinButtonText = await page.locator(".screen-result.active #doubleCoinsButton").innerText().catch(() => "");
   const resultCoinStyle = await resultCoinCount
     .evaluate((node) => {
       const style = getComputedStyle(node);
@@ -1889,8 +1938,14 @@ async function expectMobileResultDesignSystem(page) {
   if (resultStaminaCount !== 0 || resultEyebrowCount !== 0) {
     throw new Error(`Expected result screen without stamina panel and eyebrow, got stamina=${resultStaminaCount}, eyebrow=${resultEyebrowCount}.`);
   }
+  if (resultStatsCount !== 0) {
+    throw new Error(`Expected result score/best stat buttons to be removed, got ${resultStatsCount}.`);
+  }
   if (resultTitleText.replace(/\s+/g, "") !== "通关成功，获得2") {
     throw new Error(`Expected success title to read 通关成功，获得2, got text=${resultTitleText}.`);
+  }
+  if (doubleCoinButtonCount !== 1 || doubleCoinButtonText !== "双倍金币") {
+    throw new Error(`Expected visible double coin button, got count=${doubleCoinButtonCount}, text=${doubleCoinButtonText}.`);
   }
   if (
     resultCoinCountText !== "2" ||
@@ -1914,7 +1969,7 @@ async function expectMobileResultDesignSystem(page) {
   if (nextLevelButtonCount !== 1 || nextLevelButtonText !== "下一关") {
     throw new Error(`Expected result screen to include 下一关 action, got count=${nextLevelButtonCount}, text=${nextLevelButtonText}.`);
   }
-  if (resultButtonGaps.length !== 2 || resultButtonGaps.some((gap) => Math.abs(gap - 12) > 2)) {
+  if (resultButtonGaps.length !== 3 || resultButtonGaps.some((gap) => Math.abs(gap - 12) > 2)) {
     throw new Error(`Expected result action buttons to have 12px vertical gaps, got ${JSON.stringify(resultButtonGaps)}.`);
   }
   if (
@@ -2065,11 +2120,72 @@ async function finishFreshLevelAndExpectHomeVines(page) {
 
   await page.evaluate(() => window.__linkMatchSmoke.finishGameForSmoke(true));
   await page.waitForSelector('.screen-result.active[data-result="success"]', { timeout: 2000 });
+  await expectDoubleCoinAdReward(page);
   await page.locator("#homeButton").click();
   await page.waitForSelector(".screen-start.active", { timeout: 2000 });
   await page.waitForFunction(() => document.querySelectorAll(".road-vine-image-segment").length === 29);
   await expectFruitVineConnectorsAligned(page, "after success result home return");
   await page.screenshot({ path: join(outputDir, "home-after-success-return.png"), fullPage: true });
+}
+
+async function expectDoubleCoinAdReward(page) {
+  await page.evaluate(() => {
+    window.__linkMatchRewardedAd = async () => ({ completed: false });
+  });
+  await page.locator("#doubleCoinsButton").click();
+  await page.waitForFunction(() => document.querySelector("#resultToast.show")?.textContent.includes("广告没看完"));
+  const coinsAfterIncompleteAd = await page.evaluate(() => JSON.parse(localStorage.getItem("lianliankan.progress")).coins);
+  if (coinsAfterIncompleteAd !== 2) {
+    throw new Error(`Expected incomplete double-coin ad to keep coins at 2, got ${coinsAfterIncompleteAd}.`);
+  }
+
+  await page.evaluate(() => {
+    window.__linkMatchRewardedAd = async () => true;
+  });
+  await page.locator("#doubleCoinsButton").click();
+  await page.waitForFunction(() => document.querySelector("#resultToast.show")?.textContent.includes("获得双倍金币"));
+  const doubleRewardData = await page.locator(".screen-result.active").evaluate((screen) => ({
+    coins: JSON.parse(localStorage.getItem("lianliankan.progress")).coins,
+    doubleButtonVisible: !screen.querySelector("#doubleCoinsButton")?.classList.contains("hidden"),
+    gameToastVisible: Boolean(document.querySelector("#toast.show")),
+    resultToastParent: screen.querySelector("#resultToast")?.closest(".result-card")?.className ?? "",
+    resultToastGeometry: (() => {
+      const toast = screen.querySelector("#resultToast");
+      const badge = screen.querySelector(".result-badge");
+      const card = screen.querySelector(".result-card");
+      const toastBox = toast?.getBoundingClientRect();
+      const badgeBox = badge?.getBoundingClientRect();
+      const cardBox = card?.getBoundingClientRect();
+      return {
+        cardTop: Math.round(cardBox?.top ?? 0),
+        toastHeight: Math.round(toastBox?.height ?? 0),
+        toastTop: Math.round(toastBox?.top ?? 0),
+        toastWidth: Math.round(toastBox?.width ?? 0),
+      };
+    })(),
+  }));
+  if (
+    doubleRewardData.coins !== 4 ||
+    !doubleRewardData.doubleButtonVisible ||
+    doubleRewardData.gameToastVisible ||
+    !doubleRewardData.resultToastParent.includes("result-card") ||
+    doubleRewardData.resultToastGeometry.toastTop - doubleRewardData.resultToastGeometry.cardTop < 30 ||
+    doubleRewardData.resultToastGeometry.toastTop - doubleRewardData.resultToastGeometry.cardTop > 60 ||
+    doubleRewardData.resultToastGeometry.toastHeight < 40 ||
+    doubleRewardData.resultToastGeometry.toastWidth < 220
+  ) {
+    throw new Error(`Expected completed double-coin ad to grant one extra reward and keep button visible, got ${JSON.stringify(doubleRewardData)}.`);
+  }
+
+  await page.waitForFunction(() => document.querySelector("#resultToast.hidden"), null, { timeout: 3200 });
+
+  await page.locator("#doubleCoinsButton").click();
+  await page.waitForFunction(() => document.querySelector("#resultToast.show")?.textContent.includes("已经领取过"));
+  const coinsAfterRepeatClick = await page.evaluate(() => JSON.parse(localStorage.getItem("lianliankan.progress")).coins);
+  if (coinsAfterRepeatClick !== 4) {
+    throw new Error(`Expected repeated double-coin click not to add coins again, got ${coinsAfterRepeatClick}.`);
+  }
+  await page.waitForFunction(() => document.querySelector("#resultToast.hidden"), null, { timeout: 3200 });
 }
 
 async function expectFruitVineConnectorsAligned(page, label) {
@@ -2132,6 +2248,7 @@ async function finishCompletedLevelAndExpectNoCoinMessage(page) {
 
   const repeatResult = await page.locator(".screen-result.active #resultTitle").evaluate((title) => ({
     coinCount: title.querySelectorAll(".result-coin-count").length,
+    doubleCoinButtonVisible: !document.querySelector("#doubleCoinsButton")?.classList.contains("hidden"),
     iconCount: title.querySelectorAll(".result-coin-icon").length,
     text: title.innerText,
   }));
@@ -2140,6 +2257,9 @@ async function finishCompletedLevelAndExpectNoCoinMessage(page) {
   }
   if (repeatResult.coinCount !== 0 || repeatResult.iconCount !== 0) {
     throw new Error(`Expected replay clear title without coin number or icon, got ${JSON.stringify(repeatResult)}.`);
+  }
+  if (repeatResult.doubleCoinButtonVisible) {
+    throw new Error(`Expected replay clear result to hide double coin button, got ${JSON.stringify(repeatResult)}.`);
   }
 
   const storedProgress = await page.evaluate(() => JSON.parse(localStorage.getItem("lianliankan.progress")));
@@ -2173,7 +2293,8 @@ async function finishGameAndExpectFailureBadge(page) {
     const badgeArt = screen.querySelector(".result-badge-art");
     const title = screen.querySelector("#resultTitle");
     const nextLevelButton = screen.querySelector("#nextLevelButton");
-    if (!badge || !badgeArt || !title || !nextLevelButton) {
+    const doubleCoinsButton = screen.querySelector("#doubleCoinsButton");
+    if (!badge || !badgeArt || !title || !nextLevelButton || !doubleCoinsButton) {
       return null;
     }
     if (!badgeArt.complete) {
@@ -2221,6 +2342,7 @@ async function finishGameAndExpectFailureBadge(page) {
       titleTextAlign: titleStyle.textAlign,
       title: title.innerText,
       nextLevelHidden: nextLevelButton.classList.contains("hidden"),
+      doubleCoinHidden: doubleCoinsButton.classList.contains("hidden"),
       badgeWidth: Math.round(badgeBox.width),
     };
   });
@@ -2233,6 +2355,7 @@ async function finishGameAndExpectFailureBadge(page) {
     failureData.titleFontSize > 19 ||
     failureData.titleTextAlign !== "center" ||
     !failureData.nextLevelHidden ||
+    !failureData.doubleCoinHidden ||
     failureData.artWidth < 120 ||
     failureData.artHeight < 120 ||
     failureData.badgeWidth < 128 ||

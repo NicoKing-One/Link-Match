@@ -114,6 +114,7 @@ const elements = {
   profileButton: document.querySelector("#profileButton"),
   settingsButton: document.querySelector("#settingsButton"),
   coinExchangeButton: document.querySelector("#coinExchangeButton"),
+  homeExchangeButton: document.querySelector("#homeExchangeButton"),
   profileBackButton: document.querySelector("#profileBackButton"),
   profileHomeButton: document.querySelector("#profileHomeButton"),
   settingsBackButton: document.querySelector("#settingsBackButton"),
@@ -182,8 +183,8 @@ const elements = {
   resultTitle: document.querySelector("#resultTitle"),
   resultSummary: document.querySelector("#resultSummary"),
   resultStars: document.querySelector("#resultStars"),
-  resultScore: document.querySelector("#resultScore"),
-  resultBest: document.querySelector("#resultBest"),
+  resultToast: document.querySelector("#resultToast"),
+  doubleCoinsButton: document.querySelector("#doubleCoinsButton"),
   nextLevelButton: document.querySelector("#nextLevelButton"),
   againButton: document.querySelector("#againButton"),
   homeButton: document.querySelector("#homeButton"),
@@ -199,6 +200,7 @@ const state = {
   timer: null,
   staminaTimer: null,
   toastTimer: null,
+  resultToastTimer: null,
   hints: 0,
   shuffles: 0,
   stamina: loadStaminaState(),
@@ -207,6 +209,7 @@ const state = {
   exchangePageIndex: 0,
   paused: false,
   busy: false,
+  doubleCoinReward: null,
 };
 
 state.level = LEVELS[state.progress.highestUnlockedLevel - 1] ?? LEVELS[0];
@@ -227,7 +230,7 @@ function bindEvents() {
   elements.nextChapterButton.addEventListener("click", () => switchChapter(1));
   elements.profileButton.addEventListener("click", () => openSecondaryPage("profile"));
   elements.settingsButton.addEventListener("click", () => openSecondaryPage("settings"));
-  elements.coinExchangeButton.addEventListener("click", () => openSecondaryPage("exchange"));
+  elements.homeExchangeButton.addEventListener("click", () => openSecondaryPage("exchange"));
   [
     elements.profileBackButton,
     elements.profileHomeButton,
@@ -266,6 +269,7 @@ function bindEvents() {
   elements.staminaAdButton.addEventListener("click", claimStaminaFromAd);
   elements.staminaBuyButton.addEventListener("click", buyStamina);
   elements.staminaCloseButton.addEventListener("click", closeStaminaModal);
+  elements.doubleCoinsButton.addEventListener("click", claimDoubleCoins);
   elements.nextLevelButton.addEventListener("click", requestNextLevel);
   elements.againButton.addEventListener("click", () => requestStartGame(state.level));
   elements.homeButton.addEventListener("click", () => {
@@ -316,7 +320,7 @@ function renderSecondaryPages(currentLevel) {
   elements.profileCoinText.textContent = state.progress.coins;
   elements.profileCompletedText.textContent = `${completedLevels}关`;
   elements.profileThreeStarText.textContent = `${threeStarLevels}关`;
-  elements.exchangeCoinText.textContent = `${state.progress.coins}个`;
+  elements.exchangeCoinText.textContent = state.progress.coins;
   renderExchangeShop();
 }
 
@@ -738,8 +742,8 @@ function finishGame(won) {
   });
   saveProgressState(result.progress);
   state.score = finalScore;
-  const best = getBestScore(state.level.number);
   const showCoinReward = won && result.firstClear;
+  state.doubleCoinReward = showCoinReward && result.coinsAdded > 0 ? { amount: result.coinsAdded, claimed: false } : null;
 
   elements.resultTitle.classList.add("result-title--compact");
   elements.resultTitle.classList.toggle("result-title--coin", showCoinReward);
@@ -754,11 +758,75 @@ function finishGame(won) {
     ? `用 ${state.moves} 步清空棋盘，新增 ${result.starsAdded} 星。`
     : `还剩 ${remaining} 个图案没有消除，可以调整策略再来一次。`;
   renderResultStars(stars);
-  elements.resultScore.textContent = `得分 ${finalScore}`;
-  elements.resultBest.textContent = `最佳 ${best}`;
+  hideResultToast();
+  elements.doubleCoinsButton.disabled = false;
+  elements.doubleCoinsButton.textContent = "双倍金币";
+  elements.doubleCoinsButton.classList.toggle("hidden", !state.doubleCoinReward);
   elements.nextLevelButton.classList.toggle("hidden", !won || state.level.number >= MAX_LEVEL_NUMBER);
   updateStaminaView();
   showScreen("result");
+}
+
+async function claimDoubleCoins() {
+  const reward = state.doubleCoinReward;
+  if (!reward?.amount) {
+    showResultToast("当前没有可领取的双倍金币奖励");
+    return;
+  }
+
+  if (reward.claimed) {
+    showResultToast("双倍奖励已经领取过了");
+    return;
+  }
+
+  elements.doubleCoinsButton.disabled = true;
+  showResultToast("广告播放中，请看完后领取双倍金币");
+
+  const completed = await playRewardedAd("double_coins");
+  if (!completed) {
+    elements.doubleCoinsButton.disabled = false;
+    showResultToast("广告没看完，无法获得双倍奖励");
+    return;
+  }
+
+  state.progress = normalizeProgress({
+    ...state.progress,
+    coins: state.progress.coins + reward.amount,
+  });
+  reward.claimed = true;
+  saveProgressState(state.progress);
+  updateProgressTextViews();
+  elements.doubleCoinsButton.disabled = false;
+  showResultToast(`获得双倍金币 +${reward.amount}`);
+}
+
+async function playRewardedAd(placement) {
+  const adBridge = window.linkMatchAds?.showRewardedAd ?? window.__linkMatchRewardedAd;
+  window.dispatchEvent(new CustomEvent("link-match:rewarded-ad", { detail: { placement } }));
+
+  if (typeof adBridge === "function") {
+    try {
+      const result = await adBridge({ placement });
+      return isRewardedAdComplete(result);
+    } catch {
+      return false;
+    }
+  }
+
+  await new Promise((resolve) => window.setTimeout(resolve, 700));
+  return true;
+}
+
+function isRewardedAdComplete(result) {
+  if (result === true) return true;
+  if (!result || typeof result !== "object") return false;
+  return result.completed === true || result.rewarded === true || result.watched === true || result.isEnded === true;
+}
+
+function updateProgressTextViews() {
+  elements.coinText.textContent = state.progress.coins;
+  elements.profileCoinText.textContent = state.progress.coins;
+  elements.exchangeCoinText.textContent = state.progress.coins;
 }
 
 function updateHud() {
@@ -1147,6 +1215,23 @@ function showToast(message) {
 
 function showHomeNotice(message) {
   showToast(message);
+}
+
+function showResultToast(message) {
+  window.clearTimeout(state.resultToastTimer);
+  elements.resultToast.textContent = message;
+  elements.resultToast.classList.remove("hidden");
+  elements.resultToast.classList.add("show");
+  state.resultToastTimer = window.setTimeout(() => {
+    hideResultToast();
+  }, 2500);
+}
+
+function hideResultToast() {
+  window.clearTimeout(state.resultToastTimer);
+  elements.resultToast.textContent = "";
+  elements.resultToast.classList.remove("show");
+  elements.resultToast.classList.add("hidden");
 }
 
 function hideToast() {

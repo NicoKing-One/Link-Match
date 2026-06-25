@@ -8,6 +8,7 @@ Generated for the Link Match home screen from the three approved home UI design 
 - `icon-profile.png` - profile icon
 - `icon-settings.png` - settings icon
 - `resource-card-bg.png` - shared background for stamina, coin, and star counters
+- `exchange-shop-entry-icon-v1.png` - generated tight transparent PNG for the home exchange shop entry, includes the `兑换` label and should be used as one whole image rather than rebuilt from CSS parts
 - `arrow-button-bg.png` - shared round background for left and right chapter arrows
 - `icon-arrow-left.png` - left arrow icon
 - `icon-arrow-right.png` - right arrow icon

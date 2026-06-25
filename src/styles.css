@@ -225,8 +225,7 @@ button:disabled {
 .home-stat small {
   grid-column: 2;
   grid-row: 2;
-  margin-top: 4px;
-  font-size: 0.6rem;
+  font-size: 0.7rem;
   font-weight: 800;
   line-height: 1;
   white-space: nowrap;
@@ -239,16 +238,6 @@ button:disabled {
 .home-stat--compact .home-stat-icon,
 .home-stat--compact strong {
   grid-row: 1;
-}
-
-.home-stat-button {
-  color: inherit;
-  text-align: left;
-}
-
-.home-stat-button:focus-visible {
-  outline: 3px solid rgba(24, 185, 167, 0.55);
-  outline-offset: 2px;
 }
 
 .secondary-screen {
@@ -701,6 +690,7 @@ button:disabled {
 
 .settings-toggle {
   position: relative;
+  overflow: hidden;
   min-height: 42px;
   padding: 0 50px 0 20px;
   border-radius: 999px;
@@ -709,16 +699,42 @@ button:disabled {
   font-weight: 950;
   text-align: left;
   text-shadow: 0 3px 0 #086d66;
-  background: linear-gradient(180deg, #31e4d0, #049c94);
+  background: linear-gradient(180deg, #b8c6bd, #78948a);
   border: 2px solid rgba(255, 226, 149, 0.86);
   box-shadow:
     inset 0 4px 0 rgba(255, 255, 255, 0.42),
     0 5px 0 rgba(5, 107, 103, 0.38);
+  transition:
+    padding 180ms cubic-bezier(0.22, 0.8, 0.28, 1),
+    box-shadow 180ms ease,
+    filter 180ms ease;
 }
 
+.settings-toggle::before,
 .settings-toggle::after {
   content: "";
   position: absolute;
+  pointer-events: none;
+}
+
+.settings-toggle::before {
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  background: linear-gradient(180deg, #31e4d0, #049c94);
+  opacity: 1;
+  transition: opacity 180ms ease;
+}
+
+.settings-toggle span {
+  position: relative;
+  z-index: 1;
+  display: inline-block;
+  min-width: 1.2em;
+}
+
+.settings-toggle::after {
+  z-index: 1;
   top: 7px;
   right: 10px;
   width: 26px;
@@ -726,16 +742,27 @@ button:disabled {
   border-radius: 50%;
   background: linear-gradient(180deg, #fffdf5, #f0e6cf);
   box-shadow: 0 3px 8px rgba(42, 87, 77, 0.22);
+  transition:
+    right 180ms cubic-bezier(0.22, 0.8, 0.28, 1),
+    transform 180ms cubic-bezier(0.22, 0.8, 0.28, 1),
+    box-shadow 180ms ease;
 }
 
 .settings-toggle:not(.is-on) {
   padding: 0 20px 0 50px;
-  background: linear-gradient(180deg, #b8c6bd, #78948a);
+  box-shadow:
+    inset 0 4px 0 rgba(255, 255, 255, 0.34),
+    0 4px 0 rgba(58, 87, 79, 0.32);
+}
+
+.settings-toggle:not(.is-on)::before {
+  opacity: 0;
 }
 
 .settings-toggle:not(.is-on)::after {
-  right: auto;
-  left: 6px;
+  right: calc(100% - 32px);
+  transform: scale(0.96);
+  box-shadow: 0 2px 6px rgba(42, 87, 77, 0.2);
 }
 
 .exchange-layout {
@@ -1014,6 +1041,7 @@ button:disabled {
 }
 
 .chapter-shell {
+  position: relative;
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
@@ -1094,6 +1122,27 @@ button:disabled {
   border-radius: 20px;
 }
 
+.home-exchange-button {
+  position: absolute;
+  top: 80px;
+  left: 0;
+  z-index: 5;
+  width: 60px;
+  aspect-ratio: 1042 / 1321;
+  padding: 0;
+  background: url("./assets/UI-Home/exchange-shop-entry-icon-v1.png") center / contain no-repeat;
+  animation: exchangeEntryWiggle 1.5s ease-in-out infinite;
+  filter: drop-shadow(0 5px 6px rgba(52, 104, 61, 0.22));
+  transform-origin: 50% 100%;
+  will-change: transform, filter;
+}
+
+.home-exchange-button:focus-visible {
+  outline: 3px solid rgba(255, 255, 255, 0.92);
+  outline-offset: 3px;
+  filter: drop-shadow(0 0 0 rgba(0, 0, 0, 0));
+}
+
 .road-scroll {
   width: 100%;
   height: 100%;
@@ -1105,6 +1154,29 @@ button:disabled {
 
 .road-scroll::-webkit-scrollbar {
   display: none;
+}
+
+@keyframes exchangeEntryWiggle {
+  0%,
+  100% {
+    filter: drop-shadow(0 5px 6px rgba(52, 104, 61, 0.22));
+    transform: translateY(0) rotate(0deg);
+  }
+
+  25% {
+    filter: drop-shadow(0 7px 8px rgba(52, 104, 61, 0.26));
+    transform: translateY(-2px) rotate(-3deg);
+  }
+
+  50% {
+    filter: drop-shadow(0 8px 9px rgba(52, 104, 61, 0.28));
+    transform: translateY(-3px) rotate(2.5deg);
+  }
+
+  75% {
+    filter: drop-shadow(0 7px 8px rgba(52, 104, 61, 0.26));
+    transform: translateY(-1px) rotate(-1.5deg);
+  }
 }
 
 .level-road {
@@ -2267,12 +2339,12 @@ h2 {
 
 .tool-count {
   position: absolute;
-  top: -3px;
+  top: -10px;
   left: calc(50% + 15px);
   display: grid;
   place-items: center;
-  width: 42px;
-  height: 30px;
+  width: 36px;
+  height: 36px;
   padding-bottom: 2px;
   background: url("./assets/ui-cut/tool-badge.png") center / 100% 100% no-repeat;
   color: #fff;
@@ -2532,28 +2604,6 @@ h2 {
   display: none;
 }
 
-.result-stats {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  margin: 14px 0;
-}
-
-.result-stats span {
-  min-width: 0;
-  padding: 12px 8px;
-  border: 2px solid rgba(231, 206, 149, 0.46);
-  border-radius: 18px;
-  background:
-    radial-gradient(circle at 20% 12%, rgba(255, 255, 255, 0.72) 0 16%, transparent 17%),
-    linear-gradient(180deg, rgba(255, 253, 235, 0.98), rgba(255, 244, 207, 0.92));
-  color: #00776e;
-  text-align: center;
-  font-size: 0.92rem;
-  font-weight: 900;
-  box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.64);
-}
-
 .result-stars {
   display: flex;
   justify-content: center;
@@ -2565,6 +2615,40 @@ h2 {
 
 .result-stars.hidden {
   display: none;
+}
+
+.result-toast {
+  position: absolute;
+  z-index: 6;
+  top: 42px;
+  left: 50%;
+  display: grid;
+  place-items: center;
+  width: min(72%, 260px);
+  min-height: 44px;
+  margin: 0;
+  padding: 8px 14px;
+  border: 2px solid rgba(255, 195, 53, 0.82);
+  border-radius: 16px;
+  background: rgba(255, 252, 229, 0.98);
+  color: #a72824;
+  font-size: 0.88rem;
+  font-weight: 900;
+  line-height: 1.25;
+  text-align: center;
+  pointer-events: none;
+  transform: translateX(-50%);
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.82),
+    0 8px 16px rgba(111, 120, 60, 0.14);
+}
+
+.result-toast.hidden {
+  display: none;
+}
+
+.result-toast.show {
+  animation: resultToastPop 150ms ease-out both;
 }
 
 .star {
@@ -2583,6 +2667,18 @@ h2 {
 
 .result-star-art.filled {
   filter: drop-shadow(0 5px 8px rgba(245, 185, 66, 0.3));
+}
+
+@keyframes resultToastPop {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
 }
 
 .modal {
@@ -2780,6 +2876,7 @@ h2 {
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.72);
 }
 
+#doubleCoinsButton,
 #nextLevelButton,
 #againButton {
   background-image: url("./assets/ui-cut/modal-button-secondary.png");
