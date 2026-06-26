@@ -16,8 +16,7 @@ import {
   MAX_AD_STAMINA_CLAIMS,
   MAX_STAMINA,
   START_STAMINA_COST,
-  calculateNextStaminaCountdown,
-  calculateRecoveredStamina,
+  applyDailyStaminaReset,
   calculateStarCount,
   claimAdStamina,
   normalizeStaminaState,
@@ -91,6 +90,7 @@ const elements = {
   settingsBackButton: document.querySelector("#settingsBackButton"),
   settingsHomeButton: document.querySelector("#settingsHomeButton"),
   profileCurrentLevelText: document.querySelector("#profileCurrentLevelText"),
+  profilePlayerNameText: document.querySelector("#profilePlayerNameText"),
   profileStarText: document.querySelector("#profileStarText"),
   profileCoinText: document.querySelector("#profileCoinText"),
   profileCompletedText: document.querySelector("#profileCompletedText"),
@@ -102,7 +102,6 @@ const elements = {
   completedText: document.querySelector("#completedText"),
   homeToast: document.querySelector("#homeToast"),
   staminaTexts: document.querySelectorAll(".staminaText"),
-  staminaCountdowns: document.querySelectorAll(".staminaCountdown"),
   getStaminaButtons: document.querySelectorAll(".getStaminaButton"),
   board: document.querySelector("#board"),
   toast: document.querySelector("#toast"),
@@ -163,7 +162,6 @@ const state = {
   remainingSeconds: 0,
   timer: null,
   timerLastTickAt: 0,
-  staminaTimer: null,
   toastTimer: null,
   resultToastTimer: null,
   hints: 0,
@@ -186,7 +184,6 @@ if (state.chapterIndex < 0) state.chapterIndex = 0;
 
 bindEvents();
 refreshStamina();
-startStaminaTimer();
 renderHome({ syncToCurrentLevel: true });
 showScreen("start");
 
@@ -280,6 +277,7 @@ function renderSecondaryPages(currentLevel) {
   const completedLevels = calculateCompletedLevels(state.progress);
   const threeStarLevels = calculateThreeStarLevels(state.progress);
 
+  elements.profilePlayerNameText.textContent = state.progress.playerName;
   elements.profileCurrentLevelText.textContent = `第${String(currentLevel.number).padStart(2, "0")}关`;
   elements.profileStarText.textContent = `${totalStars}/${MAX_LEVEL_NUMBER * 3}`;
   elements.profileCoinText.textContent = state.progress.coins;
@@ -956,16 +954,12 @@ function renderResultStars(count) {
 }
 
 function refreshStamina() {
-  const nextState = calculateRecoveredStamina(state.stamina);
+  const nextState = applyDailyStaminaReset(state.stamina);
   if (JSON.stringify(nextState) !== JSON.stringify(state.stamina)) {
     saveStaminaState(nextState);
     return;
   }
   updateStaminaView();
-}
-
-function startStaminaTimer() {
-  state.staminaTimer = window.setInterval(refreshStamina, 1000);
 }
 
 function saveStaminaState(nextState) {
@@ -988,11 +982,16 @@ function saveProgressState(nextState) {
 }
 
 function loadProgressState() {
+  let parsedProgress = null;
   try {
-    return normalizeProgress(JSON.parse(localStorage.getItem(PROGRESS_KEY)));
+    parsedProgress = JSON.parse(localStorage.getItem(PROGRESS_KEY));
   } catch {
-    return normalizeProgress(null);
+    parsedProgress = null;
   }
+
+  const progress = normalizeProgress(parsedProgress);
+  localStorage.setItem(PROGRESS_KEY, JSON.stringify(progress));
+  return progress;
 }
 
 function createFullStaminaState() {
@@ -1002,14 +1001,6 @@ function createFullStaminaState() {
 function updateStaminaView() {
   elements.staminaTexts.forEach((text) => {
     text.textContent = `${state.stamina.stamina}/${MAX_STAMINA}`;
-  });
-  const countdown = calculateNextStaminaCountdown(state.stamina);
-  const countdownText =
-    countdown.type === "recover"
-      ? `恢复 ${formatCountdown(countdown.remainingMs)}`
-      : `刷新 ${formatCountdown(countdown.remainingMs)}`;
-  elements.staminaCountdowns.forEach((text) => {
-    text.textContent = countdownText;
   });
   elements.getStaminaButtons.forEach((button) => {
     button.disabled = false;
@@ -1082,17 +1073,6 @@ function getDisplayLevelStatus(level) {
 
 function formatToolCount(count) {
   return Number.isFinite(count) ? String(count) : UNLIMITED_TOOL_COUNT_TEXT;
-}
-
-function formatCountdown(milliseconds) {
-  const totalSeconds = Math.max(0, Math.ceil(milliseconds / 1000));
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-  if (hours > 0) {
-    return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
-  }
-  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
 function setTileClass(point, className, enabled) {

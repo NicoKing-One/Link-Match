@@ -1,6 +1,5 @@
-export const MAX_STAMINA = 50;
+export const MAX_STAMINA = 60;
 export const START_STAMINA_COST = 3;
-export const STAMINA_RECOVERY_INTERVAL_MS = 3 * 60 * 1000;
 export const AD_STAMINA_REWARD = 30;
 export const MAX_AD_STAMINA_CLAIMS = 3;
 export const BEST_SCORE_STAR_COUNT = 3;
@@ -13,25 +12,13 @@ export function calculateStarCount(remainingSeconds, level) {
   return 1;
 }
 
-export function calculateRecoveredStamina(state, now = Date.now()) {
+export function applyDailyStaminaReset(state, now = Date.now()) {
   const safeState = normalizeStaminaState(state, now);
   if (isDifferentLocalDay(safeState.updatedAt, now)) {
     return { stamina: MAX_STAMINA, updatedAt: now, adClaims: 0 };
   }
 
-  if (safeState.stamina >= MAX_STAMINA) {
-    return safeState;
-  }
-
-  const elapsed = Math.max(0, now - safeState.updatedAt);
-  const recovered = Math.floor(elapsed / STAMINA_RECOVERY_INTERVAL_MS);
-  if (recovered <= 0) return safeState;
-
-  return {
-    ...safeState,
-    stamina: Math.min(MAX_STAMINA, safeState.stamina + recovered),
-    updatedAt: safeState.updatedAt + recovered * STAMINA_RECOVERY_INTERVAL_MS,
-  };
+  return safeState;
 }
 
 export function spendStartStamina(state, now = Date.now()) {
@@ -74,17 +61,6 @@ export function claimPurchasedStamina(state) {
   };
 }
 
-export function calculateNextStaminaCountdown(state, now = Date.now()) {
-  const safeState = normalizeStaminaState(state, now);
-  if (safeState.stamina < MAX_STAMINA) {
-    const elapsed = Math.max(0, now - safeState.updatedAt);
-    const remaining = STAMINA_RECOVERY_INTERVAL_MS - (elapsed % STAMINA_RECOVERY_INTERVAL_MS);
-    return { type: "recover", remainingMs: remaining };
-  }
-
-  return { type: "reset", remainingMs: nextLocalMidnight(now) - now };
-}
-
 export function normalizeStaminaState(state, now = Date.now()) {
   return {
     stamina: clampNumber(state?.stamina, 0, Number.MAX_SAFE_INTEGER, MAX_STAMINA),
@@ -101,11 +77,6 @@ function isDifferentLocalDay(firstMs, secondMs) {
     first.getMonth() !== second.getMonth() ||
     first.getDate() !== second.getDate()
   );
-}
-
-function nextLocalMidnight(now) {
-  const date = new Date(now);
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1, 0, 0, 0, 0).getTime();
 }
 
 function clampNumber(value, min, max, fallback) {

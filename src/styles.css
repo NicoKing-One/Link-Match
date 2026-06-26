@@ -188,27 +188,29 @@ button:disabled {
 
 .home-stat {
   display: grid;
-  grid-template-columns: 8.7179cqw minmax(0, max-content);
-  grid-template-rows: auto auto;
-  align-items: center;
-  justify-content: center;
-  column-gap: 2.0513cqw;
+  grid-template-columns: 40% 60%;
+  grid-template-rows: 1fr;
+  align-items: stretch;
+  justify-content: stretch;
+  column-gap: 0;
   min-height: 16.9231cqw;
-  padding: 2.5641cqw 2.5641cqw 2.0513cqw;
+  padding: 0;
   color: #0b746c;
   background: url("./assets/image/resource-card-bg.png") center / 100% 100% no-repeat;
 }
 
 .home-stat-icon {
-  grid-row: 1 / span 2;
-  width: 8.2051cqw;
-  height: 8.2051cqw;
+  grid-column: 1;
+  grid-row: 1;
+  justify-self: right;
+  align-self: center;
+  width: 8cqw;
+  height: 8cqw;
   object-fit: contain;
   filter: drop-shadow(0 0.2564cqw 0 rgba(255, 255, 255, 0.8));
 }
 
-.home-stat strong,
-.home-stat small {
+.home-stat strong {
   display: block;
   min-width: 0;
   color: #08746e;
@@ -217,23 +219,17 @@ button:disabled {
 .home-stat strong {
   grid-column: 2;
   grid-row: 1;
+  justify-self: left;
   align-self: center;
-  font-size: 4.759cqw;
-  line-height: 1;
-  white-space: nowrap;
-}
-
-.home-stat small {
-  grid-column: 2;
-  grid-row: 2;
-  font-size: 2.8718cqw;
-  font-weight: 800;
+  margin-left: 1cqw;
+  text-align: center;
+  font-size: 4cqw;
   line-height: 1;
   white-space: nowrap;
 }
 
 .home-stat--compact {
-  grid-template-rows: auto;
+  grid-template-rows: 1fr;
 }
 
 .home-stat--compact .home-stat-icon,

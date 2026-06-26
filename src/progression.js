@@ -2,13 +2,24 @@ import { LEVELS } from "./levels.js";
 
 export const MAX_LEVEL_NUMBER = LEVELS.length;
 export const MAX_STARS_PER_LEVEL = 3;
+export const MAX_PLAYER_NAME_LENGTH = 6;
+
+const RANDOM_PLAYER_NAMES = ["果果", "糖糖", "星星", "小莓", "泡泡", "阿橙", "豆豆", "柚子", "小桃", "布丁"];
 
 export function createInitialProgress() {
   return {
     highestUnlockedLevel: 1,
     coins: 0,
+    playerName: createRandomPlayerName(),
     records: {},
   };
+}
+
+export function createRandomPlayerName(rng = Math.random) {
+  const randomValue = Number(rng());
+  const safeValue = Number.isFinite(randomValue) ? randomValue : 0;
+  const index = Math.min(RANDOM_PLAYER_NAMES.length - 1, Math.max(0, Math.floor(safeValue * RANDOM_PLAYER_NAMES.length)));
+  return RANDOM_PLAYER_NAMES[index];
 }
 
 export function normalizeProgress(progress) {
@@ -26,6 +37,7 @@ export function normalizeProgress(progress) {
   return {
     highestUnlockedLevel: clampInteger(progress.highestUnlockedLevel, 1, MAX_LEVEL_NUMBER, 1),
     coins: clampInteger(progress.coins, 0, Number.MAX_SAFE_INTEGER, 0),
+    playerName: normalizePlayerName(progress.playerName),
     records,
   };
 }
@@ -80,6 +92,7 @@ export function applyLevelResult(progress, level, result) {
   const nextProgress = {
     highestUnlockedLevel,
     coins: safeProgress.coins + coinsAdded,
+    playerName: safeProgress.playerName,
     records: {
       ...safeProgress.records,
       [levelNumber]: nextRecord,
@@ -121,6 +134,12 @@ function normalizeRecord(record) {
     bestScore: clampInteger(record?.bestScore, 0, Number.MAX_SAFE_INTEGER, 0),
     bestStars: clampInteger(record?.bestStars, 0, MAX_STARS_PER_LEVEL, 0),
   };
+}
+
+function normalizePlayerName(playerName) {
+  const trimmedName = typeof playerName === "string" ? playerName.trim() : "";
+  if (!trimmedName) return createRandomPlayerName();
+  return Array.from(trimmedName).slice(0, MAX_PLAYER_NAME_LENGTH).join("");
 }
 
 function createEmptyRecord() {

@@ -7,6 +7,7 @@ import {
   calculateThreeStarLevels,
   calculateTotalStars,
   createInitialProgress,
+  createRandomPlayerName,
   getChapterStatus,
   getLevelStatus,
   normalizeProgress,
@@ -75,10 +76,19 @@ test("starts with only level 1 playable and later chapters locked", () => {
   const progress = createInitialProgress();
 
   assert.equal(progress.highestUnlockedLevel, 1);
+  assert.equal(typeof progress.playerName, "string");
+  assert.ok(progress.playerName.length > 0);
+  assert.ok(progress.playerName.length <= 6);
   assert.equal(getLevelStatus(1, progress), "current");
   assert.equal(getLevelStatus(2, progress), "locked");
   assert.equal(getChapterStatus(CHAPTERS[0], progress), "active");
   assert.equal(getChapterStatus(CHAPTERS[1], progress), "locked");
+});
+
+test("generates bounded random player names", () => {
+  assert.equal(createRandomPlayerName(() => 0), "果果");
+  assert.equal(createRandomPlayerName(() => 0.999), "布丁");
+  assert.ok(createRandomPlayerName(() => 0.5).length <= 6);
 });
 
 test("winning unlocks the next level and chapter gates unlock at 31 and 61", () => {
@@ -194,12 +204,25 @@ test("first clear uses chapter-local reward tiers while replay clear awards no c
 });
 
 test("normalizes old or partial progress safely", () => {
-  assert.deepEqual(normalizeProgress(null), createInitialProgress());
-  assert.deepEqual(normalizeProgress({ highestUnlockedLevel: 120, coins: -4, records: { 1: { bestStars: 9 } } }), {
+  const normalizedEmpty = normalizeProgress(null);
+  assert.equal(normalizedEmpty.highestUnlockedLevel, 1);
+  assert.equal(normalizedEmpty.coins, 0);
+  assert.deepEqual(normalizedEmpty.records, {});
+  assert.ok(normalizedEmpty.playerName.length > 0);
+  assert.ok(normalizedEmpty.playerName.length <= 6);
+
+  const normalized = normalizeProgress({ highestUnlockedLevel: 120, coins: -4, records: { 1: { bestStars: 9 } } });
+  assert.equal(typeof normalized.playerName, "string");
+  assert.ok(normalized.playerName.length > 0);
+  assert.ok(normalized.playerName.length <= 6);
+  assert.deepEqual(normalized, {
     highestUnlockedLevel: 90,
     coins: 0,
+    playerName: normalized.playerName,
     records: {
       1: { completed: false, bestScore: 0, bestStars: 3 },
     },
   });
+  assert.equal(normalizeProgress({ playerName: "玩家A" }).playerName, "玩家A");
+  assert.equal(normalizeProgress({ playerName: "超级长的玩家昵称" }).playerName, "超级长的玩家");
 });

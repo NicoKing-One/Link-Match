@@ -20,6 +20,8 @@ const root = join(process.cwd(), "src");
 const outputDir = join(process.cwd(), "output", "playwright");
 const modalCardBackground = join(process.cwd(), "src", "assets", "image", "modal-card-bg.png");
 const browserExecutable = findBrowserExecutable();
+const fullStamina = 60;
+const startStaminaCost = 3;
 const types = {
   ".html": "text/html; charset=utf-8",
   ".css": "text/css; charset=utf-8",
@@ -68,16 +70,16 @@ try {
   await page.evaluate(() => localStorage.clear());
   await page.reload({ waitUntil: "networkidle" });
   const initialStamina = await page.locator(".screen-start .staminaText").innerText();
-  if (initialStamina !== "50/50") {
-    throw new Error(`Expected reset stamina to be 50/50, got: ${initialStamina}`);
+  if (initialStamina !== `${fullStamina}/${fullStamina}`) {
+    throw new Error(`Expected reset stamina to be ${fullStamina}/${fullStamina}, got: ${initialStamina}`);
   }
   const bodyFont = await page.evaluate(() => getComputedStyle(document.body).fontFamily);
   if (!bodyFont.includes("Microsoft YaHei") && !bodyFont.includes("寰蒋闆呴粦")) {
     throw new Error(`Expected Microsoft YaHei font family, got: ${bodyFont}`);
   }
-  const initialCountdown = await page.locator(".screen-start .staminaCountdown").innerText();
-  if (!initialCountdown.includes("刷新")) {
-    throw new Error(`Expected full stamina countdown to show reset time, got: ${initialCountdown}`);
+  const initialCountdownCount = await page.locator(".screen-start .staminaCountdown").count();
+  if (initialCountdownCount !== 0) {
+    throw new Error(`Expected home stamina refresh time to be removed, got ${initialCountdownCount} countdown node(s).`);
   }
   await expectHomeRoadMap(page);
   await expectHomeScalesWithViewportWidth(page);
@@ -96,7 +98,10 @@ try {
   await page.waitForSelector(".screen-game.active .tile:not(.empty)");
   const staminaAfterStart = await readStoredStamina(page);
   const gameStaminaText = await page.locator(".screen-game .staminaText").innerText();
-  if (staminaAfterStart.stamina !== 47 || gameStaminaText !== "47/50") {
+  if (
+    staminaAfterStart.stamina !== fullStamina - startStaminaCost ||
+    gameStaminaText !== `${fullStamina - startStaminaCost}/${fullStamina}`
+  ) {
     throw new Error(`Expected starting a level to cost 3 stamina, got: ${staminaAfterStart.stamina}`);
   }
   await page.waitForTimeout(1500);
@@ -254,20 +259,25 @@ async function clickInvalidPair(page) {
 }
 
 async function expectStaleFullStaminaSpend(page) {
-  await page.evaluate(() => {
+  await page.evaluate((nextStamina) => {
     localStorage.setItem(
       "lianliankan.stamina",
-      JSON.stringify({ stamina: 50, updatedAt: Date.now() - 20 * 60 * 1000, adClaims: 0 }),
+      JSON.stringify({ stamina: nextStamina, updatedAt: Date.now() - 20 * 60 * 1000, adClaims: 0 }),
     );
-  });
+  }, fullStamina);
   await page.reload({ waitUntil: "networkidle" });
   await page.locator("#startButton").click();
   await page.waitForSelector(".screen-game.active .tile:not(.empty)");
   await page.waitForTimeout(1200);
   const gameStaminaText = await page.locator(".screen-game .staminaText").innerText();
   const stored = await readStoredStamina(page);
-  if (gameStaminaText !== "47/50" || stored.stamina !== 47) {
-    throw new Error(`Expected stale full stamina to spend to 47/50, got text=${gameStaminaText}, stored=${stored.stamina}.`);
+  if (
+    gameStaminaText !== `${fullStamina - startStaminaCost}/${fullStamina}` ||
+    stored.stamina !== fullStamina - startStaminaCost
+  ) {
+    throw new Error(
+      `Expected stale full stamina to spend to ${fullStamina - startStaminaCost}/${fullStamina}, got text=${gameStaminaText}, stored=${stored.stamina}.`,
+    );
   }
 }
 
@@ -352,7 +362,7 @@ async function expectZeroToolCounts(page) {
   }
 }
 
-async function seedPlayableFreshState(page, stamina = 50) {
+async function seedPlayableFreshState(page, stamina = fullStamina) {
   await page.evaluate((nextStamina) => {
     localStorage.setItem("lianliankan.dataResetVersion", "2026-06-13-full-stamina-baseline");
     localStorage.setItem(
@@ -368,7 +378,7 @@ async function seedPlayableFreshState(page, stamina = 50) {
 }
 
 async function seedProfileThreeStarState(page) {
-  await page.evaluate(() => {
+  await page.evaluate((nextStamina) => {
     localStorage.setItem("lianliankan.dataResetVersion", "2026-06-13-full-stamina-baseline");
     localStorage.setItem(
       "lianliankan.progress",
@@ -382,8 +392,11 @@ async function seedProfileThreeStarState(page) {
         },
       }),
     );
-    localStorage.setItem("lianliankan.stamina", JSON.stringify({ stamina: 50, updatedAt: Date.now(), adClaims: 0 }));
-  });
+    localStorage.setItem(
+      "lianliankan.stamina",
+      JSON.stringify({ stamina: nextStamina, updatedAt: Date.now(), adClaims: 0 }),
+    );
+  }, fullStamina);
   await page.reload({ waitUntil: "networkidle" });
 }
 
@@ -619,6 +632,7 @@ async function expectHomeRoadMap(page) {
     const prevChapterButton = document.querySelector("#prevChapterButton");
     const roadScroll = document.querySelector("#roadScroll");
     const dock = document.querySelector(".home-bottom-dock");
+    const appShell = document.querySelector(".app-shell");
     const startButtonStyle = getComputedStyle(startButton);
     const buttonRect = startButton.getBoundingClientRect();
     const summaryRect = chapterSummary.getBoundingClientRect();
@@ -628,6 +642,28 @@ async function expectHomeRoadMap(page) {
     const prevChapterButtonRect = prevChapterButton.getBoundingClientRect();
     const lineLayers = [...document.querySelectorAll(".road-path path")].map((node) => node.getAttribute("class"));
     const vineSegmentCount = document.querySelectorAll(".road-vine-image-segment").length;
+    const cqwPx = appShell.getBoundingClientRect().width / 100;
+    const homeResourceCards = [...document.querySelectorAll(".home-stat")].map((card) => {
+      const cardRect = card.getBoundingClientRect();
+      const icon = card.querySelector(".home-stat-icon");
+      const text = card.querySelector("strong");
+      const iconRect = icon.getBoundingClientRect();
+      const textRect = text.getBoundingClientRect();
+      const textStyle = getComputedStyle(text);
+      return {
+        cardWidth: cardRect.width,
+        cardHeight: cardRect.height,
+        iconWidth: iconRect.width,
+        iconHeight: iconRect.height,
+        iconRight: iconRect.right - cardRect.left,
+        iconCenterX: iconRect.left + iconRect.width / 2 - cardRect.left,
+        iconCenterY: iconRect.top + iconRect.height / 2 - cardRect.top,
+        textLeft: textRect.left - cardRect.left,
+        textCenterX: textRect.left + textRect.width / 2 - cardRect.left,
+        textCenterY: textRect.top + textRect.height / 2 - cardRect.top,
+        textFontSize: Number.parseFloat(textStyle.fontSize),
+      };
+    });
     const originalScrollTop = roadScroll.scrollTop;
     roadScroll.scrollTop = 0;
     const topLevelToPanelTop = Math.round(levelThirty.getBoundingClientRect().top - panelRect.top);
@@ -654,6 +690,8 @@ async function expectHomeRoadMap(page) {
       levelCenters: [levelOne, levelTwo, levelThree, levelFour].map(center),
       roadLineLayers: lineLayers,
       vineSegmentCount,
+      cqwPx,
+      homeResourceCards,
       hasDock: Boolean(dock),
       dockPaddingBottom: dock ? Number.parseFloat(getComputedStyle(dock).paddingBottom) : 0,
       buttonDisplay: startButtonStyle.display,
@@ -706,8 +744,27 @@ async function expectHomeRoadMap(page) {
   if (homeStaminaButtonCount !== 0) {
     throw new Error(`Expected home stamina claim button to be removed, got ${homeStaminaButtonCount}.`);
   }
-  if (homeStatLabelCount !== 0 || homeStatSmallCount !== 1) {
-    throw new Error(`Expected resource cards to keep only stamina countdown small text, got labels=${homeStatLabelCount}, small=${homeStatSmallCount}.`);
+  if (homeStatLabelCount !== 0 || homeStatSmallCount !== 0) {
+    throw new Error(`Expected resource cards to omit labels and small countdown text, got labels=${homeStatLabelCount}, small=${homeStatSmallCount}.`);
+  }
+  const resourceCardMismatch = layoutInfo.homeResourceCards.find((card) => {
+    const expectedIconRight = card.cardWidth * 0.4;
+    const expectedTextLeft = card.cardWidth * 0.4 + layoutInfo.cqwPx;
+    const expectedCenterY = card.cardHeight / 2;
+    const expectedIconSize = layoutInfo.cqwPx * 8;
+    const expectedTextSize = layoutInfo.cqwPx * 4;
+    return (
+      Math.abs(card.iconWidth - expectedIconSize) > 0.75 ||
+      Math.abs(card.iconHeight - expectedIconSize) > 0.75 ||
+      Math.abs(card.textFontSize - expectedTextSize) > 0.5 ||
+      Math.abs(card.iconRight - expectedIconRight) > 1 ||
+      Math.abs(card.iconCenterY - expectedCenterY) > 1 ||
+      Math.abs(card.textLeft - expectedTextLeft) > 1 ||
+      Math.abs(card.textCenterY - expectedCenterY) > 1
+    );
+  });
+  if (layoutInfo.homeResourceCards.length !== 3 || resourceCardMismatch) {
+    throw new Error(`Expected resource cards to right-align 8cqw icons in the 40% area and left-align 4cqw text with 1cqw margin in the 60% area, got ${JSON.stringify(layoutInfo.homeResourceCards)}.`);
   }
   if (homeExchangeEntryCount !== 1) {
     throw new Error(`Expected a dedicated home exchange shop entry in the map area, got ${homeExchangeEntryCount}.`);
@@ -891,10 +948,13 @@ async function expectCurrentRoadLevelCenteredAfterGameReturn(page) {
 }
 
 async function expectStartFromBrowsedLockedChapterReturnsToCurrentChapter(page) {
-  await page.evaluate(() => {
+  await page.evaluate((nextStamina) => {
     localStorage.clear();
-    localStorage.setItem("lianliankan.stamina", JSON.stringify({ stamina: 50, updatedAt: Date.now(), adClaims: 0 }));
-  });
+    localStorage.setItem(
+      "lianliankan.stamina",
+      JSON.stringify({ stamina: nextStamina, updatedAt: Date.now(), adClaims: 0 }),
+    );
+  }, fullStamina);
   await page.reload({ waitUntil: "networkidle" });
   await page.waitForSelector(".screen-start.active .road-level.current", { timeout: 2000 });
   await page.locator("#nextChapterButton").click();
@@ -1246,6 +1306,7 @@ async function expectSecondaryPageNavigation(page) {
   }
   await expectSecondaryPageBuiltFromLayout(page, "#profileScreen", ".profile-layout");
   await expectProfilePageOptimizedLayout(page);
+  await expectProfilePlayerNameBounded(page);
   await expectProfileThreeStarDataMatchesHome(page);
   await page.screenshot({ path: join(outputDir, "profile-mobile.png"), fullPage: true });
   await page.locator("#profileBackButton").click();
@@ -1647,6 +1708,27 @@ async function expectProfileThreeStarDataMatchesHome(page) {
     profileData.homeThreeStarNodes !== profileData.expectedThreeStarLevels
   ) {
     throw new Error(`Expected profile three-star count to match home map bestStars, got ${JSON.stringify(profileData)}.`);
+  }
+}
+
+async function expectProfilePlayerNameBounded(page) {
+  const profileData = await page.locator("#profileScreen.active .profile-layout").evaluate(() => {
+    const progress = JSON.parse(localStorage.getItem("lianliankan.progress") ?? "{}");
+    const profileName = document.querySelector("#profilePlayerNameText")?.textContent?.trim() ?? "";
+
+    return {
+      storedName: progress.playerName ?? "",
+      profileName,
+      characterCount: Array.from(profileName).length,
+    };
+  });
+
+  if (
+    !profileData.profileName ||
+    profileData.profileName !== profileData.storedName ||
+    profileData.characterCount > 6
+  ) {
+    throw new Error(`Expected profile player name to be stored and at most 6 chars, got ${JSON.stringify(profileData)}.`);
   }
 }
 
@@ -2066,10 +2148,10 @@ async function finishGameAndExpectStarsAndNoStaminaAgain(page) {
 }
 
 async function finishFreshLevelAndExpectHomeVines(page) {
-  await page.evaluate(() => {
+  await page.evaluate((nextStamina) => {
     localStorage.setItem(
       "lianliankan.stamina",
-      JSON.stringify({ stamina: 50, updatedAt: Date.now(), adClaims: 0 }),
+      JSON.stringify({ stamina: nextStamina, updatedAt: Date.now(), adClaims: 0 }),
     );
     localStorage.setItem(
       "lianliankan.progress",
@@ -2079,7 +2161,7 @@ async function finishFreshLevelAndExpectHomeVines(page) {
         records: {},
       }),
     );
-  });
+  }, fullStamina);
   await page.reload({ waitUntil: "networkidle" });
   await page.locator("#startButton").click();
   await page.waitForSelector(".screen-game.active .tile:not(.empty)");
@@ -2188,10 +2270,10 @@ async function expectFruitVineConnectorsAligned(page, label) {
 }
 
 async function finishCompletedLevelAndExpectNoCoinMessage(page) {
-  await page.evaluate(() => {
+  await page.evaluate((nextStamina) => {
     localStorage.setItem(
       "lianliankan.stamina",
-      JSON.stringify({ stamina: 50, updatedAt: Date.now(), adClaims: 0 }),
+      JSON.stringify({ stamina: nextStamina, updatedAt: Date.now(), adClaims: 0 }),
     );
     localStorage.setItem(
       "lianliankan.progress",
@@ -2203,7 +2285,7 @@ async function finishCompletedLevelAndExpectNoCoinMessage(page) {
         },
       }),
     );
-  });
+  }, fullStamina);
   await page.reload({ waitUntil: "networkidle" });
   await page.waitForSelector(".screen-start.active .road-level.completed", { timeout: 2000 });
   await page.locator(".screen-start.active .road-level.completed").first().click();
@@ -2240,12 +2322,12 @@ async function finishCompletedLevelAndExpectNoCoinMessage(page) {
 }
 
 async function finishGameAndExpectFailureBadge(page) {
-  await page.evaluate(() => {
+  await page.evaluate((nextStamina) => {
     localStorage.setItem(
       "lianliankan.stamina",
-      JSON.stringify({ stamina: 50, updatedAt: Date.now(), adClaims: 0 }),
+      JSON.stringify({ stamina: nextStamina, updatedAt: Date.now(), adClaims: 0 }),
     );
-  });
+  }, fullStamina);
   await page.reload({ waitUntil: "networkidle" });
   await page.locator("#startButton").click();
   await page.waitForSelector(".screen-game.active .tile:not(.empty)");
