@@ -7,11 +7,11 @@
 - 项目名称：Link Match 连连看
 - 项目路径：`D:\工作文件\游戏\连连看`
 - 项目类型：移动端竖屏 H5 单机连连看 MVP
-- 当前阶段：`1.2.6bug修复` 提交收口：按本轮备注收口当前工作区累计改动，已完成提交前验证，准备提交并推送到远程 `main`。
+- 当前阶段：`1.2.6bug修复` 提交收口：按本轮备注收口当前工作区累计改动，已完成提交前验证、本地提交和远程 `main` 推送。
 
 ## 2. 当前进度
 
-- 2026-06-29 `1.2.6bug修复`：按本轮提交备注收口当前工作区累计改动，覆盖数据重置、音频设置与音效体验、未开放功能统一文案、真机预览地址、首页主题资源预加载、体力弹窗文案和配套文档同步。提交前已重新执行全量单测、首页关卡资源检查、构建和完整 smoke；`dist/`、`output/` 仍作为临时验证产物处理，验证后已清理，不提交到仓库。
+- 2026-06-29 `1.2.6bug修复`：按本轮提交备注收口当前工作区累计改动，覆盖数据重置、音频设置与音效体验、未开放功能统一文案、真机预览地址、首页主题资源预加载、体力弹窗文案和配套文档同步。提交前已重新执行全量单测、首页关卡资源检查、构建和完整 smoke；`dist/`、`output/` 仍作为临时验证产物处理，验证后已清理，不提交到仓库。本轮改动已完成本地提交并推送到远程 `main`。
 - 2026-06-26 `1.2.13未开放功能文案统一`：检查当前可点击入口，将未开发/占位流程文案统一为“功能暂未开放”。`src/game.js` 新增 `UNAVAILABLE_FEATURE_MESSAGE`，道具弹框的“看广告获取/购买”、体力购买、失败结果页购买道具均复用同一文案；`src/index.html` 的首页兑换入口弹框标题同步改为“功能暂未开放”。`scripts/smoke-browser.mjs` 已新增和更新回归断言，覆盖首页兑换入口、道具广告/购买、体力购买、结果页购买道具的统一提示。
 - 2026-06-26 `1.2.12刷新后音乐解锁修复`：修复关闭音乐后刷新页面，设置已恢复开启但真机需点击首页按钮才听到音乐的体验问题。根因是刷新后的浏览器/WebView 可能因自动播放策略挂起 WebAudio；`src/game.js` 现将启动音频解锁事件从 `pointerdown/keydown` 扩展为 `pointerdown/touchstart/mousedown/click/keydown`，并增加一次性保护，保证首次触摸首页空白处也能解锁音乐，不必依赖某个按钮点击副作用。`scripts/smoke-browser.mjs` 已新增“关闭音乐 -> 刷新 -> 开关恢复开启 -> 首次 touchstart 解锁背景音乐”的回归断言；`tests/audio-settings.test.mjs` 同步当前背景音乐/失败音效口径。本轮已通过 37 条单测、构建和完整 smoke。
 - 2026-06-26 `1.2.11音频体验收口`：按反馈继续收口 `src/audio-settings.js` 和 `src/game.js`。所有按钮类反馈统一为单个简洁 `button` 短音，不再为返回首页、提示、洗牌、暂停等按钮分别使用刻意音效；成功/失败仍保留独立情绪反馈。背景音乐重新换成更稀疏柔和的原创 WebAudio 循环，并在小游戏打开到首页时立即尝试启动，移动端若受浏览器自动播放限制，会在首次用户点击/按键时重新解锁播放。设置页音乐/音效/振动开关改为本次页面会话状态，不再写入 `localStorage`；关闭小游戏或刷新后默认恢复为开启。本轮已通过 35 条单测、构建和完整 smoke。
@@ -206,8 +206,8 @@
 - 当前分支：`main`
 - 远程仓库：`https://github.com/NicoKing-One/Link-Match.git`
 - 提交前基线：`87d0eda 1.2.5首页优化`，当前 `main...origin/main` 无领先/落后提交。
-- 工作区状态：存在本轮待提交改动，已完成提交前验证，准备按备注 `1.2.6bug修复` 全量暂存、提交并推送。
-- 当前待提交文件：`README.md`、`docs/PRD.md`、`docs/design.md`、`docs/project-handoff.md`、`scripts/dev-server.mjs`、`scripts/smoke-browser.mjs`、`src/game.js`、`src/index.html`、`src/styles.css`、`测试bug.txt` 有修改；`src/audio-settings.js`、`src/home-assets.js`、`src/storage-reset.js`、`tests/audio-settings.test.mjs`、`tests/dev-server.test.mjs`、`tests/home-assets.test.mjs`、`tests/stamina-copy.test.mjs`、`tests/storage-reset.test.mjs` 为新增未跟踪文件。
+- 工作区状态：本轮改动已按备注 `1.2.6bug修复` 完成本地提交并推送到远程 `main`。
+- 本轮提交文件：`README.md`、`docs/PRD.md`、`docs/design.md`、`docs/project-handoff.md`、`scripts/dev-server.mjs`、`scripts/smoke-browser.mjs`、`src/game.js`、`src/index.html`、`src/styles.css`、`测试bug.txt` 有修改；`src/audio-settings.js`、`src/home-assets.js`、`src/storage-reset.js`、`tests/audio-settings.test.mjs`、`tests/dev-server.test.mjs`、`tests/home-assets.test.mjs`、`tests/stamina-copy.test.mjs`、`tests/storage-reset.test.mjs` 为新增文件。
 - 本轮收口内容：按备注 `1.2.6bug修复` 收口当前工作区累计改动，包含数据重置、音频体验、未开放功能统一文案、真机预览、首页主题资源预加载、体力弹窗文案和配套文档/回归断言同步。
 - 本轮提交备注：`1.2.6bug修复`。
 
