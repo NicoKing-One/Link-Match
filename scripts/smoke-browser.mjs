@@ -4,6 +4,7 @@ import { createServer } from "node:http";
 import { createRequire } from "node:module";
 import { extname, join, normalize } from "node:path";
 import Module from "node:module";
+import { CURRENT_DATA_RESET_VERSION } from "../src/storage-reset.js";
 
 const bundledModules =
   process.env.WORKSPACE_NODE_MODULES ??
@@ -65,7 +66,73 @@ const browser = await chromium.launch({
 });
 try {
   const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
+  await page.addInitScript(() => {
+    window.__linkMatchAudioEvents = [];
+    const record = (event) => window.__linkMatchAudioEvents.push(event);
+    class FakeAudioParam {
+      setValueAtTime(value) {
+        record(`param-set:${value}`);
+      }
+      linearRampToValueAtTime(value) {
+        record(`param-ramp:${value}`);
+      }
+      exponentialRampToValueAtTime(value) {
+        record(`param-exp:${value}`);
+      }
+    }
+    class FakeGain {
+      constructor() {
+        this.gain = new FakeAudioParam();
+      }
+      connect() {
+        record("gain-connect");
+      }
+      disconnect() {
+        record("gain-disconnect");
+      }
+    }
+    class FakeOscillator {
+      constructor() {
+        this.frequency = new FakeAudioParam();
+        this.type = "sine";
+      }
+      connect() {
+        record("oscillator-connect");
+      }
+      start() {
+        record("oscillator-start");
+      }
+      stop() {
+        record("oscillator-stop");
+      }
+    }
+    class FakeAudioContext {
+      constructor() {
+        record("context-created");
+        this.currentTime = 0;
+        this.destination = {};
+        this.state = "running";
+      }
+      createGain() {
+        return new FakeGain();
+      }
+      createOscillator() {
+        return new FakeOscillator();
+      }
+      resume() {
+        record("context-resume");
+        return Promise.resolve();
+      }
+    }
+    window.AudioContext = FakeAudioContext;
+    window.webkitAudioContext = FakeAudioContext;
+    navigator.vibrate = (pattern) => {
+      record(`vibrate:${JSON.stringify(pattern)}`);
+      return true;
+    };
+  });
   await page.goto(smokeUrl, { waitUntil: "networkidle" });
+  await expectMobileTapZoomDisabled(page);
   await expectFaviconAvailable(page, url);
   await page.evaluate(() => localStorage.clear());
   await page.reload({ waitUntil: "networkidle" });
@@ -81,6 +148,7 @@ try {
   if (initialCountdownCount !== 0) {
     throw new Error(`Expected home stamina refresh time to be removed, got ${initialCountdownCount} countdown node(s).`);
   }
+  await expectVersionedAllDataReset(page);
   await expectHomeRoadMap(page);
   await expectHomeScalesWithViewportWidth(page);
   await expectCurrentRoadLevelCentered(page);
@@ -90,6 +158,8 @@ try {
   await seedProfileThreeStarState(page);
   await expectHomeLevelStarsMatchProgress(page);
   await expectSecondaryPageNavigation(page);
+  await expectSettingsPersistenceAndAudioControls(page);
+  await expectGameEntryStartsBackgroundMusic(page);
   await seedPlayableFreshState(page);
   await expectStaleFullStaminaSpend(page);
   await page.evaluate(() => localStorage.clear());
@@ -112,7 +182,8 @@ try {
   const tileImageCount = await page.locator(".screen-game.active .tile:not(.empty) img.tile-art").count();
   const hudText = await page.locator(".hud").innerText();
   const stageText = await page.locator(".stage-banner").innerText();
-  const tileArtRatio = await getFirstTileArtRatio(page);
+  const tileArtBoxRatio = await getFirstTileArtRatio(page);
+  const tileVisibleArtRatio = await getFirstTileVisibleArtRatio(page);
   const gameStaminaCountdownCount = await page.locator(".screen-game.active .staminaCountdown").count();
   const bestPillCount = await page.locator(".screen-game.active .best-pill").count();
   const expectedTileCount = await readCurrentLevelTileCount(page);
@@ -132,14 +203,20 @@ try {
     throw new Error(`Expected game HUD best score strip to be removed, got ${bestPillCount}.`);
   }
   await expectPolishedGameUi(page);
+  await expectBoardGridFillsFrame(page);
+  await expectCompactGameViewportFits(page);
   await expectDraftThreeVisualSystem(page);
   await expectFlatImageAssets(page);
   await expectPageDoesNotScroll(page);
-  if (tileArtRatio < 0.82 || tileArtRatio > 1.12) {
-    throw new Error(`Expected tile art to occupy most of the tile, got ratio=${tileArtRatio.toFixed(2)}.`);
+  if (tileArtBoxRatio < 0.82 || tileArtBoxRatio > 1.28) {
+    throw new Error(`Expected tile art box to stay scaled with the tile, got ratio=${tileArtBoxRatio.toFixed(2)}.`);
+  }
+  if (tileVisibleArtRatio < 0.96) {
+    throw new Error(`Expected visible tile art to fill the tile background, got ratio=${tileVisibleArtRatio.toFixed(2)}.`);
   }
 
   const firstAspect = await getFirstTileAspect(page);
+  const boardBeforeWarning = await getBoardAndFirstTileBox(page);
   await clickInvalidPair(page);
   await page.waitForSelector(".toast.show", { timeout: 2000 });
   const toastText = await page.locator(".toast.show").innerText();
@@ -148,7 +225,7 @@ try {
   if (!toastText.includes("不能连接")) {
     throw new Error(`Expected mismatch warning, got: ${toastText}`);
   }
-  await expectToastDoesNotCoverBoard(page);
+  await expectToastOverlaysBoardWithoutMovingTiles(page, boardBeforeWarning);
   if (selectedAfterMismatch !== 0) {
     throw new Error(`Expected mismatch to clear selection, got ${selectedAfterMismatch} selected tile(s).`);
   }
@@ -168,7 +245,25 @@ try {
   }
   await expectModalHasIcon(page, "#toolModal");
   await expectMobileModalDesignSystem(page, "#toolModal");
-  await page.locator("#toolCloseButton").click();
+  await page.locator("#watchAdButton").click();
+  await page.waitForFunction(() => document.querySelector("#toast.show")?.textContent.includes("功能暂未开放"));
+  const toolAdToast = await page.locator("#toast.show").innerText();
+  if (!toolAdToast.includes("功能暂未开放")) {
+    throw new Error(`Expected spent tool ad action to show unavailable feature copy, got ${JSON.stringify(toolAdToast)}.`);
+  }
+  await page.waitForTimeout(1500);
+  await page.locator("#hintButton").click();
+  await page.waitForSelector("#toolModal:not(.hidden)", { timeout: 2000 });
+  await page.locator("#buyToolButton").click();
+  await page.waitForFunction(() => document.querySelector("#toast.show")?.textContent.includes("功能暂未开放"));
+  const toolBuyToast = await page.locator("#toast.show").innerText();
+  if (!toolBuyToast.includes("功能暂未开放")) {
+    throw new Error(`Expected spent tool buy action to show unavailable feature copy, got ${JSON.stringify(toolBuyToast)}.`);
+  }
+  await page.waitForTimeout(1500);
+  await page.locator("#hintButton").click();
+  await page.waitForSelector("#toolModal:not(.hidden)", { timeout: 2000 });
+  await expectClickCreatesButtonSound(page, "#toolCloseButton", "spent tool continue");
 
   await page.waitForTimeout(1500);
   await captureFirstLink(page);
@@ -184,7 +279,7 @@ try {
   if (pauseActionCount !== 3) {
     throw new Error(`Expected pause modal to provide continue, restart and home actions, got ${pauseActionCount}.`);
   }
-  await page.locator("#resumeButton").click();
+  await expectClickCreatesButtonSound(page, "#resumeButton", "pause continue");
   await page.screenshot({ path: join(outputDir, "smoke-mobile.png"), fullPage: true });
   await gameHomeButton.click();
   await page.waitForSelector("#exitModal:not(.hidden)", { timeout: 2000 });
@@ -192,6 +287,10 @@ try {
   await expectModalHasIcon(page, "#exitModal");
   await expectMobileModalDesignSystem(page, "#exitModal");
   await expectModalIconAsset(page, "#exitModal", "modal-exit-badge.png");
+  await expectClickCreatesButtonSound(page, "#exitCancelButton", "exit continue");
+  await page.locator("#exitModal").waitFor({ state: "hidden", timeout: 2000 });
+  await gameHomeButton.click();
+  await page.waitForSelector("#exitModal:not(.hidden)", { timeout: 2000 });
   await page.locator("#confirmRestartButton").click();
   await page.waitForSelector(".screen-game.active .tile:not(.empty)");
   await gameHomeButton.click();
@@ -233,6 +332,28 @@ async function expectFaviconAvailable(page, baseUrl) {
   const contentType = response.headers()["content-type"] ?? "";
   if (!contentType.includes("image/x-icon")) {
     throw new Error(`Expected /favicon.ico to be served as image/x-icon, got: ${contentType}`);
+  }
+}
+
+async function expectMobileTapZoomDisabled(page) {
+  const tapPolicy = await page.evaluate(() => {
+    const viewport = document.querySelector('meta[name="viewport"]')?.getAttribute("content") ?? "";
+    const bodyTouchAction = getComputedStyle(document.body).touchAction;
+    const shellTouchAction = getComputedStyle(document.querySelector(".app-shell")).touchAction;
+    return {
+      viewport,
+      bodyTouchAction,
+      shellTouchAction,
+    };
+  });
+
+  if (
+    !tapPolicy.viewport.includes("maximum-scale=1") ||
+    !tapPolicy.viewport.includes("user-scalable=no") ||
+    tapPolicy.bodyTouchAction !== "manipulation" ||
+    tapPolicy.shellTouchAction !== "manipulation"
+  ) {
+    throw new Error(`Expected mobile tap zoom to be disabled, got ${JSON.stringify(tapPolicy)}.`);
   }
 }
 
@@ -362,9 +483,50 @@ async function expectZeroToolCounts(page) {
   }
 }
 
+async function expectVersionedAllDataReset(page) {
+  await page.evaluate(() => {
+    localStorage.setItem("lianliankan.dataResetVersion", "old-version-before-all-data-reset");
+    localStorage.setItem(
+      "lianliankan.progress",
+      JSON.stringify({
+        highestUnlockedLevel: 38,
+        coins: 512,
+        playerName: "Old",
+        records: {
+          1: { completed: true, bestScore: 1200, bestStars: 3 },
+        },
+      }),
+    );
+    localStorage.setItem(
+      "lianliankan.stamina",
+      JSON.stringify({ stamina: 9, updatedAt: Date.now(), adClaims: 2 }),
+    );
+  });
+  await page.reload({ waitUntil: "networkidle" });
+
+  const resetData = await page.evaluate(() => ({
+    coinText: document.querySelector("#coinText")?.textContent?.trim() ?? "",
+    progress: JSON.parse(localStorage.getItem("lianliankan.progress") ?? "{}"),
+    stamina: JSON.parse(localStorage.getItem("lianliankan.stamina") ?? "{}"),
+    staminaText: document.querySelector(".screen-start .staminaText")?.textContent?.trim() ?? "",
+    version: localStorage.getItem("lianliankan.dataResetVersion"),
+  }));
+  if (
+    resetData.version !== CURRENT_DATA_RESET_VERSION ||
+    resetData.progress.highestUnlockedLevel !== 1 ||
+    resetData.progress.coins !== 0 ||
+    Object.keys(resetData.progress.records ?? {}).length !== 0 ||
+    resetData.stamina.stamina !== fullStamina ||
+    resetData.staminaText !== `${fullStamina}/${fullStamina}` ||
+    resetData.coinText !== "0"
+  ) {
+    throw new Error(`Expected old persisted data to reset on launch, got ${JSON.stringify(resetData)}.`);
+  }
+}
+
 async function seedPlayableFreshState(page, stamina = fullStamina) {
-  await page.evaluate((nextStamina) => {
-    localStorage.setItem("lianliankan.dataResetVersion", "2026-06-13-full-stamina-baseline");
+  await page.evaluate(({ nextStamina, resetVersion }) => {
+    localStorage.setItem("lianliankan.dataResetVersion", resetVersion);
     localStorage.setItem(
       "lianliankan.progress",
       JSON.stringify({ highestUnlockedLevel: 1, coins: 0, records: {} }),
@@ -373,13 +535,13 @@ async function seedPlayableFreshState(page, stamina = fullStamina) {
       "lianliankan.stamina",
       JSON.stringify({ stamina: nextStamina, updatedAt: Date.now(), adClaims: 0 }),
     );
-  }, stamina);
+  }, { nextStamina: stamina, resetVersion: CURRENT_DATA_RESET_VERSION });
   await page.reload({ waitUntil: "networkidle" });
 }
 
 async function seedProfileThreeStarState(page) {
-  await page.evaluate((nextStamina) => {
-    localStorage.setItem("lianliankan.dataResetVersion", "2026-06-13-full-stamina-baseline");
+  await page.evaluate(({ nextStamina, resetVersion }) => {
+    localStorage.setItem("lianliankan.dataResetVersion", resetVersion);
     localStorage.setItem(
       "lianliankan.progress",
       JSON.stringify({
@@ -396,7 +558,7 @@ async function seedProfileThreeStarState(page) {
       "lianliankan.stamina",
       JSON.stringify({ stamina: nextStamina, updatedAt: Date.now(), adClaims: 0 }),
     );
-  }, fullStamina);
+  }, { nextStamina: fullStamina, resetVersion: CURRENT_DATA_RESET_VERSION });
   await page.reload({ waitUntil: "networkidle" });
 }
 
@@ -441,6 +603,8 @@ async function expectPolishedGameUi(page) {
     const style = getComputedStyle(node);
     return {
       bottomGap: Math.round((screen?.bottom ?? window.innerHeight) - box.bottom),
+      visualHeight: Math.round(box.height),
+      visualWidth: Math.round(box.width),
       position: style.position,
     };
   });
@@ -455,6 +619,7 @@ async function expectPolishedGameUi(page) {
       centerDelta: Math.round(boardCenter - availableCenter),
       gapBelow: Math.round((toolbar?.top ?? 0) - boardBox.bottom),
       gapAbove: Math.round(boardBox.top - (topPanel?.bottom ?? 0)),
+      widthDelta: Math.round(Math.abs((topPanel?.width ?? 0) - boardBox.width)),
     };
   });
   if (
@@ -468,32 +633,131 @@ async function expectPolishedGameUi(page) {
   if (toolbarGeometry.position !== "absolute" || Math.abs(toolbarGeometry.bottomGap - 50) > 2) {
     throw new Error(`Expected toolbar to be fixed 50px above game screen bottom, got ${JSON.stringify(toolbarGeometry)}.`);
   }
-  if (Math.abs(boardCentering.centerDelta) > 10 || boardCentering.gapAbove < 0 || boardCentering.gapBelow < 0) {
+  if (toolbarGeometry.visualWidth > 276 || toolbarGeometry.visualHeight > 101) {
+    throw new Error(`Expected toolbar to be visually scaled down by about 20%, got ${JSON.stringify(toolbarGeometry)}.`);
+  }
+  if (
+    Math.abs(boardCentering.centerDelta) > 10 ||
+    boardCentering.gapAbove < 0 ||
+    boardCentering.gapBelow < 0 ||
+    boardCentering.widthDelta > 2
+  ) {
     throw new Error(`Expected board frame to be centered between HUD and toolbar, got ${JSON.stringify(boardCentering)}.`);
   }
 }
 
-async function expectToastDoesNotCoverBoard(page) {
+async function expectCompactGameViewportFits(page) {
+  const baseViewport = { width: 390, height: 844 };
+  await page.setViewportSize({ width: 390, height: 700 });
+  await page.waitForTimeout(100);
+
+  const compactGeometry = await page.locator(".screen-game.active .board-wrap").evaluate((node) => {
+    const boardBox = node.getBoundingClientRect();
+    const screen = node.closest(".screen-game");
+    const topPanel = screen?.querySelector(".top-panel")?.getBoundingClientRect();
+    const toolbar = screen?.querySelector(".toolbar")?.getBoundingClientRect();
+    return {
+      topPanelBottom: Math.round(topPanel?.bottom ?? 0),
+      boardTop: Math.round(boardBox.top),
+      boardBottom: Math.round(boardBox.bottom),
+      toolbarTop: Math.round(toolbar?.top ?? 0),
+      toolbarBottom: Math.round(toolbar?.bottom ?? 0),
+      gapAbove: Math.round(boardBox.top - (topPanel?.bottom ?? 0)),
+      gapBelow: Math.round((toolbar?.top ?? 0) - boardBox.bottom),
+      gapDelta: Math.round(Math.abs((toolbar?.top ?? 0) - boardBox.bottom - (boardBox.top - (topPanel?.bottom ?? 0)))),
+      widthDelta: Math.round(Math.abs((topPanel?.width ?? 0) - boardBox.width)),
+      viewportHeight: window.innerHeight,
+      visualViewportHeight: Math.round(window.visualViewport?.height ?? window.innerHeight),
+    };
+  });
+
+  await page.setViewportSize(baseViewport);
+  await page.waitForTimeout(100);
+
+  if (
+    compactGeometry.gapAbove < 0 ||
+    compactGeometry.gapBelow < 0 ||
+    compactGeometry.gapDelta > 12 ||
+    compactGeometry.widthDelta > 2
+  ) {
+    throw new Error(
+      `Expected compact real-device game viewport to keep the board aligned and centered, got ${JSON.stringify(
+        compactGeometry,
+      )}.`,
+    );
+  }
+}
+
+async function expectBoardGridFillsFrame(page) {
+  const fill = await page.locator(".screen-game.active .board-wrap").evaluate((node) => {
+    const wrap = node.getBoundingClientRect();
+    const board = node.querySelector(".board")?.getBoundingClientRect();
+    const style = getComputedStyle(node);
+    if (!board) return null;
+    return {
+      topInset: Math.round(board.top - wrap.top),
+      rightInset: Math.round(wrap.right - board.right),
+      bottomInset: Math.round(wrap.bottom - board.bottom),
+      leftInset: Math.round(board.left - wrap.left),
+      paddingTop: Math.round(Number.parseFloat(style.paddingTop)),
+      paddingRight: Math.round(Number.parseFloat(style.paddingRight)),
+      paddingBottom: Math.round(Number.parseFloat(style.paddingBottom)),
+      paddingLeft: Math.round(Number.parseFloat(style.paddingLeft)),
+      widthRatio: Number((board.width / wrap.width).toFixed(3)),
+    };
+  });
+
+  if (!fill) throw new Error("Could not measure board grid fill.");
+  if (
+    fill.topInset > 24 ||
+    fill.bottomInset > 24 ||
+    fill.leftInset > 24 ||
+    fill.rightInset > 24 ||
+    fill.widthRatio < 0.92
+  ) {
+    throw new Error(`Expected board tiles to fill the board frame without large blank insets, got ${JSON.stringify(fill)}.`);
+  }
+}
+
+async function getBoardAndFirstTileBox(page) {
+  return page.evaluate(() => {
+    const board = document.querySelector(".screen-game.active .board")?.getBoundingClientRect();
+    const tile = document.querySelector(".screen-game.active .tile:not(.empty)")?.getBoundingClientRect();
+    if (!board || !tile) return null;
+    return {
+      board: { top: board.top, right: board.right, bottom: board.bottom, left: board.left },
+      tile: { top: tile.top, right: tile.right, bottom: tile.bottom, left: tile.left },
+    };
+  });
+}
+
+async function expectToastOverlaysBoardWithoutMovingTiles(page, before) {
   const boxes = await page.evaluate(() => {
     const toast = document.querySelector(".screen-game.active .toast.show")?.getBoundingClientRect();
     const board = document.querySelector(".screen-game.active .board")?.getBoundingClientRect();
-    if (!toast || !board) return null;
+    const tile = document.querySelector(".screen-game.active .tile:not(.empty)")?.getBoundingClientRect();
+    const toastNode = document.querySelector(".screen-game.active .toast.show");
+    const boardNode = document.querySelector(".screen-game.active .board");
+    if (!toast || !board || !tile || !toastNode || !boardNode) return null;
     return {
       toast: { top: toast.top, right: toast.right, bottom: toast.bottom, left: toast.left },
       board: { top: board.top, right: board.right, bottom: board.bottom, left: board.left },
+      tile: { top: tile.top, right: tile.right, bottom: tile.bottom, left: tile.left },
+      toastZIndex: Number.parseInt(getComputedStyle(toastNode).zIndex, 10),
+      boardZIndex: Number.parseInt(getComputedStyle(boardNode).zIndex, 10),
     };
   });
-  if (!boxes) throw new Error("Could not measure toast and board bounds.");
+  if (!before || !boxes) throw new Error("Could not measure toast, board and tile bounds.");
   const overlaps =
     boxes.toast.left < boxes.board.right &&
     boxes.toast.right > boxes.board.left &&
     boxes.toast.top < boxes.board.bottom &&
     boxes.toast.bottom > boxes.board.top;
-  if (overlaps) {
+  const boardMoved = Math.abs(boxes.board.top - before.board.top) > 1 || Math.abs(boxes.board.bottom - before.board.bottom) > 1;
+  const tileMoved = Math.abs(boxes.tile.top - before.tile.top) > 1 || Math.abs(boxes.tile.bottom - before.tile.bottom) > 1;
+  if (!overlaps || boardMoved || tileMoved || boxes.toastZIndex <= boxes.boardZIndex) {
     throw new Error(
-      `Expected toast not to cover board, got toast=${JSON.stringify(boxes.toast)}, board=${JSON.stringify(
-        boxes.board,
-      )}.`,
+      `Expected toast to overlay the board without pushing tiles down, before=${JSON.stringify(before)}, after=${JSON.stringify(boxes)}.`,
     );
   }
 }
@@ -631,12 +895,16 @@ async function expectHomeRoadMap(page) {
     const exchangeEntry = document.querySelector("#homeExchangeButton");
     const prevChapterButton = document.querySelector("#prevChapterButton");
     const roadScroll = document.querySelector("#roadScroll");
+    const levelRoad = document.querySelector("#levelRoad");
     const dock = document.querySelector(".home-bottom-dock");
     const appShell = document.querySelector(".app-shell");
     const startButtonStyle = getComputedStyle(startButton);
     const buttonRect = startButton.getBoundingClientRect();
     const summaryRect = chapterSummary.getBoundingClientRect();
     const panelRect = mapPanel.getBoundingClientRect();
+    const panelStyle = getComputedStyle(mapPanel);
+    const roadScrollStyle = getComputedStyle(roadScroll);
+    const levelRoadStyle = getComputedStyle(levelRoad);
     const exchangeEntryRect = exchangeEntry?.getBoundingClientRect();
     const exchangeEntryStyle = exchangeEntry ? getComputedStyle(exchangeEntry) : null;
     const prevChapterButtonRect = prevChapterButton.getBoundingClientRect();
@@ -687,6 +955,11 @@ async function expectHomeRoadMap(page) {
       panelToButton: Math.round(buttonRect.top - panelRect.bottom),
       levelOneToPanelBottom: Math.round(panelRect.bottom - levelOne.getBoundingClientRect().bottom),
       topLevelToPanelTop,
+      mapPanelMarginTop: Number.parseFloat(panelStyle.marginTop),
+      mapPanelBorderRadius: Number.parseFloat(panelStyle.borderTopLeftRadius),
+      roadMaskImage: roadScrollStyle.maskImage || roadScrollStyle.webkitMaskImage || "",
+      levelRoadPaddingTop: Number.parseFloat(levelRoadStyle.paddingTop),
+      levelRoadPaddingBottom: Number.parseFloat(levelRoadStyle.paddingBottom),
       levelCenters: [levelOne, levelTwo, levelThree, levelFour].map(center),
       roadLineLayers: lineLayers,
       vineSegmentCount,
@@ -694,12 +967,12 @@ async function expectHomeRoadMap(page) {
       homeResourceCards,
       hasDock: Boolean(dock),
       dockPaddingBottom: dock ? Number.parseFloat(getComputedStyle(dock).paddingBottom) : 0,
+      dockTransform: dock ? getComputedStyle(dock).transform : "none",
       buttonDisplay: startButtonStyle.display,
       buttonAlignItems: startButtonStyle.alignItems,
       buttonJustifyItems: startButtonStyle.justifyItems,
       buttonLineHeight: startButtonStyle.lineHeight,
       exchangeEntryHeight: Math.round(exchangeEntryRect?.height ?? 0),
-      exchangeEntryAnimationDuration: exchangeEntryStyle?.animationDuration ?? "",
       exchangeEntryAnimationName: exchangeEntryStyle?.animationName ?? "",
       exchangeEntryBackground: exchangeEntryStyle?.backgroundImage ?? "",
       exchangeEntryChildCount: exchangeEntry?.children.length ?? 0,
@@ -707,9 +980,7 @@ async function expectHomeRoadMap(page) {
       exchangeEntryLeftDeltaFromLeftArrow: Math.round((exchangeEntryRect?.left ?? 0) - prevChapterButtonRect.left),
       exchangeEntryLeftToPanel: Math.round((exchangeEntryRect?.left ?? 0) - panelRect.left),
       exchangeEntryTopToPanel: Math.round((exchangeEntryRect?.top ?? 0) - panelRect.top),
-      exchangeEntryTransformOrigin: exchangeEntryStyle?.transformOrigin ?? "",
       exchangeEntryWidth: Math.round(exchangeEntryRect?.width ?? 0),
-      exchangeEntryWillChange: exchangeEntryStyle?.willChange ?? "",
       exchangeEntryStyleLeft: Number.parseFloat(exchangeEntryStyle?.left ?? "0"),
       exchangeEntryStyleTop: Number.parseFloat(exchangeEntryStyle?.top ?? "0"),
       exchangeEntryStyleWidth: Number.parseFloat(exchangeEntryStyle?.width ?? "0"),
@@ -749,10 +1020,10 @@ async function expectHomeRoadMap(page) {
   }
   const resourceCardMismatch = layoutInfo.homeResourceCards.find((card) => {
     const expectedIconRight = card.cardWidth * 0.4;
-    const expectedTextLeft = card.cardWidth * 0.4 + layoutInfo.cqwPx;
+    const expectedTextLeft = card.cardWidth * 0.4 + layoutInfo.cqwPx * 0.7692;
     const expectedCenterY = card.cardHeight / 2;
-    const expectedIconSize = layoutInfo.cqwPx * 8;
-    const expectedTextSize = layoutInfo.cqwPx * 4;
+    const expectedIconSize = layoutInfo.cqwPx * 7.1795;
+    const expectedTextSize = layoutInfo.cqwPx * 3.5897;
     return (
       Math.abs(card.iconWidth - expectedIconSize) > 0.75 ||
       Math.abs(card.iconHeight - expectedIconSize) > 0.75 ||
@@ -764,7 +1035,7 @@ async function expectHomeRoadMap(page) {
     );
   });
   if (layoutInfo.homeResourceCards.length !== 3 || resourceCardMismatch) {
-    throw new Error(`Expected resource cards to right-align 8cqw icons in the 40% area and left-align 4cqw text with 1cqw margin in the 60% area, got ${JSON.stringify(layoutInfo.homeResourceCards)}.`);
+    throw new Error(`Expected compact resource cards to right-align 7.1795cqw icons in the 40% area and left-align 3.5897cqw text with 0.7692cqw margin in the 60% area, got ${JSON.stringify(layoutInfo.homeResourceCards)}.`);
   }
   if (homeExchangeEntryCount !== 1) {
     throw new Error(`Expected a dedicated home exchange shop entry in the map area, got ${homeExchangeEntryCount}.`);
@@ -776,28 +1047,21 @@ async function expectHomeRoadMap(page) {
   const exchangeEntryStyleLeft = Number.parseFloat(layoutInfo.exchangeEntryStyleLeft);
   const exchangeEntryStyleWidth = Number.parseFloat(layoutInfo.exchangeEntryStyleWidth);
   const dockPaddingBottom = Number.parseFloat(layoutInfo.dockPaddingBottom);
-  const [exchangeEntryOriginX, exchangeEntryOriginY] = layoutInfo.exchangeEntryTransformOrigin
-    .split(" ")
-    .map((value) => Number.parseFloat(value));
   if (
     !layoutInfo.exchangeEntryBackground.includes("exchange-shop-entry-icon-v1.png") ||
     layoutInfo.exchangeEntryChildCount !== 0 ||
-    Math.abs(exchangeEntryStyleTop - 80) > 0.5 ||
+    Math.abs(exchangeEntryStyleTop - 72) > 0.5 ||
     Math.abs(exchangeEntryStyleLeft) > 0.5 ||
-    Math.abs(exchangeEntryStyleWidth - 60) > 0.5 ||
-    layoutInfo.exchangeEntryAnimationName !== "exchangeEntryWiggle" ||
-    layoutInfo.exchangeEntryAnimationDuration !== "1.5s" ||
-    Math.abs(exchangeEntryOriginX - 30) > 0.5 ||
-    Math.abs(exchangeEntryOriginY - 76) > 0.5 ||
-    !layoutInfo.exchangeEntryWillChange.includes("transform")
+    Math.abs(exchangeEntryStyleWidth - 54) > 0.5 ||
+    layoutInfo.exchangeEntryAnimationName !== "none"
   ) {
-    throw new Error(`Expected exchange shop entry to use the generated icon, proportional position and pulse animation, got ${JSON.stringify(layoutInfo)}.`);
+    throw new Error(`Expected exchange shop entry to use the generated icon, proportional position and no animation, got ${JSON.stringify(layoutInfo)}.`);
   }
   if (
     !layoutInfo.hasDock ||
     layoutInfo.buttonWidth < layoutInfo.viewportWidth * 0.7 ||
     Math.abs(layoutInfo.buttonRatio - 1115 / 276) > 0.12 ||
-    Math.abs(dockPaddingBottom - 22) > 0.5
+    Math.abs(dockPaddingBottom - 16) > 0.5
   ) {
     throw new Error(`Expected continue button to fill its dock at the source image aspect ratio, got ${JSON.stringify(layoutInfo)}.`);
   }
@@ -811,14 +1075,25 @@ async function expectHomeRoadMap(page) {
   if (layoutInfo.levelOneTop <= layoutInfo.levelTwoTop) {
     throw new Error(`Expected level 01 to appear below level 02 in bottom-up map, got ${JSON.stringify(layoutInfo)}.`);
   }
-  if (layoutInfo.titleToPanel !== 30 || layoutInfo.panelToButton !== 30) {
-    throw new Error(`Expected road map to keep 30px from chapter tab and bottom button, got ${JSON.stringify(layoutInfo)}.`);
+  if (
+    Math.abs(layoutInfo.titleToPanel - 13) > 1 ||
+    layoutInfo.panelToButton < 18 ||
+    layoutInfo.panelToButton > 26 ||
+    Math.abs(layoutInfo.mapPanelMarginTop - 13) > 1 ||
+    layoutInfo.mapPanelBorderRadius !== 0 ||
+    !layoutInfo.roadMaskImage.includes("linear-gradient") ||
+    !layoutInfo.roadMaskImage.includes("rgba(0, 0, 0, 0)") ||
+    Math.abs(layoutInfo.levelRoadPaddingTop - 34) > 1 ||
+    Math.abs(layoutInfo.levelRoadPaddingBottom - 58) > 1 ||
+    !layoutInfo.dockTransform.includes("matrix")
+  ) {
+    throw new Error(`Expected road map to use the airy 05 layout with subtle top/bottom fade and extra road breathing room, got ${JSON.stringify(layoutInfo)}.`);
   }
   if (layoutInfo.levelOneToPanelBottom < -2 || layoutInfo.levelOneToPanelBottom > 8) {
-    throw new Error(`Expected level 01 to sit at the bottom of the road area without clipping, got ${JSON.stringify(layoutInfo)}.`);
+    throw new Error(`Expected level 01 to stay aligned to the road edge while the mask softens the clipping, got ${JSON.stringify(layoutInfo)}.`);
   }
   if (layoutInfo.topLevelToPanelTop < 0 || layoutInfo.topLevelToPanelTop > 4) {
-    throw new Error(`Expected level 30 to sit at the top of the road area without clipping, got ${JSON.stringify(layoutInfo)}.`);
+    throw new Error(`Expected level 30 to stay aligned to the road edge while the mask softens the clipping, got ${JSON.stringify(layoutInfo)}.`);
   }
   if (
     layoutInfo.levelCenters.length !== 4 ||
@@ -905,8 +1180,8 @@ async function expectHomeScalesWithViewportWidth(page) {
 }
 
 async function expectCurrentRoadLevelCentered(page) {
-  await page.evaluate(() => {
-    localStorage.setItem("lianliankan.dataResetVersion", "2026-06-13-full-stamina-baseline");
+  await page.evaluate((resetVersion) => {
+    localStorage.setItem("lianliankan.dataResetVersion", resetVersion);
     localStorage.setItem(
       "lianliankan.progress",
       JSON.stringify({
@@ -922,7 +1197,7 @@ async function expectCurrentRoadLevelCentered(page) {
       }),
     );
     localStorage.setItem("lianliankan.stamina", JSON.stringify({ stamina: 8, updatedAt: Date.now(), adClaims: 0 }));
-  });
+  }, CURRENT_DATA_RESET_VERSION);
   await page.reload({ waitUntil: "networkidle" });
   await page.waitForSelector(".screen-start.active .road-level.current", { timeout: 2000 });
   await page.waitForFunction(() => document.querySelector(".screen-start.active .road-level.current")?.textContent.includes("06"));
@@ -1037,7 +1312,7 @@ async function expectHomeChapterArrowsCycle(page) {
     throw new Error(`Expected home chapter arrows to stay clickable, got disabled=${initialDisabledState.join(",")}.`);
   }
 
-  await page.locator("#prevChapterButton").click();
+  await expectClickCreatesButtonSound(page, "#prevChapterButton", "previous theme arrow");
   await page.waitForFunction(() => document.querySelector("#startScreen")?.className.includes("home-theme-jelly-castle"));
   await expectGeneratedNodeRoadAssetSystem(page, {
     themeId: "jelly-castle",
@@ -1045,7 +1320,7 @@ async function expectHomeChapterArrowsCycle(page) {
     connectorSelector: ".road-jelly-image-segment",
     connectorAsset: "road-jelly-connector.png",
   });
-  await page.locator("#nextChapterButton").click();
+  await expectClickCreatesButtonSound(page, "#nextChapterButton", "next theme arrow");
   await page.waitForFunction(() => document.querySelector("#startScreen")?.className.includes("home-theme-fruit-forest"));
   await page.locator("#nextChapterButton").click();
   await page.waitForFunction(() => document.querySelector("#startScreen")?.className.includes("home-theme-candy-garden"));
@@ -1138,10 +1413,10 @@ async function expectGeneratedNodeRoadAssetSystem(page, expected) {
     !roadData.hasNumberClass ||
     !roadData.hasMainClass ||
     !roadData.hasStarSlot ||
-    roadData.levelWidth !== 84 ||
-    roadData.levelHeight !== 96 ||
-    roadData.mainWidth !== 84 ||
-    roadData.mainHeight !== 83
+    roadData.levelWidth !== 77 ||
+    roadData.levelHeight !== 88 ||
+    roadData.mainWidth !== 77 ||
+    roadData.mainHeight !== 76
   ) {
     throw new Error(`Expected ${expected.themeId} levels to use top shared stars, main button, and bottom number plaque, got ${JSON.stringify(roadData)}.`);
   }
@@ -1151,8 +1426,8 @@ async function expectGeneratedNodeRoadAssetSystem(page, expected) {
   if (roadData.numberBelowMain === null || roadData.numberBelowMain < 0 || (roadData.starAboveMain !== null && roadData.starAboveMain > 0)) {
     throw new Error(`Expected ${expected.themeId} number plaque below the main button and shared stars above it, got ${JSON.stringify(roadData)}.`);
   }
-  if (roadData.levelToPanelBottom === null || Math.abs(roadData.levelToPanelBottom) > 1) {
-    throw new Error(`Expected ${expected.themeId} first level to sit flush with the road area bottom, got ${JSON.stringify(roadData)}.`);
+  if (roadData.levelToPanelBottom === null || Math.abs(roadData.levelToPanelBottom) > 5) {
+    throw new Error(`Expected ${expected.themeId} first level to stay aligned while the road mask softens the edge, got ${JSON.stringify(roadData)}.`);
   }
   const numberPaddingLeft = Number.parseFloat(roadData.numberPaddingLeft);
   const numberPaddingRight = Number.parseFloat(roadData.numberPaddingRight);
@@ -1162,14 +1437,14 @@ async function expectGeneratedNodeRoadAssetSystem(page, expected) {
     roadData.numberDisplay !== "grid" ||
     roadData.numberAlignItems !== "center" ||
     roadData.numberJustifyItems !== "center" ||
-    Math.abs(numberPaddingLeft - 10) > 0.5 ||
-    Math.abs(numberPaddingRight - 10) > 0.5 ||
-    Math.abs(numberPaddingTop - 5) > 0.5 ||
-    Math.abs(numberPaddingBottom - 5) > 0.5 ||
+    Math.abs(numberPaddingLeft - 9) > 0.5 ||
+    Math.abs(numberPaddingRight - 9) > 0.5 ||
+    Math.abs(numberPaddingTop - 4) > 0.5 ||
+    Math.abs(numberPaddingBottom - 4) > 0.5 ||
     roadData.numberWidth === null ||
     roadData.numberWidth < 46 ||
     roadData.numberHeight === null ||
-    roadData.numberHeight < 26
+    roadData.numberHeight < 23
   ) {
     throw new Error(`Expected ${expected.themeId} level number to be vertically centered inside its bottom plaque, got ${JSON.stringify(roadData)}.`);
   }
@@ -1299,7 +1574,7 @@ async function expectLevelBackgroundsAreCleanBases(page) {
 }
 
 async function expectSecondaryPageNavigation(page) {
-  await page.locator("#profileButton").click();
+  await expectClickCreatesSound(page, "#profileButton", "profile entry");
   await page.waitForSelector("#profileScreen.active", { timeout: 1200 });
   if (!(await page.locator("#profileScreen.active").innerText()).includes("个人中心")) {
     throw new Error("Expected profile entry to open the personal center page.");
@@ -1309,10 +1584,10 @@ async function expectSecondaryPageNavigation(page) {
   await expectProfilePlayerNameBounded(page);
   await expectProfileThreeStarDataMatchesHome(page);
   await page.screenshot({ path: join(outputDir, "profile-mobile.png"), fullPage: true });
-  await page.locator("#profileBackButton").click();
+  await expectClickCreatesButtonSound(page, "#profileBackButton", "profile back");
   await page.waitForSelector(".screen-start.active", { timeout: 1200 });
 
-  await page.locator("#settingsButton").click();
+  await expectClickCreatesSound(page, "#settingsButton", "settings entry");
   await page.waitForSelector("#settingsScreen.active", { timeout: 1200 });
   if (!(await page.locator("#settingsScreen.active").innerText()).includes("设置")) {
     throw new Error("Expected settings entry to open the settings page.");
@@ -1321,7 +1596,7 @@ async function expectSecondaryPageNavigation(page) {
   await expectSecondaryPageOptimizedLikeProfile(page, "#settingsScreen", ".settings-layout", ".settings-panel, .settings-row");
   await expectSettingsPageRefinements(page);
   await page.screenshot({ path: join(outputDir, "settings-mobile.png"), fullPage: true });
-  await page.locator("#settingsBackButton").click();
+  await expectClickCreatesButtonSound(page, "#settingsBackButton", "settings back");
   await page.waitForSelector(".screen-start.active", { timeout: 1200 });
 
   await page.locator("#coinExchangeButton").click({ force: true });
@@ -1335,11 +1610,37 @@ async function expectSecondaryPageNavigation(page) {
     throw new Error("Expected dedicated home exchange entry to stay on the home page.");
   }
   const comingSoonText = await page.locator("#comingSoonTitle").innerText();
-  if (comingSoonText !== "敬请期待") {
-    throw new Error(`Expected dedicated home exchange entry to show coming soon modal, got: ${comingSoonText}`);
+  if (comingSoonText !== "功能暂未开放") {
+    throw new Error(`Expected dedicated home exchange entry to show unavailable feature modal, got: ${comingSoonText}`);
+  }
+  const comingSoonPlaqueText = (await page.locator("#comingSoonModal:not(.hidden) .plaque-level-label").innerText()).trim();
+  if (comingSoonPlaqueText !== "") {
+    throw new Error(`Expected unavailable feature modal plaque to have no copy, got: ${comingSoonPlaqueText}`);
   }
   await page.locator("#comingSoonCloseButton").click();
   await page.locator("#comingSoonModal").waitFor({ state: "hidden", timeout: 1200 });
+}
+
+async function expectClickCreatesSound(page, selector, label) {
+  await page.evaluate(() => {
+    window.__linkMatchAudioEvents = [];
+  });
+  await page.locator(selector).click();
+  const audioEvents = await page.evaluate(() => window.__linkMatchAudioEvents.slice());
+  if (!audioEvents.includes("oscillator-start")) {
+    throw new Error(`Expected ${label} click to play a sound, got ${JSON.stringify(audioEvents)}.`);
+  }
+}
+
+async function expectClickCreatesButtonSound(page, selector, label) {
+  await page.evaluate(() => {
+    window.__linkMatchAudioEvents = [];
+  });
+  await page.locator(selector).click();
+  const audioEvents = await page.evaluate(() => window.__linkMatchAudioEvents.slice());
+  if (!audioEvents.includes("param-ramp:0.022")) {
+    throw new Error(`Expected ${label} click to play the shared button sound, got ${JSON.stringify(audioEvents)}.`);
+  }
 }
 
 async function expectSecondaryPageBuiltFromLayout(page, screenSelector, layoutSelector) {
@@ -1423,11 +1724,13 @@ async function expectSettingsPageRefinements(page) {
     const rowData = rows.map((row) => {
       const rowBox = row.getBoundingClientRect();
       const icon = row.querySelector(".settings-icon");
+      const iconBox = icon?.getBoundingClientRect();
       const iconStyle = icon ? getComputedStyle(icon) : null;
       const label = row.querySelector("strong");
       const labelBox = label?.getBoundingClientRect();
       const labelStyle = label ? getComputedStyle(label) : null;
       const toggle = row.querySelector(".settings-toggle");
+      const toggleBox = toggle?.getBoundingClientRect();
       const toggleStyle = toggle ? getComputedStyle(toggle) : null;
       const toggleAfter = toggle ? getComputedStyle(toggle, "::after") : null;
       const childCenters = [...row.children].map((child) => {
@@ -1439,13 +1742,14 @@ async function expectSettingsPageRefinements(page) {
         iconHeight: iconStyle ? Number.parseFloat(iconStyle.height) : 0,
         iconMarginLeft: iconStyle ? Number.parseFloat(iconStyle.marginLeft) : 0,
         iconWidth: iconStyle ? Number.parseFloat(iconStyle.width) : 0,
+        iconLabelGap: Math.round((labelBox?.left ?? 0) - (iconBox?.right ?? 0)),
         labelFontSize: labelStyle ? Number.parseFloat(labelStyle.fontSize) : 0,
         labelHeight: Math.round(labelBox?.height ?? 0),
+        labelToggleGap: Math.round((toggleBox?.left ?? 0) - (labelBox?.right ?? 0)),
         labelText: label?.textContent ?? "",
         labelWhiteSpace: labelStyle?.whiteSpace ?? "",
         leafIconCount: row.querySelectorAll(".secondary-label-row img").length,
         rowMinHeight: Number.parseFloat(getComputedStyle(row).minHeight),
-        rowColumns: getComputedStyle(row).gridTemplateColumns,
         toggleAfterHeight: toggleAfter ? Number.parseFloat(toggleAfter.height) : 0,
         toggleAfterRight: toggleAfter ? Number.parseFloat(toggleAfter.right) : 0,
         toggleAfterTop: toggleAfter ? Number.parseFloat(toggleAfter.top) : 0,
@@ -1488,11 +1792,14 @@ async function expectSettingsPageRefinements(page) {
   const wrongIconSize = layout.rowData.find(
     (row) =>
       Math.abs(row.iconWidth - 40) > 0.5 ||
-      Math.abs(row.iconHeight - 40) > 0.5 ||
-      Math.abs(row.iconMarginLeft - 20) > 0.5,
+      Math.abs(row.iconHeight - 40) > 0.5,
   );
   if (wrongIconSize) {
-    throw new Error(`Expected settings icons to use 40px size and 20px left margin, got ${JSON.stringify(layout)}.`);
+    throw new Error(`Expected settings icons to use 40px size, got ${JSON.stringify(layout)}.`);
+  }
+  const crampedRow = layout.rowData.find((row) => row.iconLabelGap < 14 || row.labelToggleGap < 14);
+  if (crampedRow) {
+    throw new Error(`Expected settings icon, label and toggle to keep at least 14px spacing, got ${JSON.stringify(layout)}.`);
   }
   const wrongRowHeight = layout.rowData.find((row) => Math.abs(row.rowMinHeight - 80) > 0.5);
   if (wrongRowHeight) {
@@ -1505,10 +1812,6 @@ async function expectSettingsPageRefinements(page) {
   const wrongLabelSize = layout.rowData.find((row) => Math.abs(row.labelFontSize - 19.2) > 0.5);
   if (wrongLabelSize) {
     throw new Error(`Expected settings row labels to use 1.2rem font size, got ${JSON.stringify(layout)}.`);
-  }
-  const wrongColumns = layout.rowData.find((row) => !row.rowColumns.includes("70px") || !row.rowColumns.includes("120px"));
-  if (wrongColumns) {
-    throw new Error(`Expected settings rows to use 70px 1fr 120px columns, got ${JSON.stringify(layout)}.`);
   }
   const wrongTogglePadding = layout.rowData.find(
     (row) => Math.abs(row.togglePaddingLeft - 20) > 0.5 || Math.abs(row.togglePaddingRight - 50) > 0.5,
@@ -1529,6 +1832,213 @@ async function expectSettingsPageRefinements(page) {
   if (layout.clearProgressCount !== 0) {
     throw new Error(`Expected settings clear-progress card to be removed, got ${JSON.stringify(layout)}.`);
   }
+}
+
+async function expectSettingsPersistenceAndAudioControls(page) {
+  await page.locator("#settingsButton").click();
+  await page.waitForSelector("#settingsScreen.active", { timeout: 1200 });
+  await page.locator("#musicToggle").click();
+  await page.locator("#soundToggle").click();
+  await page.locator("#vibrationToggle").click();
+
+  const storedAudioSettings = await page.evaluate(() => localStorage.getItem("lianliankan.audioSettings"));
+  if (storedAudioSettings !== null) {
+    throw new Error(`Expected audio settings to stay session-only, got persisted value ${storedAudioSettings}.`);
+  }
+
+  const offToggleState = await page.locator("#settingsScreen.active").evaluate(() => ({
+    music: document.querySelector("#musicToggle")?.getAttribute("aria-pressed"),
+    sound: document.querySelector("#soundToggle")?.getAttribute("aria-pressed"),
+    vibration: document.querySelector("#vibrationToggle")?.getAttribute("aria-pressed"),
+  }));
+  if (offToggleState.music !== "false" || offToggleState.sound !== "false" || offToggleState.vibration !== "false") {
+    throw new Error(`Expected settings toggles to turn off for current session, got ${JSON.stringify(offToggleState)}.`);
+  }
+
+  await page.evaluate(() => {
+    window.__linkMatchAudioEvents = [];
+  });
+  await page.locator("#settingsBackButton").click();
+  await page.waitForSelector(".screen-start.active", { timeout: 1200 });
+  await page.locator("#startButton").click();
+  await page.waitForSelector(".screen-game.active .tile:not(.empty)");
+  const sessionMutedAudioEvents = await page.evaluate(() => window.__linkMatchAudioEvents.slice());
+  if (sessionMutedAudioEvents.length !== 0) {
+    throw new Error(`Expected disabled music and sound to avoid creating audio in the same session, got ${JSON.stringify(sessionMutedAudioEvents)}.`);
+  }
+
+  await page.reload({ waitUntil: "networkidle" });
+  const resetToggleStateBeforeInteraction = await page.evaluate(() => ({
+    music: document.querySelector("#musicToggle")?.getAttribute("aria-pressed"),
+    sound: document.querySelector("#soundToggle")?.getAttribute("aria-pressed"),
+    vibration: document.querySelector("#vibrationToggle")?.getAttribute("aria-pressed"),
+  }));
+  if (
+    resetToggleStateBeforeInteraction.music !== "true" ||
+    resetToggleStateBeforeInteraction.sound !== "true" ||
+    resetToggleStateBeforeInteraction.vibration !== "true"
+  ) {
+    throw new Error(
+      `Expected settings to reset on before the first post-refresh interaction, got ${JSON.stringify(resetToggleStateBeforeInteraction)}.`,
+    );
+  }
+
+  await page.evaluate(() => {
+    window.__linkMatchAudioEvents = [];
+    window.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+  });
+  const touchUnlockAudioEvents = await page.evaluate(() => window.__linkMatchAudioEvents.slice());
+  if (!touchUnlockAudioEvents.includes("oscillator-start")) {
+    throw new Error(`Expected first touch after reload to unlock startup music, got ${JSON.stringify(touchUnlockAudioEvents)}.`);
+  }
+
+  await page.locator("#settingsButton").click();
+  await page.waitForSelector("#settingsScreen.active", { timeout: 1200 });
+  const resetToggleState = await page.locator("#settingsScreen.active").evaluate(() => ({
+    music: document.querySelector("#musicToggle")?.getAttribute("aria-pressed"),
+    sound: document.querySelector("#soundToggle")?.getAttribute("aria-pressed"),
+    vibration: document.querySelector("#vibrationToggle")?.getAttribute("aria-pressed"),
+  }));
+  if (resetToggleState.music !== "true" || resetToggleState.sound !== "true" || resetToggleState.vibration !== "true") {
+    throw new Error(`Expected settings toggles to reset on after reload, got ${JSON.stringify(resetToggleState)}.`);
+  }
+
+  await page.locator("#settingsBackButton").click();
+  await page.waitForSelector(".screen-start.active", { timeout: 1200 });
+  await page.evaluate(() => {
+    window.__linkMatchAudioEvents = [];
+  });
+  await page.locator("#startButton").click();
+  await page.waitForSelector(".screen-game.active .tile:not(.empty)");
+  const sessionEnabledAudioEvents = await page.evaluate(() => window.__linkMatchAudioEvents.slice());
+  if (!sessionEnabledAudioEvents.includes("oscillator-start")) {
+    throw new Error(`Expected enabled music or sound to use procedural WebAudio, got ${JSON.stringify(sessionEnabledAudioEvents)}.`);
+  }
+
+  await page.locator("#gameHomeButton").click();
+  await page.locator("#confirmHomeButton").click();
+  await page.waitForSelector(".screen-start.active", { timeout: 1200 });
+  return;
+
+  const storedOffSettings = await page.evaluate(() => JSON.parse(localStorage.getItem("lianliankan.audioSettings") ?? "{}"));
+  if (
+    storedOffSettings.music !== false ||
+    storedOffSettings.sound !== false ||
+    storedOffSettings.vibration !== false
+  ) {
+    throw new Error(`Expected settings toggles to persist off state, got ${JSON.stringify(storedOffSettings)}.`);
+  }
+
+  await page.reload({ waitUntil: "networkidle" });
+  await page.locator("#settingsButton").click();
+  await page.waitForSelector("#settingsScreen.active", { timeout: 1200 });
+  const reloadedToggleState = await page.locator("#settingsScreen.active").evaluate(() => ({
+    music: document.querySelector("#musicToggle")?.getAttribute("aria-pressed"),
+    musicText: document.querySelector("#musicToggle span")?.textContent,
+    sound: document.querySelector("#soundToggle")?.getAttribute("aria-pressed"),
+    soundText: document.querySelector("#soundToggle span")?.textContent,
+    vibration: document.querySelector("#vibrationToggle")?.getAttribute("aria-pressed"),
+    vibrationText: document.querySelector("#vibrationToggle span")?.textContent,
+  }));
+  if (
+    reloadedToggleState.music !== "false" ||
+    reloadedToggleState.musicText !== "关" ||
+    reloadedToggleState.sound !== "false" ||
+    reloadedToggleState.soundText !== "关" ||
+    reloadedToggleState.vibration !== "false" ||
+    reloadedToggleState.vibrationText !== "关"
+  ) {
+    throw new Error(`Expected settings toggles to restore off state after reload, got ${JSON.stringify(reloadedToggleState)}.`);
+  }
+
+  await page.locator("#settingsBackButton").click();
+  await page.waitForSelector(".screen-start.active", { timeout: 1200 });
+  await seedPlayableFreshState(page);
+  await page.evaluate(() => {
+    window.__linkMatchAudioEvents = [];
+  });
+  await page.locator("#startButton").click();
+  await page.waitForSelector(".screen-game.active .tile:not(.empty)");
+  const mutedAudioEvents = await page.evaluate(() => window.__linkMatchAudioEvents.slice());
+  if (mutedAudioEvents.length !== 0) {
+    throw new Error(`Expected disabled music and sound to avoid creating audio, got ${JSON.stringify(mutedAudioEvents)}.`);
+  }
+
+  await page.evaluate(() => {
+    localStorage.setItem(
+      "lianliankan.audioSettings",
+      JSON.stringify({ music: true, sound: true, vibration: true }),
+    );
+    window.__linkMatchAudioEvents = [];
+  });
+  await page.reload({ waitUntil: "networkidle" });
+  await seedPlayableFreshState(page);
+  await page.locator("#startButton").click();
+  await page.waitForSelector(".screen-game.active .tile:not(.empty)");
+  const enabledAudioEvents = await page.evaluate(() => window.__linkMatchAudioEvents.slice());
+  if (!enabledAudioEvents.includes("context-created") || !enabledAudioEvents.includes("oscillator-start")) {
+    throw new Error(`Expected enabled music or sound to use procedural WebAudio, got ${JSON.stringify(enabledAudioEvents)}.`);
+  }
+
+  await page.locator("#gameHomeButton").click();
+  await page.locator("#confirmHomeButton").click();
+  await page.waitForSelector(".screen-start.active", { timeout: 1200 });
+}
+
+async function expectGameEntryStartsBackgroundMusic(page) {
+  await seedPlayableFreshState(page);
+  const startupAudioEvents = await page.evaluate(() => window.__linkMatchAudioEvents.slice());
+  const startupOscillatorCount = startupAudioEvents.filter((event) => event === "oscillator-start").length;
+  if (!startupAudioEvents.includes("context-created") || startupOscillatorCount < 6) {
+    throw new Error(`Expected opening the mini game to start background music, got ${JSON.stringify(startupAudioEvents)}.`);
+  }
+
+  await page.evaluate(() => {
+    window.__linkMatchAudioEvents = [];
+  });
+  await page.locator("#startButton").click();
+  await page.waitForSelector(".screen-game.active .tile:not(.empty)");
+  const levelAudioEvents = await page.evaluate(() => window.__linkMatchAudioEvents.slice());
+  const levelOscillatorCount = levelAudioEvents.filter((event) => event === "oscillator-start").length;
+  if (levelOscillatorCount < 1) {
+    throw new Error(`Expected entering a level to keep audio active, got ${JSON.stringify(levelAudioEvents)}.`);
+  }
+
+  await page.locator("#gameHomeButton").click();
+  await page.locator("#confirmHomeButton").click();
+  await page.waitForSelector(".screen-start.active", { timeout: 1200 });
+  await page.reload({ waitUntil: "networkidle" });
+  return;
+
+  await page.evaluate(() => {
+    localStorage.setItem(
+      "lianliankan.audioSettings",
+      JSON.stringify({ music: true, sound: false, vibration: false }),
+    );
+  });
+  await seedPlayableFreshState(page);
+  await page.evaluate(() => {
+    window.__linkMatchAudioEvents = [];
+  });
+  await page.locator("#startButton").click();
+  await page.waitForSelector(".screen-game.active .tile:not(.empty)");
+
+  const audioEvents = await page.evaluate(() => window.__linkMatchAudioEvents.slice());
+  const oscillatorStartCount = audioEvents.filter((event) => event === "oscillator-start").length;
+  if (oscillatorStartCount < 8) {
+    throw new Error(`Expected game entry to start background music with sound effects off, got ${JSON.stringify(audioEvents)}.`);
+  }
+
+  await page.locator("#gameHomeButton").click();
+  await page.locator("#confirmHomeButton").click();
+  await page.waitForSelector(".screen-start.active", { timeout: 1200 });
+  await page.evaluate(() => {
+    localStorage.setItem(
+      "lianliankan.audioSettings",
+      JSON.stringify({ music: true, sound: true, vibration: true }),
+    );
+  });
+  await page.reload({ waitUntil: "networkidle" });
 }
 
 async function expectProfilePageOptimizedLayout(page) {
@@ -1610,11 +2120,11 @@ async function expectProfilePageOptimizedLayout(page) {
     };
   });
 
-  if (layout.backWidth < 58 || layout.backWidth > 61) {
-    throw new Error(`Expected profile back button to be 20% smaller, got ${JSON.stringify(layout)}.`);
+  if (layout.backWidth < 50 || layout.backWidth > 56) {
+    throw new Error(`Expected profile back button to stay compact on mobile, got ${JSON.stringify(layout)}.`);
   }
-  if (layout.titleHeight < 75 || layout.titleHeight > 78 || Math.abs(layout.titleFontSize - 24) > 0.5) {
-    throw new Error(`Expected profile title icon to shrink 20% and text to be 24px, got ${JSON.stringify(layout)}.`);
+  if (layout.titleHeight < 60 || layout.titleHeight > 72 || layout.titleFontSize < 21 || layout.titleFontSize > 23) {
+    throw new Error(`Expected profile title to use the compact mobile scale, got ${JSON.stringify(layout)}.`);
   }
   if (layout.cardCount !== 6) {
     throw new Error(`Expected profile page to render 6 middle cards, got ${JSON.stringify(layout)}.`);
@@ -1634,43 +2144,43 @@ async function expectProfilePageOptimizedLayout(page) {
   if (layout.gridCenterDelta > 2) {
     throw new Error(`Expected profile middle card grid to be centered, got ${JSON.stringify(layout)}.`);
   }
-  if (layout.titleTranslateY > -6 || layout.titleTranslateY < -8) {
-    throw new Error(`Expected profile title text to move down 8px from previous position, got ${JSON.stringify(layout)}.`);
+  if (layout.titleTranslateY > -5 || layout.titleTranslateY < -7) {
+    throw new Error(`Expected profile title text to keep compact vertical alignment, got ${JSON.stringify(layout)}.`);
   }
   if (
-    layout.iconData.levelWidth < 90 ||
-    layout.iconData.levelWidth > 92 ||
-    layout.iconData.starWidth < 60 ||
-    layout.iconData.starWidth > 62 ||
-    layout.iconData.coinWidth < 68 ||
-    layout.iconData.coinWidth > 70
+    layout.iconData.levelWidth < 78 ||
+    layout.iconData.levelWidth > 80 ||
+    layout.iconData.starWidth < 52 ||
+    layout.iconData.starWidth > 54 ||
+    layout.iconData.coinWidth < 57 ||
+    layout.iconData.coinWidth > 59
   ) {
-    throw new Error(`Expected profile level/star/coin icons to shrink another 10%, got ${JSON.stringify(layout)}.`);
+    throw new Error(`Expected profile level/star/coin icons to use compact sizes, got ${JSON.stringify(layout)}.`);
   }
   if (
-    layout.levelBadgeFontSize < 15.5 ||
-    layout.levelBadgeFontSize > 16.5 ||
-    layout.levelBadgeLineHeight < 15.5 ||
-    layout.levelBadgeLineHeight > 16.5
+    layout.levelBadgeFontSize < 14 ||
+    layout.levelBadgeFontSize > 15 ||
+    layout.levelBadgeLineHeight < 14 ||
+    layout.levelBadgeLineHeight > 15
   ) {
-    throw new Error(`Expected current-level green badge text to be 1rem and vertically centered, got ${JSON.stringify(layout)}.`);
+    throw new Error(`Expected current-level green badge text to use compact scale and stay centered, got ${JSON.stringify(layout)}.`);
   }
-  if (layout.levelBadgeTranslateY < 9 || layout.levelBadgeTranslateY > 11) {
-    throw new Error(`Expected current-level green badge to move down 10px, got ${JSON.stringify(layout)}.`);
+  if (layout.levelBadgeTranslateY < 5 || layout.levelBadgeTranslateY > 7) {
+    throw new Error(`Expected current-level green badge to keep compact vertical offset, got ${JSON.stringify(layout)}.`);
   }
-  if (layout.starFontSize < 19 || layout.starFontSize > 20) {
-    throw new Error(`Expected total-stars number text to be 1.2rem, got ${JSON.stringify(layout)}.`);
+  if (layout.starFontSize < 17 || layout.starFontSize > 18) {
+    throw new Error(`Expected total-stars number text to use compact scale, got ${JSON.stringify(layout)}.`);
   }
-  if (layout.starTranslateY < 9 || layout.starTranslateY > 11) {
-    throw new Error(`Expected total-stars number to move down 10px, got ${JSON.stringify(layout)}.`);
+  if (layout.starTranslateY < 5 || layout.starTranslateY > 7) {
+    throw new Error(`Expected total-stars number to keep compact vertical offset, got ${JSON.stringify(layout)}.`);
   }
   if (
-    layout.completedFontSize < 22 ||
-    layout.completedFontSize > 23 ||
-    layout.threeStarFontSize < 22 ||
-    layout.threeStarFontSize > 23
+    layout.completedFontSize < 19 ||
+    layout.completedFontSize > 20 ||
+    layout.threeStarFontSize < 19 ||
+    layout.threeStarFontSize > 20
   ) {
-    throw new Error(`Expected completed and three-star number text to be 1.4rem, got ${JSON.stringify(layout)}.`);
+    throw new Error(`Expected completed and three-star number text to use compact scale, got ${JSON.stringify(layout)}.`);
   }
   if (!/^\d+关$/.test(layout.completedText) || !/^\d+关$/.test(layout.threeStarText)) {
     throw new Error(`Expected completed and three-star counts to include 关 suffix, got ${JSON.stringify(layout)}.`);
@@ -1678,11 +2188,36 @@ async function expectProfilePageOptimizedLayout(page) {
   if (layout.scrollHeight > layout.clientHeight || layout.layoutOverflowY !== "hidden") {
     throw new Error(`Expected profile page not to scroll, got ${JSON.stringify(layout)}.`);
   }
-  if (Math.abs(layout.identityMarginTop - 50) > 0.5) {
-    throw new Error(`Expected profile identity card to have margin-top: 50px, got ${JSON.stringify(layout)}.`);
+  if (layout.identityMarginTop < 16 || layout.identityMarginTop > 30) {
+    throw new Error(`Expected profile identity card to use compact top spacing, got ${JSON.stringify(layout)}.`);
   }
   if (layout.homeButtonCount !== 0) {
     throw new Error(`Expected profile bottom home button to be removed, got ${JSON.stringify(layout)}.`);
+  }
+
+  const originalViewport = page.viewportSize() ?? { width: 390, height: 844 };
+  await page.setViewportSize({ width: 390, height: 700 });
+  const compactLayout = await page.locator("#profileScreen.active .profile-layout").evaluate((node) => {
+    const nodeBox = node.getBoundingClientRect();
+    const contentBottom = Math.max(
+      ...[...node.querySelectorAll(".secondary-title--profile, .profile-identity-card, .profile-stat-card, .profile-wide-card")].map(
+        (item) => item.getBoundingClientRect().bottom,
+      ),
+    );
+    return {
+      bottomInset: Math.round(nodeBox.bottom - contentBottom),
+      clientHeight: node.clientHeight,
+      layoutOverflowY: getComputedStyle(node).overflowY,
+      scrollHeight: node.scrollHeight,
+    };
+  });
+  await page.setViewportSize(originalViewport);
+  if (
+    compactLayout.scrollHeight > compactLayout.clientHeight ||
+    compactLayout.layoutOverflowY !== "hidden" ||
+    compactLayout.bottomInset < 6
+  ) {
+    throw new Error(`Expected profile page to fit inside a short mobile browser viewport, got ${JSON.stringify(compactLayout)}.`);
   }
 }
 
@@ -2116,7 +2651,10 @@ async function finishGameAndExpectStarsAndNoStaminaAgain(page) {
   }
   const maxClaimInitialTitle = await page.locator("#staminaTitle").innerText();
   const maxClaimInitialMessage = await page.locator("#staminaMessage").innerText();
-  if (maxClaimInitialTitle !== "体力不足" || !maxClaimInitialMessage.includes("开始一关需要 3 点体力")) {
+  if (
+    maxClaimInitialTitle !== "体力不足" ||
+    maxClaimInitialMessage !== "开始一关需要3点体力，可以看广告获取或去商城购买体力。"
+  ) {
     throw new Error(
       `Expected max-claim stamina modal to keep the no-stamina copy before click, got title=${JSON.stringify(maxClaimInitialTitle)}, message=${JSON.stringify(maxClaimInitialMessage)}`,
     );
@@ -2137,10 +2675,10 @@ async function finishGameAndExpectStarsAndNoStaminaAgain(page) {
   await page.locator("#startButton").click();
   await page.waitForSelector("#staminaModal:not(.hidden)", { timeout: 2000 });
   await page.locator("#staminaBuyButton").click();
-  await page.waitForFunction(() => document.querySelector("#toast.show")?.textContent.includes("购买功能待接入"));
+  await page.waitForFunction(() => document.querySelector("#toast.show")?.textContent.includes("功能暂未开放"));
   const staminaPurchaseToast = await page.locator("#toast.show").innerText();
   const staminaAfterPurchase = await readStoredStamina(page);
-  if (!staminaPurchaseToast.includes("购买功能待接入") || staminaAfterPurchase.stamina !== 1 || staminaAfterPurchase.adClaims !== 3) {
+  if (!staminaPurchaseToast.includes("功能暂未开放") || staminaAfterPurchase.stamina !== 1 || staminaAfterPurchase.adClaims !== 3) {
     throw new Error(
       `Expected stamina purchase to show buy placeholder without changing stamina, got toast=${JSON.stringify(staminaPurchaseToast)}, stamina=${JSON.stringify(staminaAfterPurchase)}`,
     );
@@ -2528,9 +3066,9 @@ async function expectFailureReviveAdFlow(page) {
   }
 
   await page.locator(".screen-result.active #resultBuyToolsButton").click();
-  await page.waitForFunction(() => document.querySelector("#resultToast.show")?.textContent.includes("购买功能待接入"));
+  await page.waitForFunction(() => document.querySelector("#resultToast.show")?.textContent.includes("功能暂未开放"));
   const buyToolsToast = await page.locator("#resultToast.show").innerText();
-  if (!buyToolsToast.includes("购买功能待接入")) {
+  if (!buyToolsToast.includes("功能暂未开放")) {
     throw new Error(`Expected result buy-tools action to show coming-soon toast, got ${JSON.stringify(buyToolsToast)}.`);
   }
 }
@@ -2560,6 +3098,52 @@ async function getFirstTileArtRatio(page) {
     const tileRect = tile.getBoundingClientRect();
     const artRect = art.getBoundingClientRect();
     return Math.max(artRect.width / tileRect.width, artRect.height / tileRect.height);
+  });
+}
+
+async function getFirstTileVisibleArtRatio(page) {
+  return page.evaluate(async () => {
+    const tile = document.querySelector(".tile:not(.empty)");
+    const art = tile?.querySelector(".tile-art");
+    if (!tile || !art) return 0;
+    if (!art.complete || !art.naturalWidth) {
+      await new Promise((resolve, reject) => {
+        art.addEventListener("load", resolve, { once: true });
+        art.addEventListener("error", reject, { once: true });
+      });
+    }
+
+    const tileRect = tile.getBoundingClientRect();
+    const artRect = art.getBoundingClientRect();
+    const canvas = document.createElement("canvas");
+    canvas.width = art.naturalWidth;
+    canvas.height = art.naturalHeight;
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    context.drawImage(art, 0, 0);
+    const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+    let minX = canvas.width;
+    let minY = canvas.height;
+    let maxX = -1;
+    let maxY = -1;
+
+    for (let pixelIndex = 0; pixelIndex < pixels.length; pixelIndex += 4) {
+      if (pixels[pixelIndex + 3] <= 8) continue;
+      const pointIndex = pixelIndex / 4;
+      const x = pointIndex % canvas.width;
+      const y = Math.floor(pointIndex / canvas.width);
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x);
+      maxY = Math.max(maxY, y);
+    }
+
+    if (maxX < 0) return 0;
+    const visibleWidthRatio = (maxX - minX + 1) / canvas.width;
+    const visibleHeightRatio = (maxY - minY + 1) / canvas.height;
+    return Math.max(
+      visibleWidthRatio * (artRect.width / tileRect.width),
+      visibleHeightRatio * (artRect.height / tileRect.height),
+    );
   });
 }
 

@@ -32,6 +32,18 @@ import {
   getLevelStatus,
   normalizeProgress,
 } from "./progression.js";
+import {
+  PROGRESS_STORAGE_KEY,
+  STAMINA_STORAGE_KEY,
+  applyVersionedDataReset,
+} from "./storage-reset.js";
+import {
+  createAudioController,
+  loadAudioSettings,
+  setAudioSetting,
+  shouldVibrate,
+} from "./audio-settings.js";
+import { scheduleHomeThemeAssetPreload } from "./home-assets.js";
 
 const ICON_VIEW = {
   flower: { label: "草莓", src: "./assets/image/flower.png" },
@@ -48,11 +60,10 @@ const ICON_VIEW = {
   crown: { label: "紫糖球", src: "./assets/image/crown.png" },
 };
 
-const STAMINA_KEY = "lianliankan.stamina";
-const PROGRESS_KEY = "lianliankan.progress";
 const TEST_UNLOCK_ALL_LEVELS = false;
 const TEST_UNLIMITED_TOOLS = false;
 const UNLIMITED_TOOL_COUNT_TEXT = "不限";
+const UNAVAILABLE_FEATURE_MESSAGE = "功能暂未开放";
 const HOME_LAYOUT_BASE_WIDTH = 390;
 const ROAD_STEP_Y = 110;
 const ROAD_TOP_Y = 34;
@@ -65,6 +76,12 @@ const IMAGE_ROAD_CONNECTOR_CLASS_BY_CHAPTER = {
   "candy-garden": "road-candy-image-segment",
   "jelly-castle": "road-jelly-image-segment",
 };
+const SETTING_KEY_BY_TOGGLE_ID = {
+  musicToggle: "music",
+  soundToggle: "sound",
+  vibrationToggle: "vibration",
+};
+const STARTUP_AUDIO_UNLOCK_EVENTS = ["pointerdown", "touchstart", "mousedown", "click", "keydown"];
 const screens = {
   start: document.querySelector("#startScreen"),
   profile: document.querySelector("#profileScreen"),
@@ -110,7 +127,7 @@ const elements = {
   remainingText: document.querySelector("#remainingText"),
   scoreText: document.querySelector("#scoreText"),
   levelName: document.querySelector("#levelName"),
-  plaqueLevelLabels: document.querySelectorAll(".plaque-level-label"),
+  plaqueLevelLabels: document.querySelectorAll(".plaque-level-label:not([data-static-plaque])"),
   gameHomeButton: document.querySelector("#gameHomeButton"),
   hintButton: document.querySelector("#hintButton"),
   shuffleButton: document.querySelector("#shuffleButton"),
@@ -153,6 +170,8 @@ const elements = {
   homeButton: document.querySelector("#homeButton"),
 };
 
+applyVersionedDataReset(localStorage);
+
 const state = {
   level: LEVELS[0],
   board: [],
@@ -173,8 +192,13 @@ const state = {
   busy: false,
   doubleCoinReward: null,
   revivedThisRun: false,
+  audioSettings: loadAudioSettings(localStorage),
 };
 let homeResizeTimer = null;
+let startupAudioUnlocked = false;
+const audioController = createAudioController({
+  getSettings: () => state.audioSettings,
+});
 
 state.level = LEVELS[state.progress.highestUnlockedLevel - 1] ?? LEVELS[0];
 state.chapterIndex = CHAPTERS.findIndex(
@@ -183,16 +207,28 @@ state.chapterIndex = CHAPTERS.findIndex(
 if (state.chapterIndex < 0) state.chapterIndex = 0;
 
 bindEvents();
+renderSettingToggles();
 refreshStamina();
 renderHome({ syncToCurrentLevel: true });
 showScreen("start");
+startStartupMusic();
+scheduleHomeThemeAssetPreload();
 
 function bindEvents() {
+  STARTUP_AUDIO_UNLOCK_EVENTS.forEach((eventName) => {
+    window.addEventListener(eventName, unlockStartupAudio, { capture: true, once: true });
+  });
   elements.startButton.addEventListener("click", () => requestStartGame(LEVELS[state.progress.highestUnlockedLevel - 1]));
   elements.prevChapterButton.addEventListener("click", () => switchChapter(-1));
   elements.nextChapterButton.addEventListener("click", () => switchChapter(1));
-  elements.profileButton.addEventListener("click", () => openSecondaryPage("profile"));
-  elements.settingsButton.addEventListener("click", () => openSecondaryPage("settings"));
+  elements.profileButton.addEventListener("click", () => {
+    playGameSound("select");
+    openSecondaryPage("profile");
+  });
+  elements.settingsButton.addEventListener("click", () => {
+    playGameSound("select");
+    openSecondaryPage("settings");
+  });
   elements.homeExchangeButton.addEventListener("click", openComingSoonModal);
   [
     elements.profileBackButton,
@@ -215,8 +251,8 @@ function bindEvents() {
   elements.resumeButton.addEventListener("click", resumeGame);
   elements.pauseRestartButton.addEventListener("click", () => requestStartGame(state.level));
   elements.pauseHomeButton.addEventListener("click", returnHome);
-  elements.watchAdButton.addEventListener("click", () => closeToolModal("广告功能待接入"));
-  elements.buyToolButton.addEventListener("click", () => closeToolModal("购买功能待接入"));
+  elements.watchAdButton.addEventListener("click", () => closeToolModal(UNAVAILABLE_FEATURE_MESSAGE));
+  elements.buyToolButton.addEventListener("click", () => closeToolModal(UNAVAILABLE_FEATURE_MESSAGE));
   elements.toolCloseButton.addEventListener("click", () => closeToolModal());
   elements.confirmHomeButton.addEventListener("click", returnHome);
   elements.confirmRestartButton.addEventListener("click", () => requestStartGame(state.level));
@@ -230,11 +266,7 @@ function bindEvents() {
   elements.reviveButton.addEventListener("click", reviveAfterAd);
   elements.resultBuyToolsButton.addEventListener("click", buyResultTools);
   elements.againButton.addEventListener("click", () => requestStartGame(state.level));
-  elements.homeButton.addEventListener("click", () => {
-    stopTimer();
-    renderHome({ syncToCurrentLevel: true });
-    showScreen("start");
-  });
+  elements.homeButton.addEventListener("click", returnHome);
   window.addEventListener("resize", () => {
     if (!screens.start.classList.contains("active")) return;
     window.clearTimeout(homeResizeTimer);
@@ -286,10 +318,50 @@ function renderSecondaryPages(currentLevel) {
 }
 
 function toggleSettingButton(button) {
+  const settingKey = SETTING_KEY_BY_TOGGLE_ID[button.id];
   const isOn = !button.classList.contains("is-on");
+  if (!settingKey) return;
+
+  state.audioSettings = setAudioSetting(localStorage, state.audioSettings, settingKey, isOn);
+  renderSettingToggle(button, isOn);
+
+  if (settingKey === "music" && !isOn) {
+    audioController.stopMusic();
+  }
+  if (settingKey === "music" && isOn) {
+    audioController.startMusic();
+  }
+  if (settingKey === "sound" && isOn) {
+    audioController.playSound("select");
+  }
+  if (settingKey === "vibration" && isOn) {
+    triggerVibration(12);
+  }
+}
+
+function renderSettingToggles() {
+  elements.settingToggles.forEach((button) => {
+    const settingKey = SETTING_KEY_BY_TOGGLE_ID[button.id];
+    if (!settingKey) return;
+    renderSettingToggle(button, state.audioSettings[settingKey] !== false);
+  });
+}
+
+function renderSettingToggle(button, isOn) {
   button.classList.toggle("is-on", isOn);
   button.setAttribute("aria-pressed", String(isOn));
   button.querySelector("span").textContent = isOn ? "开" : "关";
+}
+
+function startStartupMusic() {
+  audioController.startMusic();
+}
+
+function unlockStartupAudio() {
+  if (startupAudioUnlocked || !state.audioSettings.music) return;
+  startupAudioUnlocked = true;
+  audioController.stopMusic();
+  audioController.startMusic();
 }
 
 function renderChapterSwitcher() {
@@ -413,17 +485,21 @@ function getHomeLayoutScale() {
 
 function requestStartGame(level) {
   if (getDisplayLevelStatus(level) === "locked") {
+    playGameSound("blocked");
+    triggerVibration(20);
     showHomeNotice("先通关上一关才能挑战这里");
     return;
   }
   refreshStamina();
   const result = spendStartStamina(state.stamina);
   if (!result.ok) {
+    playGameSound("blocked");
+    triggerVibration([18, 24, 18]);
     saveStaminaState(result.state);
     elements.exitModal.classList.add("hidden");
     openStaminaModal(
       "体力不足",
-      `开始一关需要 ${START_STAMINA_COST} 点体力，可以看广告或购买获取 ${AD_STAMINA_REWARD} 点。`,
+      "开始一关需要3点体力，可以看广告获取或去商城购买体力。",
     );
     return;
   }
@@ -463,6 +539,8 @@ function startGame(level) {
   updateHud();
   showScreen("game");
   startTimer();
+  audioController.startMusic();
+  playGameSound("resume");
 }
 
 function createPlayableBoard(level) {
@@ -519,12 +597,14 @@ function selectTile(point) {
 
   if (!state.selected) {
     state.selected = point;
+    playGameSound("select");
     updateSelection();
     return;
   }
 
   if (samePoint(state.selected, point)) {
     state.selected = null;
+    playGameSound("select");
     updateSelection();
     return;
   }
@@ -532,6 +612,8 @@ function selectTile(point) {
   const selected = state.selected;
   const path = findConnection(state.board, selected, point);
   if (!path || !canConnect(state.board, selected, point)) {
+    playGameSound("mismatch");
+    triggerVibration([20, 24, 20]);
     showToast(getMismatchMessage(selected, point));
     shakeTile(selected);
     shakeTile(point);
@@ -541,6 +623,7 @@ function selectTile(point) {
   }
 
   state.busy = true;
+  playGameSound("match");
   drawLink(path);
   state.board = removePair(state.board, selected, point);
   state.selected = null;
@@ -563,6 +646,7 @@ function handleBoardProgress() {
   }
 
   if (!findAvailablePair(state.board)) {
+    playGameSound("blocked");
     showToast("没有可连接组合了，请使用洗牌道具");
   }
 }
@@ -570,14 +654,17 @@ function handleBoardProgress() {
 function useHint() {
   if (state.paused || state.busy) return;
   if (!TEST_UNLIMITED_TOOLS && state.hints <= 0) {
+    playGameSound("blocked");
     openToolModal("提示");
     return;
   }
   const pair = findAvailablePair(state.board);
   if (!pair) {
+    playGameSound("blocked");
     showToast("没有可连接组合了，请使用洗牌道具");
     return;
   }
+  playGameSound("hint");
   if (!TEST_UNLIMITED_TOOLS) state.hints -= 1;
   state.selected = null;
   updateHud();
@@ -591,9 +678,11 @@ function useHint() {
 function useShuffle() {
   if (state.paused || state.busy) return;
   if (!TEST_UNLIMITED_TOOLS && state.shuffles <= 0) {
+    playGameSound("blocked");
     openToolModal("洗牌");
     return;
   }
+  playGameSound("shuffle");
   if (!TEST_UNLIMITED_TOOLS) state.shuffles -= 1;
   state.selected = null;
   state.board = shuffleBoard(state.board);
@@ -610,6 +699,8 @@ function pauseGame() {
   if (!screens.game.classList.contains("active")) return;
   state.paused = true;
   state.timerLastTickAt = Date.now();
+  audioController.stopMusic();
+  playGameSound("pause");
   elements.pauseModal.classList.remove("hidden");
 }
 
@@ -617,6 +708,8 @@ function resumeGame() {
   state.paused = false;
   state.timerLastTickAt = Date.now();
   elements.pauseModal.classList.add("hidden");
+  audioController.startMusic();
+  playGameSound("resume");
 }
 
 function startTimer() {
@@ -654,6 +747,8 @@ function stopTimer() {
 
 function returnHome() {
   stopTimer();
+  audioController.stopMusic();
+  playGameSound("button");
   state.paused = false;
   state.selected = null;
   updateSelection();
@@ -663,10 +758,14 @@ function returnHome() {
   hideModals();
   renderHome({ syncToCurrentLevel: true });
   showScreen("start");
+  audioController.startMusic();
 }
 
 function finishGame(won) {
   stopTimer();
+  audioController.stopMusic();
+  playGameSound(won ? "success" : "fail");
+  if (!won) triggerVibration([30, 40, 30]);
   state.paused = false;
   elements.pauseModal.classList.add("hidden");
 
@@ -714,11 +813,13 @@ function finishGame(won) {
 async function claimDoubleCoins() {
   const reward = state.doubleCoinReward;
   if (!reward?.amount) {
+    playGameSound("blocked");
     showResultToast("当前没有可领取的双倍金币奖励");
     return;
   }
 
   if (reward.claimed) {
+    playGameSound("blocked");
     showResultToast("双倍奖励已经领取过了");
     return;
   }
@@ -729,6 +830,7 @@ async function claimDoubleCoins() {
   const completed = await playRewardedAd("double_coins");
   if (!completed) {
     elements.doubleCoinsButton.disabled = false;
+    playGameSound("blocked");
     showResultToast("广告没看完，无法获得双倍奖励");
     return;
   }
@@ -741,16 +843,19 @@ async function claimDoubleCoins() {
   saveProgressState(state.progress);
   updateProgressTextViews();
   elements.doubleCoinsButton.disabled = false;
+  playGameSound("reward");
   showResultToast(`获得双倍金币 +${reward.amount}`);
 }
 
 async function reviveAfterAd() {
   if (screens.result.dataset.result !== "failure") {
+    playGameSound("blocked");
     showResultToast("当前不能复活");
     return;
   }
 
   if (state.revivedThisRun) {
+    playGameSound("blocked");
     showResultToast("本局已用完");
     return;
   }
@@ -761,6 +866,7 @@ async function reviveAfterAd() {
   const completed = await playRewardedAd("revive");
   if (!completed) {
     elements.reviveButton.disabled = false;
+    playGameSound("blocked");
     showResultToast("复活失败，广告没看完");
     return;
   }
@@ -779,11 +885,14 @@ async function reviveAfterAd() {
   updateHud();
   showScreen("game");
   startTimer();
+  audioController.startMusic();
+  playGameSound("reward");
   showToast("复活成功，继续挑战");
 }
 
 function buyResultTools() {
-  showResultToast("购买功能待接入");
+  playGameSound("blocked");
+  showResultToast(UNAVAILABLE_FEATURE_MESSAGE);
 }
 
 async function playRewardedAd(placement) {
@@ -855,6 +964,7 @@ function shakeTile(point) {
 function openToolModal(toolName) {
   state.paused = true;
   state.timerLastTickAt = Date.now();
+  audioController.stopMusic();
   elements.toolModalIcon.src = toolName === "洗牌" ? "./assets/image/tool-shuffle.png" : "./assets/image/tool-hint.png";
   elements.toolTitle.textContent = `${toolName}用完了`;
   elements.toolMessage.textContent = `${toolName}次数已经用完，可以看广告获取，或购买更多道具。`;
@@ -865,15 +975,18 @@ function closeToolModal(message) {
   state.paused = false;
   state.timerLastTickAt = Date.now();
   elements.toolModal.classList.add("hidden");
+  playGameSound("resume");
+  resumeMusicIfGameActive();
   if (message) showToast(message);
 }
 
 function openStaminaModal(
   title = "体力不足",
-  message = `看广告或购买可以获取 ${AD_STAMINA_REWARD} 点体力，广告最多获取 ${MAX_AD_STAMINA_CLAIMS} 次。`,
+  message = "开始一关需要3点体力，可以看广告获取或去商城购买体力。",
 ) {
   state.paused = screens.game.classList.contains("active");
   if (state.paused) state.timerLastTickAt = Date.now();
+  if (state.paused) audioController.stopMusic();
   elements.staminaTitle.textContent = title;
   elements.staminaMessage.textContent = message;
   elements.staminaAdButton.disabled = false;
@@ -885,9 +998,11 @@ function closeStaminaModal() {
   state.paused = false;
   state.timerLastTickAt = Date.now();
   elements.staminaModal.classList.add("hidden");
+  resumeMusicIfGameActive();
 }
 
 function openComingSoonModal() {
+  playGameSound("blocked");
   hideToast();
   elements.comingSoonModal.classList.remove("hidden");
 }
@@ -902,24 +1017,29 @@ function claimStaminaFromAd() {
   saveStaminaState(result.state);
   if (!result.ok) {
     closeStaminaModal();
+    playGameSound("blocked");
     showToast("今日已达上限");
     return;
   }
 
   closeStaminaModal();
+  playGameSound("reward");
   showToast(`获得 ${AD_STAMINA_REWARD} 点体力`);
 }
 
 function buyStamina() {
   refreshStamina();
   closeStaminaModal();
-  showToast("购买功能待接入");
+  playGameSound("blocked");
+  showToast(UNAVAILABLE_FEATURE_MESSAGE);
 }
 
 function openExitModal() {
   if (!screens.game.classList.contains("active")) return;
   state.paused = true;
   state.timerLastTickAt = Date.now();
+  audioController.stopMusic();
+  playGameSound("home");
   elements.exitModal.classList.remove("hidden");
 }
 
@@ -927,6 +1047,8 @@ function closeExitModal() {
   state.paused = false;
   state.timerLastTickAt = Date.now();
   elements.exitModal.classList.add("hidden");
+  playGameSound("resume");
+  resumeMusicIfGameActive();
 }
 
 function hideModals() {
@@ -935,6 +1057,25 @@ function hideModals() {
   elements.exitModal.classList.add("hidden");
   elements.staminaModal.classList.add("hidden");
   elements.comingSoonModal.classList.add("hidden");
+}
+
+function playGameSound(name) {
+  audioController.playSound(name);
+}
+
+function triggerVibration(pattern) {
+  if (!shouldVibrate(state.audioSettings) || typeof navigator.vibrate !== "function") return;
+  navigator.vibrate(pattern);
+}
+
+function resumeMusicIfGameActive() {
+  if (
+    screens.game.classList.contains("active") &&
+    !screens.result.classList.contains("active") &&
+    !state.paused
+  ) {
+    audioController.startMusic();
+  }
 }
 
 function renderResultStars(count) {
@@ -964,13 +1105,13 @@ function refreshStamina() {
 
 function saveStaminaState(nextState) {
   state.stamina = normalizeStaminaState(nextState);
-  localStorage.setItem(STAMINA_KEY, JSON.stringify(state.stamina));
+  localStorage.setItem(STAMINA_STORAGE_KEY, JSON.stringify(state.stamina));
   updateStaminaView();
 }
 
 function loadStaminaState() {
   try {
-    return normalizeStaminaState(JSON.parse(localStorage.getItem(STAMINA_KEY)));
+    return normalizeStaminaState(JSON.parse(localStorage.getItem(STAMINA_STORAGE_KEY)));
   } catch {
     return normalizeStaminaState(null);
   }
@@ -978,19 +1119,19 @@ function loadStaminaState() {
 
 function saveProgressState(nextState) {
   state.progress = normalizeProgress(nextState);
-  localStorage.setItem(PROGRESS_KEY, JSON.stringify(state.progress));
+  localStorage.setItem(PROGRESS_STORAGE_KEY, JSON.stringify(state.progress));
 }
 
 function loadProgressState() {
   let parsedProgress = null;
   try {
-    parsedProgress = JSON.parse(localStorage.getItem(PROGRESS_KEY));
+    parsedProgress = JSON.parse(localStorage.getItem(PROGRESS_STORAGE_KEY));
   } catch {
     parsedProgress = null;
   }
 
   const progress = normalizeProgress(parsedProgress);
-  localStorage.setItem(PROGRESS_KEY, JSON.stringify(progress));
+  localStorage.setItem(PROGRESS_STORAGE_KEY, JSON.stringify(progress));
   return progress;
 }
 
@@ -1009,6 +1150,7 @@ function updateStaminaView() {
 }
 
 function switchChapter(direction) {
+  playGameSound("button");
   state.chapterIndex = (state.chapterIndex + direction + CHAPTERS.length) % CHAPTERS.length;
   renderHome();
 }

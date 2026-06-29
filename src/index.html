@@ -2,7 +2,7 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
     <link rel="icon" href="./favicon.ico" sizes="any" />
     <title>连连看 MVP</title>
     <link rel="stylesheet" href="./styles.css" />
@@ -354,7 +354,7 @@
           <img class="modal-icon-art" src="./assets/image/hud-heart.png" alt="" />
         </div>
         <h2 id="staminaTitle">体力不足</h2>
-        <p id="staminaMessage">看广告或购买可以获得 30 点体力，广告最多获取 3 次。</p>
+        <p id="staminaMessage">开始一关需要3点体力，可以看广告获取或去商城购买体力。</p>
         <div class="modal-actions">
           <button class="primary-button" id="staminaAdButton" type="button">看广告获取</button>
           <button class="ghost-button" id="staminaBuyButton" type="button">购买体力</button>
@@ -372,9 +372,9 @@
     >
       <div class="modal-card candy-modal-card">
         <div class="modal-plaque" aria-hidden="true">
-          <span class="plaque-level-label">提示</span>
+          <span class="plaque-level-label" data-static-plaque></span>
         </div>
-        <h2 id="comingSoonTitle">敬请期待</h2>
+        <h2 id="comingSoonTitle">功能暂未开放</h2>
         <div class="modal-actions">
           <button class="primary-button" id="comingSoonCloseButton" type="button">确定</button>
         </div>

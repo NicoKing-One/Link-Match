@@ -1,9 +1,12 @@
 import { createReadStream, existsSync } from "node:fs";
 import { createServer } from "node:http";
+import { networkInterfaces } from "node:os";
 import { extname, join, normalize } from "node:path";
 
 const root = join(process.cwd(), "src");
 const port = Number(process.env.PORT || 4173);
+const host = process.env.HOST || "0.0.0.0";
+const configuredLanIp = process.env.LAN_IP;
 
 const types = {
   ".html": "text/html; charset=utf-8",
@@ -29,6 +32,28 @@ const server = createServer((request, response) => {
   createReadStream(target).pipe(response);
 });
 
-server.listen(port, "127.0.0.1", () => {
-  console.log(`连连看 MVP: http://127.0.0.1:${port}`);
+function findLanIp() {
+  if (configuredLanIp) {
+    return configuredLanIp;
+  }
+
+  for (const interfaces of Object.values(networkInterfaces())) {
+    for (const details of interfaces ?? []) {
+      if (details.family === "IPv4" && !details.internal) {
+        return details.address;
+      }
+    }
+  }
+
+  return null;
+}
+
+server.listen(port, host, () => {
+  console.log("Link Match dev server");
+  console.log(`Local:   http://127.0.0.1:${port}`);
+
+  const lanIp = findLanIp();
+  if (host === "0.0.0.0" && lanIp) {
+    console.log(`Network: http://${lanIp}:${port}`);
+  }
 });
