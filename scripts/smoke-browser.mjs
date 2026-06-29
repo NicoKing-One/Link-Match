@@ -187,6 +187,7 @@ try {
   const gameStaminaCountdownCount = await page.locator(".screen-game.active .staminaCountdown").count();
   const bestPillCount = await page.locator(".screen-game.active .best-pill").count();
   const expectedTileCount = await readCurrentLevelTileCount(page);
+  await expectTilePressFeedback(page);
   if (tileCount !== expectedTileCount) {
     throw new Error(`Expected current level to render ${expectedTileCount} tiles, got ${tileCount}.`);
   }
@@ -205,14 +206,15 @@ try {
   await expectPolishedGameUi(page);
   await expectBoardGridFillsFrame(page);
   await expectCompactGameViewportFits(page);
+  await expectBoardTiersUseEasyLayout(page);
   await expectDraftThreeVisualSystem(page);
   await expectFlatImageAssets(page);
   await expectPageDoesNotScroll(page);
-  if (tileArtBoxRatio < 0.82 || tileArtBoxRatio > 1.28) {
-    throw new Error(`Expected tile art box to stay scaled with the tile, got ratio=${tileArtBoxRatio.toFixed(2)}.`);
+  if (tileArtBoxRatio < 1.1 || tileArtBoxRatio > 1.32) {
+    throw new Error(`Expected tile art to keep the original large proportion inside the tile background, got ratio=${tileArtBoxRatio.toFixed(2)}.`);
   }
-  if (tileVisibleArtRatio < 0.96) {
-    throw new Error(`Expected visible tile art to fill the tile background, got ratio=${tileVisibleArtRatio.toFixed(2)}.`);
+  if (tileVisibleArtRatio < 0.96 || tileVisibleArtRatio > 1.28) {
+    throw new Error(`Expected visible tile art to keep its original proportion with the tile background, got ratio=${tileVisibleArtRatio.toFixed(2)}.`);
   }
 
   const firstAspect = await getFirstTileAspect(page);
@@ -245,12 +247,8 @@ try {
   }
   await expectModalHasIcon(page, "#toolModal");
   await expectMobileModalDesignSystem(page, "#toolModal");
-  await page.locator("#watchAdButton").click();
-  await page.waitForFunction(() => document.querySelector("#toast.show")?.textContent.includes("功能暂未开放"));
-  const toolAdToast = await page.locator("#toast.show").innerText();
-  if (!toolAdToast.includes("功能暂未开放")) {
-    throw new Error(`Expected spent tool ad action to show unavailable feature copy, got ${JSON.stringify(toolAdToast)}.`);
-  }
+  await expectToolAdButtonMatchesRewardedFlow(page, "hint");
+  await exhaustTool(page, "#hintButton");
   await page.waitForTimeout(1500);
   await page.locator("#hintButton").click();
   await page.waitForSelector("#toolModal:not(.hidden)", { timeout: 2000 });
@@ -264,6 +262,13 @@ try {
   await page.locator("#hintButton").click();
   await page.waitForSelector("#toolModal:not(.hidden)", { timeout: 2000 });
   await expectClickCreatesButtonSound(page, "#toolCloseButton", "spent tool continue");
+
+  await exhaustTool(page, "#hintButton");
+  await page.waitForTimeout(1500);
+  await page.locator("#shuffleButton").click();
+  await page.waitForSelector("#toolModal:not(.hidden)", { timeout: 2000 });
+  await expectToolAdButtonMatchesRewardedFlow(page, "shuffle", { skipIncompleteCheck: true });
+  await expectOwnedShuffleAnimatesBoard(page);
 
   await page.waitForTimeout(1500);
   await captureFirstLink(page);
@@ -474,6 +479,158 @@ async function exhaustTool(page, selector) {
   }
 }
 
+async function expectToolAdButtonMatchesRewardedFlow(page, toolKind, options = {}) {
+  const countSelector = toolKind === "shuffle" ? "#shuffleCount" : "#hintCount";
+  const expectedPlacement = toolKind === "shuffle" ? "tool_shuffle" : "tool_hint";
+  const expectedRewardCopy = toolKind === "shuffle" ? "获得洗牌 +1" : "获得提示 +1";
+  const expectedIncompleteCopy = toolKind === "shuffle" ? "广告没看完，无法获得洗牌" : "广告没看完，无法获得提示";
+
+  if (!options.skipIncompleteCheck) {
+    await page.evaluate(() => {
+      window.__lastRewardedPlacement = "";
+      window.__linkMatchRewardedAd = async ({ placement }) => {
+        window.__lastRewardedPlacement = placement;
+        return { completed: false };
+      };
+    });
+    await page.locator("#watchAdButton").click();
+    await page.waitForFunction(
+      (copy) => document.querySelector("#toast.show")?.textContent.includes(copy),
+      expectedIncompleteCopy,
+    );
+    const failedAdState = await page.evaluate((selector) => ({
+      placement: window.__lastRewardedPlacement,
+      modalOpen: !document.querySelector("#toolModal")?.classList.contains("hidden"),
+      count: document.querySelector(selector)?.textContent?.trim() ?? "",
+    }), countSelector);
+    if (failedAdState.placement !== expectedPlacement || !failedAdState.modalOpen || failedAdState.count !== "0") {
+      throw new Error(`Expected incomplete ${toolKind} tool ad to keep modal open without reward, got ${JSON.stringify(failedAdState)}.`);
+    }
+  }
+
+  await page.evaluate(() => {
+    window.__lastRewardedPlacement = "";
+    window.__linkMatchRewardedAd = async ({ placement }) => {
+      window.__lastRewardedPlacement = placement;
+      return true;
+    };
+  });
+  await page.locator("#watchAdButton").click();
+  await page.waitForFunction(
+    (copy) => document.querySelector("#toast.show")?.textContent.includes(copy),
+    expectedRewardCopy,
+  );
+  const rewardedAdState = await page.evaluate((selector) => ({
+    placement: window.__lastRewardedPlacement,
+    modalOpen: !document.querySelector("#toolModal")?.classList.contains("hidden"),
+    count: document.querySelector(selector)?.textContent?.trim() ?? "",
+  }), countSelector);
+  if (rewardedAdState.placement !== expectedPlacement || rewardedAdState.modalOpen || rewardedAdState.count !== "1") {
+    throw new Error(`Expected completed ${toolKind} tool ad to grant one use and close modal, got ${JSON.stringify(rewardedAdState)}.`);
+  }
+}
+
+async function expectOwnedShuffleAnimatesBoard(page) {
+  const beforeState = await page.evaluate(() => ({
+    count: document.querySelector("#shuffleCount")?.textContent?.trim() ?? "",
+    board: [...document.querySelectorAll("#board .tile")].map((tile) => tile.dataset.tile ?? "").join("|"),
+  }));
+  if (beforeState.count !== "1") {
+    throw new Error(`Expected one owned shuffle before animation test, got ${JSON.stringify(beforeState)}.`);
+  }
+
+  await page.evaluate(() => {
+    window.__linkMatchShuffleRerenderState = null;
+    window.__linkMatchOriginalAppend = Element.prototype.append;
+    Element.prototype.append = function (...nodes) {
+      if (this?.id === "board" && !window.__linkMatchShuffleRerenderState) {
+        window.__linkMatchShuffleRerenderState = {
+          rerenderedWhileShuffling: this.classList.contains("is-shuffling"),
+          tileCount: this.querySelectorAll(".tile").length + nodes.length,
+        };
+      }
+      return window.__linkMatchOriginalAppend.apply(this, nodes);
+    };
+    const board = document.querySelector("#board");
+    const observer = new MutationObserver((mutations) => {
+      if (!mutations.some((mutation) => mutation.type === "childList")) return;
+      if (window.__linkMatchShuffleRerenderState) {
+        observer.disconnect();
+        return;
+      }
+      window.__linkMatchShuffleRerenderState = {
+        rerenderedWhileShuffling: board.classList.contains("is-shuffling"),
+        tileCount: board.querySelectorAll(".tile").length,
+      };
+      observer.disconnect();
+    });
+    observer.observe(board, { childList: true });
+  });
+
+  await page.locator("#shuffleButton").click();
+  await page.waitForSelector("#board.is-shuffling", { timeout: 400 });
+  const animatingState = await page.evaluate(() => ({
+    buttonDisabled: document.querySelector("#shuffleButton")?.disabled === true,
+    count: document.querySelector("#shuffleCount")?.textContent?.trim() ?? "",
+    board: [...document.querySelectorAll("#board .tile")].map((tile) => tile.dataset.tile ?? "").join("|"),
+    boardAnimationName: getComputedStyle(document.querySelector("#board")).animationName,
+    maxScatter: Math.max(
+      ...[...document.querySelectorAll("#board .tile:not(.empty)")].map((tile) => {
+        const style = getComputedStyle(tile);
+        const x = Number.parseFloat(style.getPropertyValue("--shuffle-x")) || 0;
+        const y = Number.parseFloat(style.getPropertyValue("--shuffle-y")) || 0;
+        return Math.hypot(x, y);
+      }),
+    ),
+  }));
+  if (
+    !animatingState.buttonDisabled ||
+    animatingState.count !== "0" ||
+    animatingState.board !== beforeState.board ||
+    animatingState.boardAnimationName !== "none" ||
+    animatingState.maxScatter < 45
+  ) {
+    throw new Error(`Expected shuffle to animate before rerendering board, got ${JSON.stringify(animatingState)}.`);
+  }
+
+  await page.waitForFunction((oldBoard) => {
+    const boardNode = document.querySelector("#board");
+    const currentBoard = [...document.querySelectorAll("#board .tile")].map((tile) => tile.dataset.tile ?? "").join("|");
+    return boardNode?.classList.contains("is-shuffling") && currentBoard !== oldBoard;
+  }, beforeState.board, { timeout: 900 });
+  const swappedDuringAnimationState = await page.evaluate(() => ({
+    board: [...document.querySelectorAll("#board .tile")].map((tile) => tile.dataset.tile ?? "").join("|"),
+    shuffling: document.querySelector("#board")?.classList.contains("is-shuffling") === true,
+    settling: document.querySelector("#board")?.classList.contains("is-shuffle-settling") === true,
+  }));
+  if (!swappedDuringAnimationState.shuffling || !swappedDuringAnimationState.settling) {
+    throw new Error(`Expected new board to appear during the shuffle animation, got ${JSON.stringify(swappedDuringAnimationState)}.`);
+  }
+
+  await page.waitForSelector("#board.is-shuffling", { state: "detached", timeout: 1200 });
+  const afterState = await page.evaluate(() => ({
+    buttonDisabled: document.querySelector("#shuffleButton")?.disabled === true,
+    count: document.querySelector("#shuffleCount")?.textContent?.trim() ?? "",
+    board: [...document.querySelectorAll("#board .tile")].map((tile) => tile.dataset.tile ?? "").join("|"),
+    rerenderState: window.__linkMatchShuffleRerenderState,
+  }));
+  await page.evaluate(() => {
+    if (window.__linkMatchOriginalAppend) {
+      Element.prototype.append = window.__linkMatchOriginalAppend;
+      delete window.__linkMatchOriginalAppend;
+    }
+  });
+  if (
+    afterState.buttonDisabled ||
+    afterState.count !== "0" ||
+    afterState.board === beforeState.board ||
+    afterState.board !== swappedDuringAnimationState.board ||
+    afterState.rerenderState?.rerenderedWhileShuffling !== true
+  ) {
+    throw new Error(`Expected shuffle animation to finish with a new board, got ${JSON.stringify(afterState)}.`);
+  }
+}
+
 async function expectZeroToolCounts(page) {
   const counts = await page.locator(".screen-game.active .tool-count").evaluateAll((nodes) =>
     nodes.map((node) => node.textContent?.trim() ?? ""),
@@ -524,18 +681,18 @@ async function expectVersionedAllDataReset(page) {
   }
 }
 
-async function seedPlayableFreshState(page, stamina = fullStamina) {
-  await page.evaluate(({ nextStamina, resetVersion }) => {
+async function seedPlayableFreshState(page, stamina = fullStamina, highestUnlockedLevel = 1) {
+  await page.evaluate(({ nextStamina, resetVersion, nextLevel }) => {
     localStorage.setItem("lianliankan.dataResetVersion", resetVersion);
     localStorage.setItem(
       "lianliankan.progress",
-      JSON.stringify({ highestUnlockedLevel: 1, coins: 0, records: {} }),
+      JSON.stringify({ highestUnlockedLevel: nextLevel, coins: 0, records: {} }),
     );
     localStorage.setItem(
       "lianliankan.stamina",
       JSON.stringify({ stamina: nextStamina, updatedAt: Date.now(), adClaims: 0 }),
     );
-  }, { nextStamina: stamina, resetVersion: CURRENT_DATA_RESET_VERSION });
+  }, { nextStamina: stamina, resetVersion: CURRENT_DATA_RESET_VERSION, nextLevel: highestUnlockedLevel });
   await page.reload({ waitUntil: "networkidle" });
 }
 
@@ -686,6 +843,110 @@ async function expectCompactGameViewportFits(page) {
       )}.`,
     );
   }
+}
+
+async function expectBoardTiersUseEasyLayout(page) {
+  const baseViewport = { width: 390, height: 844 };
+  await page.setViewportSize(baseViewport);
+  const geometries = [];
+
+  for (const levelNumber of [1, 11, 21]) {
+    await seedPlayableFreshState(page, fullStamina, levelNumber);
+    await page.locator("#startButton").click();
+    await page.waitForSelector(".screen-game.active .tile:not(.empty)");
+    geometries.push(await readGameBoardGeometry(page, levelNumber));
+  }
+
+  const [easy, normal, hard] = geometries;
+  const overlapping = geometries.find((item) => item.gapBelow < 0 || item.boardBottom > item.toolbarTop);
+  if (overlapping) {
+    throw new Error(`Expected every board tier to stay above the toolbar, got ${JSON.stringify(geometries)}.`);
+  }
+  const movedOrResizedFrame = geometries.find(
+    (item) =>
+      Math.abs(item.wrapWidth - easy.wrapWidth) > 2 ||
+      Math.abs(item.boardHeight - easy.boardHeight) > 2,
+  );
+  if (movedOrResizedFrame) {
+    throw new Error(`Expected every board tier to keep the easy game-area size, got ${JSON.stringify(geometries)}.`);
+  }
+  const resizedTile = geometries.find(
+    (item) =>
+      Math.abs(item.tileWidth - easy.tileWidth) > 2 ||
+      Math.abs(item.tileHeight - easy.tileHeight) > 2 ||
+      Math.abs(item.boardWidth - easy.boardWidth) > 2,
+  );
+  if (resizedTile) {
+    throw new Error(`Expected every board tier to keep the easy tile size, got ${JSON.stringify(geometries)}.`);
+  }
+  const looseGap = geometries.find(
+    (item) =>
+      Math.abs(item.horizontalGap - 4) > 1 ||
+      Math.abs(item.verticalGap - 4) > 1 ||
+      Math.abs(item.horizontalGap - easy.horizontalGap) > 1 ||
+      Math.abs(item.verticalGap - easy.verticalGap) > 1,
+  );
+  if (looseGap) {
+    throw new Error(`Expected every board tier to keep 4px visual tile gaps, got ${JSON.stringify(geometries)}.`);
+  }
+  const deformedTile = geometries.find((item) => item.tileWidth <= 0 || item.tileHeight <= 0 || item.tileAspect > 1.04);
+  if (deformedTile) {
+    throw new Error(`Expected every board tier to keep square tiles, got ${JSON.stringify(geometries)}.`);
+  }
+  const mismatchedArtRatio = geometries.find((item) => Math.abs(item.artRatio - easy.artRatio) > 0.05);
+  if (mismatchedArtRatio) {
+    throw new Error(`Expected every board tier to keep the same fruit-art proportion as easy tiles, got ${JSON.stringify(geometries)}.`);
+  }
+
+  await seedPlayableFreshState(page);
+  await page.locator("#startButton").click();
+  await page.waitForSelector(".screen-game.active .tile:not(.empty)");
+}
+
+async function readGameBoardGeometry(page, levelNumber) {
+  return page.locator(".screen-game.active .board-wrap").evaluate((node, currentLevelNumber) => {
+    const wrap = node.getBoundingClientRect();
+    const board = node.querySelector(".board")?.getBoundingClientRect();
+    const style = getComputedStyle(node);
+    const borderLeft = Number.parseFloat(style.borderLeftWidth);
+    const borderRight = Number.parseFloat(style.borderRightWidth);
+    const paddingLeft = Number.parseFloat(style.paddingLeft);
+    const paddingRight = Number.parseFloat(style.paddingRight);
+    const tiles = [...node.querySelectorAll(".tile:not(.empty)")].map((tileNode) => ({
+      row: Number(tileNode.dataset.row),
+      col: Number(tileNode.dataset.col),
+      box: tileNode.getBoundingClientRect(),
+    }));
+    const tile = tiles.find((item) => item.row === 0 && item.col === 0)?.box ?? tiles[0]?.box;
+    const rightNeighbor = tiles.find((item) => item.row === 0 && item.col === 1)?.box;
+    const bottomNeighbor = tiles.find((item) => item.row === 1 && item.col === 0)?.box;
+    const art = node.querySelector(".tile:not(.empty) .tile-art")?.getBoundingClientRect();
+    const screen = node.closest(".screen-game");
+    const toolbar = screen?.querySelector(".toolbar")?.getBoundingClientRect();
+    const tier = screen?.dataset.boardTier ?? "";
+    return {
+      levelNumber: currentLevelNumber,
+      tier,
+      boardTop: Math.round(wrap.top),
+      boardBottom: Math.round(wrap.bottom),
+      toolbarTop: Math.round(toolbar?.top ?? 0),
+      toolbarHeight: Math.round(toolbar?.height ?? 0),
+      gapBelow: Math.round((toolbar?.top ?? 0) - wrap.bottom),
+      leftInset: Math.round((board?.left ?? 0) - wrap.left),
+      rightInset: Math.round(wrap.right - (board?.right ?? 0)),
+      expectedInsetLeft: Math.round(borderLeft + paddingLeft),
+      expectedInsetRight: Math.round(borderRight + paddingRight),
+      wrapWidth: Math.round(wrap.width),
+      tileWidth: Math.round(tile?.width ?? 0),
+      tileHeight: Math.round(tile?.height ?? 0),
+      horizontalGap: Math.round(rightNeighbor && tile ? rightNeighbor.left - tile.right : 0),
+      verticalGap: Math.round(bottomNeighbor && tile ? bottomNeighbor.top - tile.bottom : 0),
+      tileAspect: tile ? Number((Math.max(tile.width / tile.height, tile.height / tile.width)).toFixed(3)) : 0,
+      artRatio: tile && art ? Number((Math.max(art.width / tile.width, art.height / tile.height)).toFixed(3)) : 0,
+      boardWidth: Math.round(board?.width ?? 0),
+      boardHeight: Math.round(board?.height ?? 0),
+    };
+  }, levelNumber);
 }
 
 async function expectBoardGridFillsFrame(page) {
@@ -919,6 +1180,7 @@ async function expectHomeRoadMap(page) {
       const textRect = text.getBoundingClientRect();
       const textStyle = getComputedStyle(text);
       return {
+        textId: text.id,
         cardWidth: cardRect.width,
         cardHeight: cardRect.height,
         iconWidth: iconRect.width,
@@ -1020,7 +1282,8 @@ async function expectHomeRoadMap(page) {
   }
   const resourceCardMismatch = layoutInfo.homeResourceCards.find((card) => {
     const expectedIconRight = card.cardWidth * 0.4;
-    const expectedTextLeft = card.cardWidth * 0.4 + layoutInfo.cqwPx * 0.7692;
+    const expectedCoinTextShift = card.textId === "coinText" ? layoutInfo.cqwPx * 3.1282 : 0;
+    const expectedTextLeft = card.cardWidth * 0.4 + layoutInfo.cqwPx * 0.7692 + expectedCoinTextShift;
     const expectedCenterY = card.cardHeight / 2;
     const expectedIconSize = layoutInfo.cqwPx * 7.1795;
     const expectedTextSize = layoutInfo.cqwPx * 3.5897;
@@ -1035,7 +1298,7 @@ async function expectHomeRoadMap(page) {
     );
   });
   if (layoutInfo.homeResourceCards.length !== 3 || resourceCardMismatch) {
-    throw new Error(`Expected compact resource cards to right-align 7.1795cqw icons in the 40% area and left-align 3.5897cqw text with 0.7692cqw margin in the 60% area, got ${JSON.stringify(layoutInfo.homeResourceCards)}.`);
+    throw new Error(`Expected compact resource cards to right-align 7.1795cqw icons in the 40% area, left-align 3.5897cqw text with 0.7692cqw margin, and shift #coinText right by 3.1282cqw, got ${JSON.stringify(layoutInfo.homeResourceCards)}.`);
   }
   if (homeExchangeEntryCount !== 1) {
     throw new Error(`Expected a dedicated home exchange shop entry in the map area, got ${homeExchangeEntryCount}.`);
@@ -3075,6 +3338,26 @@ async function expectFailureReviveAdFlow(page) {
 
 async function readStoredStamina(page) {
   return page.evaluate(() => JSON.parse(localStorage.getItem("lianliankan.stamina")));
+}
+
+async function expectTilePressFeedback(page) {
+  const tile = page.locator(".screen-game.active .tile:not(.empty)").first();
+  await tile.waitFor({ timeout: 2000 });
+  const handle = await tile.elementHandle();
+  if (!handle) throw new Error("Expected an active tile to test press feedback.");
+
+  await tile.dispatchEvent("pointerdown", { pointerType: "touch", isPrimary: true, button: 0 });
+  const pressedState = await handle.evaluate((element) => ({
+    pressed: element.classList.contains("pressed"),
+    transform: getComputedStyle(element).transform,
+    boxShadow: getComputedStyle(element).boxShadow,
+  }));
+  if (!pressedState.pressed || pressedState.transform === "none" || pressedState.boxShadow === "none") {
+    throw new Error(`Expected tile pointerdown to show pressed feedback, got ${JSON.stringify(pressedState)}.`);
+  }
+
+  await tile.dispatchEvent("pointerup", { pointerType: "touch", isPrimary: true, button: 0 });
+  await page.waitForFunction((element) => !element.classList.contains("pressed"), handle, { timeout: 500 });
 }
 
 async function clickTile(page, point) {

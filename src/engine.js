@@ -15,8 +15,8 @@ export const DEFAULT_ICONS = [
 
 export const LEVELS = [
   { id: "easy", name: "轻松", rows: 7, cols: 6, iconCount: 10, durationSeconds: 180, hints: 3, shuffles: 2 },
-  { id: "normal", name: "标准", rows: 8, cols: 6, iconCount: 12, durationSeconds: 150, hints: 4, shuffles: 3 },
-  { id: "hard", name: "挑战", rows: 9, cols: 6, iconCount: 12, durationSeconds: 120, hints: 3, shuffles: 2 },
+  { id: "normal", name: "标准", rows: 7, cols: 6, iconCount: 12, durationSeconds: 150, hints: 4, shuffles: 3 },
+  { id: "hard", name: "挑战", rows: 7, cols: 6, iconCount: 12, durationSeconds: 120, hints: 3, shuffles: 2 },
 ];
 
 export function createBoard({ rows, cols, iconKinds = DEFAULT_ICONS, rng = Math.random }) {

@@ -91,7 +91,7 @@ test("creates repeatable boards from the same seed", () => {
   assert.notDeepEqual(first, third);
 });
 
-test("easy, normal and hard levels keep six columns and grow vertically", () => {
+test("easy, normal and hard levels share the easy board layout while time still steps down", () => {
   const easy = LEVELS.find((level) => level.id === "easy");
   const normal = LEVELS.find((level) => level.id === "normal");
   const hard = LEVELS.find((level) => level.id === "hard");
@@ -100,13 +100,13 @@ test("easy, normal and hard levels keep six columns and grow vertically", () => 
   assert.equal(easy.cols, 6);
   assert.equal(easy.rows * easy.cols, 42);
   assert.equal(easy.durationSeconds, 180);
-  assert.equal(normal.rows, 8);
+  assert.equal(normal.rows, 7);
   assert.equal(normal.cols, 6);
-  assert.equal(normal.rows * normal.cols, 48);
+  assert.equal(normal.rows * normal.cols, 42);
   assert.equal(normal.durationSeconds, 150);
-  assert.equal(hard.rows, 9);
+  assert.equal(hard.rows, 7);
   assert.equal(hard.cols, 6);
-  assert.equal(hard.rows * hard.cols, 54);
+  assert.equal(hard.rows * hard.cols, 42);
   assert.equal(hard.durationSeconds, 120);
 });
 

@@ -35,6 +35,7 @@ import {
 import {
   PROGRESS_STORAGE_KEY,
   STAMINA_STORAGE_KEY,
+  applyOneTimeStaminaRefill,
   applyVersionedDataReset,
 } from "./storage-reset.js";
 import {
@@ -69,6 +70,9 @@ const ROAD_STEP_Y = 110;
 const ROAD_TOP_Y = 34;
 const ROAD_BOTTOM_Y = 38;
 const GENERATED_ROAD_NODE_PADDING_Y = 48;
+const SHUFFLE_SWAP_MS = 320;
+const SHUFFLE_SETTLE_MS = 340;
+const SHUFFLE_ANIMATION_MS = SHUFFLE_SWAP_MS + SHUFFLE_SETTLE_MS;
 const ROAD_X_PATTERN = [30, 70];
 const HOME_THEME_CLASSES = CHAPTERS.map((chapter) => `home-theme-${chapter.id}`);
 const IMAGE_ROAD_CONNECTOR_CLASS_BY_CHAPTER = {
@@ -171,6 +175,7 @@ const elements = {
 };
 
 applyVersionedDataReset(localStorage);
+applyOneTimeStaminaRefill(localStorage);
 
 const state = {
   level: LEVELS[0],
@@ -183,6 +188,9 @@ const state = {
   timerLastTickAt: 0,
   toastTimer: null,
   resultToastTimer: null,
+  shuffleSwapTimer: null,
+  shuffleAnimationTimer: null,
+  shuffleAnimationId: 0,
   hints: 0,
   shuffles: 0,
   stamina: loadStaminaState(),
@@ -191,6 +199,7 @@ const state = {
   paused: false,
   busy: false,
   doubleCoinReward: null,
+  toolAdReward: null,
   revivedThisRun: false,
   audioSettings: loadAudioSettings(localStorage),
 };
@@ -251,7 +260,7 @@ function bindEvents() {
   elements.resumeButton.addEventListener("click", resumeGame);
   elements.pauseRestartButton.addEventListener("click", () => requestStartGame(state.level));
   elements.pauseHomeButton.addEventListener("click", returnHome);
-  elements.watchAdButton.addEventListener("click", () => closeToolModal(UNAVAILABLE_FEATURE_MESSAGE));
+  elements.watchAdButton.addEventListener("click", claimToolFromAd);
   elements.buyToolButton.addEventListener("click", () => closeToolModal(UNAVAILABLE_FEATURE_MESSAGE));
   elements.toolCloseButton.addEventListener("click", () => closeToolModal());
   elements.confirmHomeButton.addEventListener("click", returnHome);
@@ -519,6 +528,7 @@ function requestNextLevel() {
 
 function startGame(level) {
   stopTimer();
+  cancelShuffleAnimation();
   state.level = level;
   state.board = createPlayableBoard(level);
   state.selected = null;
@@ -575,11 +585,13 @@ function renderBoard() {
       button.dataset.row = rowIndex;
       button.dataset.col = colIndex;
       if (tile) button.dataset.tile = tile;
+      setShuffleMotion(button, rowIndex, colIndex);
 
       if (tile) {
         const view = ICON_VIEW[tile] ?? ICON_VIEW.flower;
         button.setAttribute("aria-label", `第 ${rowIndex + 1} 行第 ${colIndex + 1} 列，${view.label}`);
         button.innerHTML = `<img class="tile-art" src="${view.src}" alt="" aria-hidden="true" />`;
+        attachTilePressFeedback(button);
         button.addEventListener("click", () => selectTile({ row: rowIndex, col: colIndex }));
       } else {
         button.setAttribute("aria-label", "已消除");
@@ -589,6 +601,42 @@ function renderBoard() {
     });
   });
   clearLink();
+}
+
+function setShuffleMotion(tile, rowIndex, colIndex) {
+  const centerRow = (state.level.rows - 1) / 2;
+  const centerCol = (state.level.cols - 1) / 2;
+  const dx = colIndex - centerCol;
+  const dy = rowIndex - centerRow;
+  const distance = Math.max(0.8, Math.hypot(dx, dy));
+  const spread = 32 + distance * 18;
+  const angleOffset = ((rowIndex * 7 + colIndex * 11) % 9) - 4;
+  const unitX = dx / distance;
+  const unitY = dy / distance;
+
+  tile.style.setProperty("--shuffle-x", `${Math.round(unitX * spread)}px`);
+  tile.style.setProperty("--shuffle-y", `${Math.round(unitY * spread)}px`);
+  tile.style.setProperty("--shuffle-rotate", `${angleOffset * 5}deg`);
+  tile.style.setProperty("--shuffle-return-rotate", `${Math.round(angleOffset * -1.8)}deg`);
+  tile.style.setProperty("--shuffle-delay", `${((rowIndex + colIndex) % 4) * 18}ms`);
+}
+
+function attachTilePressFeedback(button) {
+  const clearPressed = () => {
+    if (!button.classList.contains("pressed")) return;
+    window.setTimeout(() => button.classList.remove("pressed"), 90);
+  };
+
+  button.addEventListener("pointerdown", () => {
+    button.classList.remove("pressed");
+    button.offsetWidth;
+    button.classList.add("pressed");
+  });
+  button.addEventListener("pointerup", clearPressed);
+  button.addEventListener("pointercancel", clearPressed);
+  button.addEventListener("pointerleave", clearPressed);
+  button.addEventListener("blur", clearPressed);
+  button.addEventListener("click", clearPressed);
 }
 
 function selectTile(point) {
@@ -685,14 +733,57 @@ function useShuffle() {
   playGameSound("shuffle");
   if (!TEST_UNLIMITED_TOOLS) state.shuffles -= 1;
   state.selected = null;
-  state.board = shuffleBoard(state.board);
+  clearHints();
+  clearLink();
+  updateSelection();
+  const nextBoard = createShuffledPlayableBoard();
+  state.busy = true;
+  const animationId = state.shuffleAnimationId + 1;
+  state.shuffleAnimationId = animationId;
+  elements.board.classList.add("is-shuffling");
+  elements.shuffleButton.disabled = true;
+  updateHud();
+
+  state.shuffleSwapTimer = window.setTimeout(() => {
+    if (state.shuffleAnimationId !== animationId) return;
+    state.board = nextBoard;
+    elements.board.classList.add("is-shuffle-settling");
+    renderBoard();
+    state.shuffleSwapTimer = null;
+  }, SHUFFLE_SWAP_MS);
+
+  state.shuffleAnimationTimer = window.setTimeout(() => {
+    if (state.shuffleAnimationId !== animationId) return;
+    elements.board.classList.remove("is-shuffling", "is-shuffle-settling");
+    elements.shuffleButton.disabled = false;
+    state.shuffleAnimationTimer = null;
+    state.busy = false;
+    updateHud();
+  }, SHUFFLE_ANIMATION_MS);
+}
+
+function createShuffledPlayableBoard() {
+  let board = shuffleBoard(state.board);
   let guard = 0;
-  while (!findAvailablePair(state.board) && guard < 12) {
-    state.board = shuffleBoard(state.board);
+  while (!findAvailablePair(board) && guard < 12) {
+    board = shuffleBoard(board);
     guard += 1;
   }
-  renderBoard();
-  updateHud();
+  return board;
+}
+
+function cancelShuffleAnimation() {
+  state.shuffleAnimationId += 1;
+  if (state.shuffleSwapTimer) {
+    window.clearTimeout(state.shuffleSwapTimer);
+    state.shuffleSwapTimer = null;
+  }
+  if (state.shuffleAnimationTimer) {
+    window.clearTimeout(state.shuffleAnimationTimer);
+    state.shuffleAnimationTimer = null;
+  }
+  elements.board.classList.remove("is-shuffling", "is-shuffle-settling");
+  elements.shuffleButton.disabled = false;
 }
 
 function pauseGame() {
@@ -747,6 +838,7 @@ function stopTimer() {
 
 function returnHome() {
   stopTimer();
+  cancelShuffleAnimation();
   audioController.stopMusic();
   playGameSound("button");
   state.paused = false;
@@ -964,20 +1056,54 @@ function shakeTile(point) {
 function openToolModal(toolName) {
   state.paused = true;
   state.timerLastTickAt = Date.now();
+  state.toolAdReward = { kind: toolName === "洗牌" ? "shuffle" : "hint", name: toolName };
   audioController.stopMusic();
   elements.toolModalIcon.src = toolName === "洗牌" ? "./assets/image/tool-shuffle.png" : "./assets/image/tool-hint.png";
   elements.toolTitle.textContent = `${toolName}用完了`;
   elements.toolMessage.textContent = `${toolName}次数已经用完，可以看广告获取，或购买更多道具。`;
+  elements.watchAdButton.disabled = false;
+  elements.watchAdButton.textContent = "看广告获取";
   elements.toolModal.classList.remove("hidden");
 }
 
 function closeToolModal(message) {
   state.paused = false;
   state.timerLastTickAt = Date.now();
+  state.toolAdReward = null;
   elements.toolModal.classList.add("hidden");
   playGameSound("resume");
   resumeMusicIfGameActive();
   if (message) showToast(message);
+}
+
+async function claimToolFromAd() {
+  const reward = state.toolAdReward;
+  if (!reward) {
+    playGameSound("blocked");
+    showToast("当前没有可领取的道具奖励");
+    return;
+  }
+
+  elements.watchAdButton.disabled = true;
+  showToast(`广告播放中，请看完后获取${reward.name}`);
+
+  const completed = await playRewardedAd(`tool_${reward.kind}`);
+  if (!completed) {
+    elements.watchAdButton.disabled = false;
+    playGameSound("blocked");
+    showToast(`广告没看完，无法获得${reward.name}`);
+    return;
+  }
+
+  if (reward.kind === "shuffle") {
+    state.shuffles += 1;
+  } else {
+    state.hints += 1;
+  }
+  updateHud();
+  closeToolModal();
+  playGameSound("reward");
+  showToast(`获得${reward.name} +1`);
 }
 
 function openStaminaModal(
@@ -1054,6 +1180,7 @@ function closeExitModal() {
 function hideModals() {
   elements.pauseModal.classList.add("hidden");
   elements.toolModal.classList.add("hidden");
+  state.toolAdReward = null;
   elements.exitModal.classList.add("hidden");
   elements.staminaModal.classList.add("hidden");
   elements.comingSoonModal.classList.add("hidden");

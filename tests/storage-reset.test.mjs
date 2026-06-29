@@ -3,6 +3,9 @@ import test from "node:test";
 
 import {
   CURRENT_DATA_RESET_VERSION,
+  CURRENT_STAMINA_REFILL_VERSION,
+  STAMINA_REFILL_VERSION_KEY,
+  applyOneTimeStaminaRefill,
   applyVersionedDataReset,
 } from "../src/storage-reset.js";
 import { MAX_STAMINA } from "../src/game-rules.js";
@@ -56,6 +59,50 @@ test("keeps persisted player data when reset version already matches", () => {
 
   assert.equal(applyVersionedDataReset(storage, 1_782_489_600_000), false);
   assert.deepEqual(JSON.parse(storage.getItem("lianliankan.progress")), storedProgress);
+  assert.deepEqual(JSON.parse(storage.getItem("lianliankan.stamina")), storedStamina);
+});
+
+test("refills current real-device stamina once without clearing progress", () => {
+  const now = 1_782_489_600_000;
+  const storedProgress = {
+    highestUnlockedLevel: 8,
+    coins: 42,
+    playerName: "Player",
+    records: {
+      1: { completed: true, bestScore: 900, bestStars: 3 },
+    },
+  };
+  const storage = createMemoryStorage({
+    "lianliankan.dataResetVersion": CURRENT_DATA_RESET_VERSION,
+    "lianliankan.progress": JSON.stringify(storedProgress),
+    "lianliankan.stamina": JSON.stringify({ stamina: 0, updatedAt: 123, adClaims: 2 }),
+  });
+
+  assert.equal(applyOneTimeStaminaRefill(storage, now), true);
+  assert.equal(storage.getItem(STAMINA_REFILL_VERSION_KEY), CURRENT_STAMINA_REFILL_VERSION);
+  assert.deepEqual(JSON.parse(storage.getItem("lianliankan.progress")), storedProgress);
+  assert.deepEqual(JSON.parse(storage.getItem("lianliankan.stamina")), {
+    stamina: MAX_STAMINA,
+    updatedAt: now,
+    adClaims: 0,
+  });
+
+  const spentStamina = { stamina: 12, updatedAt: now + 1, adClaims: 1 };
+  storage.setItem("lianliankan.stamina", JSON.stringify(spentStamina));
+  assert.equal(applyOneTimeStaminaRefill(storage, now + 2), false);
+  assert.deepEqual(JSON.parse(storage.getItem("lianliankan.stamina")), spentStamina);
+});
+
+test("does not refill nonzero stamina while keeping the stamina cap unchanged", () => {
+  const storedStamina = { stamina: 1, updatedAt: 123, adClaims: 3 };
+  const storage = createMemoryStorage({
+    "lianliankan.dataResetVersion": CURRENT_DATA_RESET_VERSION,
+    "lianliankan.stamina": JSON.stringify(storedStamina),
+  });
+
+  assert.equal(MAX_STAMINA, 60);
+  assert.equal(applyOneTimeStaminaRefill(storage, 1_782_489_600_000), false);
+  assert.equal(storage.getItem(STAMINA_REFILL_VERSION_KEY), null);
   assert.deepEqual(JSON.parse(storage.getItem("lianliankan.stamina")), storedStamina);
 });
 
