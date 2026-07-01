@@ -124,8 +124,65 @@ try {
         return Promise.resolve();
       }
     }
+    class FakeMusicAudio {
+      constructor(src) {
+        record(`audio-created:${src}`);
+        this.src = src;
+        this.currentTime = 0;
+        this._loop = false;
+        this._volume = 1;
+        this.paused = true;
+      }
+      set loop(value) {
+        this._loop = value;
+        record(`audio-loop:${value}`);
+      }
+      get loop() {
+        return this._loop;
+      }
+      set volume(value) {
+        this._volume = value;
+        record(`audio-volume:${value}`);
+      }
+      get volume() {
+        return this._volume;
+      }
+      set preload(value) {
+        this._preload = value;
+        record(`audio-preload:${value}`);
+      }
+      get preload() {
+        return this._preload;
+      }
+      set muted(value) {
+        this._muted = value;
+        record(`audio-muted:${value}`);
+      }
+      get muted() {
+        return this._muted;
+      }
+      load() {
+        record("audio-load");
+      }
+      play() {
+        record("audio-play");
+        if (window.__linkMatchRejectNextAudioPlay) {
+          window.__linkMatchRejectNextAudioPlay = false;
+          record("audio-play-reject");
+          return Promise.reject(new Error("blocked"));
+        }
+        this.paused = false;
+        record("audio-play-resolve");
+        return Promise.resolve();
+      }
+      pause() {
+        record("audio-pause");
+        this.paused = true;
+      }
+    }
     window.AudioContext = FakeAudioContext;
     window.webkitAudioContext = FakeAudioContext;
+    window.Audio = FakeMusicAudio;
     navigator.vibrate = (pattern) => {
       record(`vibrate:${JSON.stringify(pattern)}`);
       return true;
@@ -2170,7 +2227,7 @@ async function expectSettingsPersistenceAndAudioControls(page) {
   await page.locator("#startButton").click();
   await page.waitForSelector(".screen-game.active .tile:not(.empty)");
   const sessionMutedAudioEvents = await page.evaluate(() => window.__linkMatchAudioEvents.slice());
-  if (sessionMutedAudioEvents.length !== 0) {
+  if (sessionMutedAudioEvents.some(isAudioStartEvent)) {
     throw new Error(`Expected disabled music and sound to avoid creating audio in the same session, got ${JSON.stringify(sessionMutedAudioEvents)}.`);
   }
 
@@ -2192,11 +2249,19 @@ async function expectSettingsPersistenceAndAudioControls(page) {
 
   await page.evaluate(() => {
     window.__linkMatchAudioEvents = [];
+    window.__linkMatchRejectNextAudioPlay = true;
     window.dispatchEvent(new Event("pointerdown", { bubbles: true }));
   });
+  const rejectedTouchUnlockAudioEvents = await page.evaluate(() => window.__linkMatchAudioEvents.slice());
+  if (!rejectedTouchUnlockAudioEvents.includes("audio-play-reject")) {
+    throw new Error(`Expected blocked first touch to keep startup music retryable, got ${JSON.stringify(rejectedTouchUnlockAudioEvents)}.`);
+  }
+  await page.evaluate(() => {
+    window.dispatchEvent(new Event("click", { bubbles: true }));
+  });
   const touchUnlockAudioEvents = await page.evaluate(() => window.__linkMatchAudioEvents.slice());
-  if (!touchUnlockAudioEvents.includes("oscillator-start")) {
-    throw new Error(`Expected first touch after reload to unlock startup music, got ${JSON.stringify(touchUnlockAudioEvents)}.`);
+  if (touchUnlockAudioEvents.filter((event) => event === "audio-play").length < 2 || !touchUnlockAudioEvents.includes("audio-play-resolve")) {
+    throw new Error(`Expected click after blocked touch to retry and unlock startup music, got ${JSON.stringify(touchUnlockAudioEvents)}.`);
   }
 
   await page.locator("#settingsButton").click();
@@ -2218,8 +2283,8 @@ async function expectSettingsPersistenceAndAudioControls(page) {
   await page.locator("#startButton").click();
   await page.waitForSelector(".screen-game.active .tile:not(.empty)");
   const sessionEnabledAudioEvents = await page.evaluate(() => window.__linkMatchAudioEvents.slice());
-  if (!sessionEnabledAudioEvents.includes("oscillator-start")) {
-    throw new Error(`Expected enabled music or sound to use procedural WebAudio, got ${JSON.stringify(sessionEnabledAudioEvents)}.`);
+  if (!sessionEnabledAudioEvents.includes("audio-play") && !sessionEnabledAudioEvents.includes("oscillator-start")) {
+    throw new Error(`Expected enabled music or sound to create audio, got ${JSON.stringify(sessionEnabledAudioEvents)}.`);
   }
 
   await page.locator("#gameHomeButton").click();
@@ -2267,7 +2332,7 @@ async function expectSettingsPersistenceAndAudioControls(page) {
   await page.locator("#startButton").click();
   await page.waitForSelector(".screen-game.active .tile:not(.empty)");
   const mutedAudioEvents = await page.evaluate(() => window.__linkMatchAudioEvents.slice());
-  if (mutedAudioEvents.length !== 0) {
+  if (mutedAudioEvents.some(isAudioStartEvent)) {
     throw new Error(`Expected disabled music and sound to avoid creating audio, got ${JSON.stringify(mutedAudioEvents)}.`);
   }
 
@@ -2283,8 +2348,8 @@ async function expectSettingsPersistenceAndAudioControls(page) {
   await page.locator("#startButton").click();
   await page.waitForSelector(".screen-game.active .tile:not(.empty)");
   const enabledAudioEvents = await page.evaluate(() => window.__linkMatchAudioEvents.slice());
-  if (!enabledAudioEvents.includes("context-created") || !enabledAudioEvents.includes("oscillator-start")) {
-    throw new Error(`Expected enabled music or sound to use procedural WebAudio, got ${JSON.stringify(enabledAudioEvents)}.`);
+  if (!enabledAudioEvents.includes("audio-play") || !enabledAudioEvents.includes("oscillator-start")) {
+    throw new Error(`Expected enabled music and sound to create audio, got ${JSON.stringify(enabledAudioEvents)}.`);
   }
 
   await page.locator("#gameHomeButton").click();
@@ -2295,8 +2360,7 @@ async function expectSettingsPersistenceAndAudioControls(page) {
 async function expectGameEntryStartsBackgroundMusic(page) {
   await seedPlayableFreshState(page);
   const startupAudioEvents = await page.evaluate(() => window.__linkMatchAudioEvents.slice());
-  const startupOscillatorCount = startupAudioEvents.filter((event) => event === "oscillator-start").length;
-  if (!startupAudioEvents.includes("context-created") || startupOscillatorCount < 6) {
+  if (!startupAudioEvents.includes("audio-created:./assets/audio/background_video.mp3") || !startupAudioEvents.includes("audio-play")) {
     throw new Error(`Expected opening the mini game to start background music, got ${JSON.stringify(startupAudioEvents)}.`);
   }
 
@@ -2306,8 +2370,7 @@ async function expectGameEntryStartsBackgroundMusic(page) {
   await page.locator("#startButton").click();
   await page.waitForSelector(".screen-game.active .tile:not(.empty)");
   const levelAudioEvents = await page.evaluate(() => window.__linkMatchAudioEvents.slice());
-  const levelOscillatorCount = levelAudioEvents.filter((event) => event === "oscillator-start").length;
-  if (levelOscillatorCount < 1) {
+  if (!levelAudioEvents.includes("audio-play") && !levelAudioEvents.includes("oscillator-start")) {
     throw new Error(`Expected entering a level to keep audio active, got ${JSON.stringify(levelAudioEvents)}.`);
   }
 
@@ -2331,8 +2394,7 @@ async function expectGameEntryStartsBackgroundMusic(page) {
   await page.waitForSelector(".screen-game.active .tile:not(.empty)");
 
   const audioEvents = await page.evaluate(() => window.__linkMatchAudioEvents.slice());
-  const oscillatorStartCount = audioEvents.filter((event) => event === "oscillator-start").length;
-  if (oscillatorStartCount < 8) {
+  if (!audioEvents.includes("audio-play")) {
     throw new Error(`Expected game entry to start background music with sound effects off, got ${JSON.stringify(audioEvents)}.`);
   }
 
@@ -3396,6 +3458,15 @@ async function expectFailureReviveAdFlow(page) {
 
 async function readStoredStamina(page) {
   return page.evaluate(() => JSON.parse(localStorage.getItem("lianliankan.stamina")));
+}
+
+function isAudioStartEvent(event) {
+  return (
+    event === "audio-play" ||
+    event.startsWith("audio-created:") ||
+    event === "context-created" ||
+    event === "oscillator-start"
+  );
 }
 
 async function expectTilePressFeedback(page) {

@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import {
   AUDIO_SETTINGS_STORAGE_KEY,
+  BACKGROUND_MUSIC_SOURCE,
   DEFAULT_AUDIO_SETTINGS,
   createAudioController,
   loadAudioSettings,
@@ -47,6 +49,7 @@ test("audio controller respects music and sound switches before creating sounds"
   const controller = createAudioController({
     getSettings: () => ({ music: false, sound: false, vibration: true }),
     createAudioContext: () => createFakeAudioContext(events),
+    createMusicElement: createFakeMusicElement(events),
   });
 
   controller.startMusic();
@@ -55,83 +58,100 @@ test("audio controller respects music and sound switches before creating sounds"
   assert.deepEqual(events, []);
 });
 
-test("audio controller plays original procedural music and sound when enabled", () => {
+test("audio controller plays bundled media music and procedural sound when enabled", () => {
   const events = [];
   const controller = createAudioController({
     getSettings: () => ({ music: true, sound: true, vibration: true }),
     createAudioContext: () => createFakeAudioContext(events),
+    createMusicElement: createFakeMusicElement(events),
   });
 
   controller.startMusic();
   controller.playSound("match");
   controller.setMusicEnabled(false);
 
+  assert.ok(events.includes("music-created:./assets/audio/background_video.mp3"));
+  assert.ok(events.includes("music-loop:true"));
+  assert.ok(events.includes("music-volume:0.38"));
+  assert.ok(events.includes("music-play"));
+  assert.ok(events.includes("music-pause"));
   assert.ok(events.some((event) => event === "context-created"));
   assert.ok(events.some((event) => event.startsWith("oscillator-start:")));
   assert.ok(events.some((event) => event.startsWith("gain-ramp:")));
   assert.ok(events.some((event) => event.startsWith("oscillator-stop:")));
 });
 
-test("audio controller retries resuming suspended music when a loop is already scheduled", () => {
+test("audio controller retries media music playback when a loop is already loaded", () => {
   const events = [];
   const controller = createAudioController({
     getSettings: () => ({ music: true, sound: false, vibration: true }),
-    createAudioContext: () => createFakeAudioContext(events, { state: "suspended", resumeState: "suspended" }),
-    setIntervalFn: () => 1,
+    createAudioContext: () => createFakeAudioContext(events),
+    createMusicElement: createFakeMusicElement(events),
   });
 
   controller.startMusic();
   controller.startMusic();
 
-  assert.equal(events.filter((event) => event === "context-resume").length, 2);
+  assert.equal(events.filter((event) => event === "music-play").length, 2);
+  assert.equal(events.filter((event) => event === "music-created:./assets/audio/background_video.mp3").length, 1);
 });
 
-test("audio controller can defer suspended music scheduling until first user gesture", () => {
+test("audio controller reports blocked music playback for startup retry", async () => {
   const events = [];
-  let intervalScheduled = false;
   const controller = createAudioController({
     getSettings: () => ({ music: true, sound: false, vibration: true }),
-    createAudioContext: () => createFakeAudioContext(events, { state: "suspended" }),
-    setIntervalFn: () => {
-      intervalScheduled = true;
-      return 1;
-    },
+    createAudioContext: () => createFakeAudioContext(events),
+    createMusicElement: createFakeMusicElement(events, { rejectPlay: true }),
+  });
+
+  const played = await controller.startMusic();
+
+  assert.equal(played, false);
+  assert.ok(events.includes("music-play-reject"));
+});
+
+test("background music uses a bundled media asset instead of generated WebAudio", () => {
+  const events = [];
+  const controller = createAudioController({
+    getSettings: () => ({ music: true, sound: false, vibration: true }),
+    createAudioContext: () => createFakeAudioContext(events),
+    createMusicElement: createFakeMusicElement(events),
   });
 
   controller.startMusic({ resumeSuspended: false, scheduleWhenSuspended: false });
 
-  assert.ok(events.includes("context-created"));
-  assert.equal(events.includes("context-resume"), false);
+  assert.ok(events.includes("music-created:./assets/audio/background_video.mp3"));
+  assert.ok(events.includes("music-play"));
+  assert.equal(events.includes("context-created"), false);
   assert.equal(events.some((event) => event.startsWith("oscillator-start:")), false);
-  assert.equal(intervalScheduled, false);
-
-  controller.startMusic();
-
-  assert.ok(events.includes("context-resume"));
-  assert.ok(events.some((event) => event.startsWith("oscillator-start:")));
-  assert.equal(intervalScheduled, true);
 });
 
-test("background music uses a brisk short-note loop instead of long ambient pads", () => {
+test("startup music preloads and attempts muted autoplay warmup", async () => {
   const events = [];
   const controller = createAudioController({
-    getSettings: () => ({ music: true, sound: true, vibration: true }),
+    getSettings: () => ({ music: true, sound: false, vibration: true }),
     createAudioContext: () => createFakeAudioContext(events),
-    setIntervalFn: () => 1,
-    clearIntervalFn: () => events.push("interval-clear"),
+    createMusicElement: createFakeMusicElement(events),
   });
 
-  try {
-    controller.startMusic();
+  const played = await controller.startMusic({ warmupMuted: true });
 
-    const starts = getOscillatorTimings(events, "start");
-    const stops = getOscillatorTimings(events, "stop");
-    assert.ok(starts.length >= 8, `expected at least 8 short music notes, got ${starts.length}`);
-    const longestTone = Math.max(...starts.map((start, index) => (stops[index] ?? start) - start));
-    assert.ok(longestTone <= 0.9, `expected no music tone to ring longer than 0.9s, got ${longestTone}`);
-  } finally {
-    controller.stopMusic();
-  }
+  assert.ok(events.includes("music-preload:auto"));
+  assert.ok(events.includes("music-load"));
+  assert.ok(events.includes("music-muted:true"));
+  assert.ok(events.includes("music-play"));
+  assert.ok(events.includes("music-muted:false"));
+  assert.equal(played, true);
+});
+
+test("background music media asset is the bundled MP3 file", () => {
+  const mp3 = readFileSync(new URL(`../src/${BACKGROUND_MUSIC_SOURCE.replace("./", "")}`, import.meta.url));
+  const hasId3Header = mp3.subarray(0, 3).toString("ascii") === "ID3";
+  const hasFrameSync = mp3[0] === 0xff && (mp3[1] & 0xe0) === 0xe0;
+
+  assert.equal(BACKGROUND_MUSIC_SOURCE, "./assets/audio/background_video.mp3");
+  assert.ok(mp3.length > 0, "expected bundled BGM asset to be non-empty");
+  assert.ok(hasId3Header || hasFrameSync, "expected bundled BGM asset to look like an MP3 file");
 });
 
 test("audio controller uses a concise shared button sound", () => {
@@ -177,6 +197,51 @@ function createMemoryStorage(initialValues = {}) {
     setItem(key, value) {
       values.set(key, String(value));
     },
+  };
+}
+
+function createFakeMusicElement(events, options = {}) {
+  return (src) => {
+    events.push(`music-created:${src}`);
+    let paused = true;
+    let remainingRejectedPlays = options.rejectPlay ? 1 : 0;
+    return {
+      set loop(value) {
+        events.push(`music-loop:${value}`);
+      },
+      set volume(value) {
+        events.push(`music-volume:${value}`);
+      },
+      set preload(value) {
+        events.push(`music-preload:${value}`);
+      },
+      set muted(value) {
+        events.push(`music-muted:${value}`);
+      },
+      set currentTime(value) {
+        events.push(`music-current-time:${value}`);
+      },
+      get paused() {
+        return paused;
+      },
+      play() {
+        events.push("music-play");
+        if (remainingRejectedPlays > 0) {
+          remainingRejectedPlays -= 1;
+          events.push("music-play-reject");
+          return Promise.reject(new Error("blocked"));
+        }
+        paused = false;
+        return Promise.resolve();
+      },
+      pause() {
+        events.push("music-pause");
+        paused = true;
+      },
+      load() {
+        events.push("music-load");
+      },
+    };
   };
 }
 

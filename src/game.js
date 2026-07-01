@@ -364,14 +364,14 @@ function renderSettingToggle(button, isOn) {
 }
 
 function startStartupMusic() {
-  audioController.startMusic({ resumeSuspended: false, scheduleWhenSuspended: false });
+  audioController.startMusic({ warmupMuted: true });
 }
 
-function unlockStartupAudio() {
+async function unlockStartupAudio() {
   if (startupAudioUnlocked || !state.audioSettings.music) return;
-  startupAudioUnlocked = true;
   audioController.stopMusic();
-  audioController.startMusic();
+  const started = await audioController.startMusic();
+  if (started) startupAudioUnlocked = true;
 }
 
 function renderChapterSwitcher() {

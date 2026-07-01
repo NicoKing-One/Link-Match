@@ -6,9 +6,12 @@ export const DEFAULT_AUDIO_SETTINGS = Object.freeze({
   vibration: true,
 });
 
+export const BACKGROUND_MUSIC_SOURCE = "./assets/audio/background_video.mp3";
+
 const SETTING_KEYS = Object.keys(DEFAULT_AUDIO_SETTINGS);
 
 const BUTTON_SOUND = [{ frequency: 880, duration: 0.035, volume: 0.022, type: "triangle", release: 0.045 }];
+const BACKGROUND_MUSIC_VOLUME = 0.38;
 
 const SOUND_PATTERNS = {
   button: BUTTON_SOUND,
@@ -47,27 +50,6 @@ const SOUND_PATTERNS = {
   ],
   blocked: BUTTON_SOUND,
 };
-
-const MUSIC_PHRASE = [
-  { frequency: 261.63, delay: 0, duration: 0.18, volume: 0.005, type: "triangle", attack: 0.012, release: 0.24 },
-  { frequency: 659.25, delay: 0.08, duration: 0.12, volume: 0.007, type: "triangle", attack: 0.008, release: 0.2 },
-  { frequency: 783.99, delay: 0.38, duration: 0.12, volume: 0.0065, type: "sine", attack: 0.008, release: 0.2 },
-  { frequency: 880, delay: 0.68, duration: 0.12, volume: 0.0062, type: "triangle", attack: 0.008, release: 0.22 },
-  { frequency: 392, delay: 1.02, duration: 0.16, volume: 0.0046, type: "triangle", attack: 0.012, release: 0.22 },
-  { frequency: 783.99, delay: 1.14, duration: 0.12, volume: 0.006, type: "sine", attack: 0.008, release: 0.2 },
-  { frequency: 659.25, delay: 1.48, duration: 0.12, volume: 0.006, type: "triangle", attack: 0.008, release: 0.2 },
-  { frequency: 587.33, delay: 1.78, duration: 0.12, volume: 0.0058, type: "sine", attack: 0.008, release: 0.22 },
-  { frequency: 329.63, delay: 2.16, duration: 0.16, volume: 0.0048, type: "triangle", attack: 0.012, release: 0.24 },
-  { frequency: 523.25, delay: 2.28, duration: 0.12, volume: 0.006, type: "triangle", attack: 0.008, release: 0.2 },
-  { frequency: 659.25, delay: 2.6, duration: 0.12, volume: 0.0062, type: "sine", attack: 0.008, release: 0.2 },
-  { frequency: 783.99, delay: 2.92, duration: 0.14, volume: 0.006, type: "triangle", attack: 0.008, release: 0.24 },
-  { frequency: 392, delay: 3.28, duration: 0.16, volume: 0.0046, type: "triangle", attack: 0.012, release: 0.24 },
-  { frequency: 880, delay: 3.42, duration: 0.1, volume: 0.0056, type: "sine", attack: 0.008, release: 0.18 },
-  { frequency: 783.99, delay: 3.72, duration: 0.12, volume: 0.0058, type: "triangle", attack: 0.008, release: 0.22 },
-  { frequency: 659.25, delay: 4.04, duration: 0.15, volume: 0.0056, type: "sine", attack: 0.008, release: 0.24 },
-];
-
-const MUSIC_LOOP_MS = 5000;
 
 export function normalizeAudioSettings(value) {
   const source = value && typeof value === "object" ? value : {};
@@ -110,11 +92,9 @@ export function shouldVibrate(settings) {
 export function createAudioController(options = {}) {
   const getSettings = options.getSettings ?? (() => DEFAULT_AUDIO_SETTINGS);
   const createAudioContext = options.createAudioContext ?? createBrowserAudioContext;
-  const setIntervalFn = options.setIntervalFn ?? globalThis.setInterval?.bind(globalThis);
-  const clearIntervalFn = options.clearIntervalFn ?? globalThis.clearInterval?.bind(globalThis);
+  const createMusicElement = options.createMusicElement ?? createBrowserMusicElement;
   let context = null;
-  let musicTimer = null;
-  let musicNodes = [];
+  let musicElement = null;
 
   function getContext() {
     if (context) return context;
@@ -142,32 +122,25 @@ export function createAudioController(options = {}) {
 
   function startMusic(options = {}) {
     if (!shouldPlayMusic(getSettings())) return;
-    const scheduleWhenSuspended = options.scheduleWhenSuspended !== false;
-    const nextContext = ensureContext({ resumeSuspended: options.resumeSuspended });
-    if (!nextContext || musicTimer) return;
-    if (!scheduleWhenSuspended && nextContext.state === "suspended") return;
-    scheduleMusicPhrase(nextContext);
-    if (typeof setIntervalFn === "function") {
-      musicTimer = setIntervalFn(() => {
-        if (shouldPlayMusic(getSettings())) scheduleMusicPhrase(nextContext);
-      }, MUSIC_LOOP_MS);
+    const nextMusic = getMusicElement();
+    if (!nextMusic) return;
+    if (options.warmupMuted) {
+      nextMusic.muted = true;
+      return playMusicElement(nextMusic).then((played) => {
+        nextMusic.muted = false;
+        return played;
+      });
     }
+    nextMusic.muted = false;
+    return playMusicElement(nextMusic);
   }
 
   function stopMusic() {
-    if (musicTimer && typeof clearIntervalFn === "function") {
-      clearIntervalFn(musicTimer);
-    }
-    musicTimer = null;
-    musicNodes.forEach(({ oscillator, gain }) => {
-      try {
-        oscillator.stop();
-      } catch {}
-      try {
-        gain.disconnect();
-      } catch {}
-    });
-    musicNodes = [];
+    if (!musicElement) return;
+    musicElement.pause?.();
+    try {
+      musicElement.currentTime = 0;
+    } catch {}
   }
 
   function setMusicEnabled(enabled) {
@@ -182,17 +155,15 @@ export function createAudioController(options = {}) {
     setMusicEnabled(shouldPlayMusic(getSettings()));
   }
 
-  function scheduleMusicPhrase(nextContext) {
-    musicNodes = musicNodes.filter(({ endAt }) => endAt > nextContext.currentTime);
-    MUSIC_PHRASE.forEach((tone) => {
-      const node = createTone(nextContext, {
-        ...tone,
-        type: tone.type ?? "sine",
-        attack: tone.attack ?? 0.08,
-        release: tone.release ?? 0.34,
-      });
-      if (node) musicNodes.push(node);
-    });
+  function getMusicElement() {
+    if (musicElement) return musicElement;
+    musicElement = createMusicElement(BACKGROUND_MUSIC_SOURCE);
+    if (!musicElement) return null;
+    musicElement.loop = true;
+    musicElement.volume = BACKGROUND_MUSIC_VOLUME;
+    musicElement.preload = "auto";
+    musicElement.load?.();
+    return musicElement;
   }
 
   return {
@@ -207,6 +178,28 @@ export function createAudioController(options = {}) {
 function createBrowserAudioContext() {
   const AudioContextClass = globalThis.AudioContext ?? globalThis.webkitAudioContext;
   return AudioContextClass ? new AudioContextClass() : null;
+}
+
+function createBrowserMusicElement(src) {
+  if (typeof globalThis.Audio === "function") return new globalThis.Audio(src);
+  if (globalThis.document?.createElement) {
+    const audio = globalThis.document.createElement("audio");
+    audio.src = src;
+    return audio;
+  }
+  return null;
+}
+
+function playMusicElement(musicElement) {
+  try {
+    const playResult = musicElement.play?.();
+    if (playResult?.then) {
+      return playResult.then(() => true).catch(() => false);
+    }
+    return Promise.resolve(playResult !== undefined);
+  } catch {
+    return Promise.resolve(false);
+  }
 }
 
 function createTone(context, tone) {

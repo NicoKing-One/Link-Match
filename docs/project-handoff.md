@@ -7,11 +7,12 @@
 - 项目名称：Link Match 连连看
 - 项目路径：`D:\工作文件\游戏\连连看`
 - 项目类型：移动端竖屏 H5 单机连连看 MVP
-- 当前阶段：`1.2.8抖音上架` 提交收口：新增抖音小游戏接入与上架计划文档，已完成文档级验证、本地提交和远程 `main` 推送。
+- 当前阶段：`1.2.9全局优化` 提交收口：本地背景音乐、音频解锁重试、配套文档与资源清理已完成全量验证、本地提交和远程 `main` 推送。
 
 ## 2. 当前进度
 
-- 2026-07-01 `1.2.8抖音上架`：按本轮提交备注收口抖音小游戏上架准备。新增 `docs/douyin-minigame-integration-plan.md`，整理抖音开放平台入驻、主体认证、创建小游戏、基础信息审核、必接能力、备案申报、版本提审、发布运营配置与性能优化要点；同时结合当前 H5 单机项目现状，明确推荐路线为先做“抖音小游戏接入 Spike + 最小可预览包”，暂缓头衔系统、商城、内购和普通 UI 微调。下一轮建议以 `1.2.9抖音小游戏接入Spike` 开始，优先新增抖音小游戏工程壳、验证当前 DOM/CSS/H5 架构在开发者工具中的兼容性、接入平台存储/生命周期/侧边栏复访等最小能力。
+- 2026-07-01 `1.2.9全局优化`：按本轮提交备注收口当前工作区全局优化。背景音乐从程序化 WebAudio 循环切换为随包本地 `src/assets/audio/background_video.mp3`，`src/audio-settings.js` 统一维护媒体 BGM 与 WebAudio 音效控制，启动时进行静音 warmup，首次播放被自动播放策略拦截后保留后续点击重试；`src/game.js` 同步改为只有播放成功才标记启动音频已解锁。`scripts/smoke-browser.mjs` 与 `tests/audio-settings.test.mjs` 已覆盖本地 BGM、播放拒绝重试、音乐/音效开关组合和启动主流程；README、PRD 与 handoff 同步当前音频口径。新增 `src/assets/audio/` 下当前 MP3、授权文件和说明，并删除未被运行时代码引用的旧 WAV 候选资源；运行时资源复扫为 89 个、未引用 0 个。已执行 50 条单测、首页关卡资源检查、构建和完整 smoke，均通过；`dist/`、`output/` 已按临时产物清理。
+- 2026-07-01 `1.2.8抖音上架`：按本轮提交备注收口抖音小游戏上架准备。新增 `docs/douyin-minigame-integration-plan.md`，整理抖音开放平台入驻、主体认证、创建小游戏、基础信息审核、必接能力、备案申报、版本提审、发布运营配置与性能优化要点；同时结合当前 H5 单机项目现状，明确推荐路线为先做“抖音小游戏接入 Spike + 最小可预览包”，暂缓头衔系统、商城、内购和普通 UI 微调。下一轮建议以 `1.2.10抖音小游戏接入Spike` 开始，优先新增抖音小游戏工程壳、验证当前 DOM/CSS/H5 架构在开发者工具中的兼容性、接入平台存储/生命周期/侧边栏复访等最小能力。
 - 2026-07-01 `1.2.8优化`：按本轮提交备注收口当前工作区累计优化。README 与 PRD 已同步当前实现，三档关卡统一使用 `6列 x 7行` 棋盘，normal/hard 继续通过图案种类和时间递减体现难度；首页与游戏页背景资源改为按章节主题切换，糖果/水晶完整背景和章节箭头使用新的运行时图片资源，favicon 迁移到 `src/assets/image/favicon.ico`。正式进度口径继续锁定为新档仅第 1 关可挑战，版本化清档标记更新为 `2026-07-01-lock-all-levels-reset`。`src/engine.js` 已移除旧 demo `LEVELS` 常量，单测改从 `src/levels.js` 读取正式 90 关配置，避免双关卡数据源误用。WebAudio 启动逻辑减少首次用户手势前的 suspended 上下文 BGM 调度，保留首次触摸/点击后的解锁与恢复路径。`scripts/smoke-browser.mjs` 已同步覆盖主题背景、主题箭头、锁关数量、favicon 新路径、统一棋盘布局、启动音频和主流程回归；`测试bug.txt` 已同步本轮已处理项和剩余真机/平台验证风险。
 - 2026-06-29 `1.2.7 UI优化`：按本轮提交备注收口当前工作区累计 UI 与真机预览改动。关卡 normal/hard 继续保留时间和图案数差异，但棋盘布局统一回 easy 的 `6列 x 7行`，避免高行数在移动端压缩棋子和挤压底部工具栏；棋子点击新增按压反馈，洗牌道具接入“棋子四散 - 中途换新棋盘 - 新棋盘回拢”的动画，保证动画结束后棋盘不再突变。道具用完弹框的“看广告获取”已接入真实奖励占位流程，广告完成后可给提示/洗牌各 +1，广告未完成不发奖励。真机预览开发服务新增端口占用自动顺延，避免 `4173` 被占用时启动失败。当前真实设备体力为 0 的旧存档会通过一次性版本标记补满到 `60/60`，不清空关卡进度，非 0 体力存档不受影响。`scripts/smoke-browser.mjs` 已同步覆盖棋子按压反馈、三档关卡统一棋盘布局、道具广告奖励、洗牌动画中途换盘且收尾不突变、金币文本位置、真机预览端口回退等回归断言。
 - 2026-06-29 `1.2.6bug修复`：按本轮提交备注收口当前工作区累计改动，覆盖数据重置、音频设置与音效体验、未开放功能统一文案、真机预览地址、首页主题资源预加载、体力弹窗文案和配套文档同步。提交前已重新执行全量单测、首页关卡资源检查、构建和完整 smoke；`dist/`、`output/` 仍作为临时验证产物处理，验证后已清理，不提交到仓库。本轮改动已完成本地提交并推送到远程 `main`。
@@ -152,7 +153,7 @@
 - `src/game-rules.js`：体力消耗、每日重置、星级、广告/购买占位规则。
 - `src/storage-reset.js`：版本化数据重置、进度/体力 storage key、旧版本全量清档逻辑和当前真机旧档体力一次性补满标记。
 - `src/engine.js`：连连看棋盘生成、固定随机种子、连线判断、洗牌和可消除对检查。
-- `src/audio-settings.js`：设置页音乐/音效/振动会话态、WebAudio 音频控制器、统一按钮短音、成功/失败反馈和低存在感背景音乐编排。
+- `src/audio-settings.js`：设置页音乐/音效/振动会话态、本地背景音乐播放控制、WebAudio 音效控制器、统一按钮短音、成功/失败反馈。
 - `docs/douyin-minigame-integration-plan.md`：抖音小游戏接入与上架计划，覆盖平台入驻、创建小游戏、基础信息、必接能力、备案提审、发布运营、性能风险、技术适配范围和第一阶段 Spike 计划。
 - `tests/progression.test.mjs`：章节、线性解锁、星星历史最高、三星关卡统计、随机玩家昵称、首通金币和重复通关无金币测试。
 - `tests/game-rules.test.mjs`：体力不再自然恢复、消耗、每日重置、广告/购买占位和默认满体力测试。
@@ -165,6 +166,7 @@
 - `src/assets/image/modal-pause-badge.png`：暂停弹框顶部徽章切图。
 - `src/assets/image/modal-exit-badge.png`：离开本局弹框顶部徽章切图。
 - `src/assets/image/`：项目所有运行时图片资源的统一平铺目录；首页、二级页、游戏页、弹框、棋子和结算页图片都直接放在这一层，不再使用图片子目录。
+- `src/assets/audio/`：本地背景音乐资源与授权说明目录；当前运行时背景音乐使用 `background_video.mp3`，`kenney-music-jingles-license.txt` 保留素材授权来源，`README.md` 记录当前音频口径。
 - `scripts/process-home-road-node-assets.py`：本轮首页关卡节点资源处理脚本，用于将 `gpt-image-2` 生成的三主题 9 张关卡节点和糖果连接线写入 `src/assets/image/`，并对透明资源执行 chroma-key 透明化、等比缩放、居中贴底和内部透明小孔封闭。
 - `scripts/check-home-road-node-assets.py`：9 张关卡节点资源和图片连接线校验脚本，检查关卡节点画布尺寸统一为 `1024px x 1024px`、可见高度统一为 `912px`，源图宽高比与输出 bbox 宽高比一致，且不存在内部全透明空洞；同时检查糖果/水晶连接线无透明边缘留白。
 - `scripts/process-level-icon-assets.py`：本轮关卡 icon 资源处理脚本，用于将 `gpt-image-2` 生成图映射到 9 个首页关卡状态资源，完成 chroma-key 透明化、去绿色溢边和内容边界裁切。
@@ -174,34 +176,38 @@
 
 ## 4. 最近验证
 
-最近一轮（2026-07-01，`1.2.8抖音上架` 文档收口时）执行：
+最近一轮（2026-07-01，`1.2.9全局优化` 收口时）执行：
 
 ```powershell
-rg -n "1.2.8抖音上架|douyin-minigame-integration-plan|抖音小游戏接入Spike" docs/project-handoff.md docs/douyin-minigame-integration-plan.md
-git diff --check
+& 'C:\Users\youzi\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe' --test tests/*.test.mjs
+& 'C:\Users\youzi\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' scripts/check-home-road-node-assets.py
+& 'C:\Users\youzi\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe' scripts/build.mjs
+& 'C:\Users\youzi\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe' scripts/smoke-browser.mjs
 ```
 
 验证结果：
 
-- 文档关键内容检查：`docs/project-handoff.md` 与 `docs/douyin-minigame-integration-plan.md` 已包含本轮备注 `1.2.8抖音上架`、抖音接入计划文件名和下一轮 `1.2.9抖音小游戏接入Spike` 路线。
-- 差异格式检查：`git diff --check` 通过，无尾随空格或补丁格式问题。
-- 本轮仅新增抖音上架计划文档并同步 handoff，未修改运行时代码、样式、资源或测试脚本，因此未重跑 `tests/*.test.mjs`、资源检查、构建和完整 smoke。
-- 上一轮游戏运行验证仍为 2026-07-01 `1.2.8优化` 收口时的全量验证：48 个单测、首页关卡资源检查、构建和完整 smoke 均通过，完整 smoke 输出 `Smoke passed: 42 tiles rendered`。
+- 单测：50 条通过，0 失败。
+- 首页关卡资源检查：9 张关卡节点资源与糖果/水晶连接线校验通过。
+- 构建：`scripts/build.mjs` 成功输出 `dist/`。
+- 完整浏览器 smoke：通过，输出 `Smoke passed: 42 tiles rendered`，棋子宽高比初始和消除后均为 `1.000`。
+- 资源复扫：`src/assets/` 下 89 个运行时图片/音频资源均能在运行时代码、脚本或测试中找到引用；未引用资源数量为 0。
+- 差异格式检查：`git diff --check` 通过。
 
 临时验证产物：
 
-- `dist/` 和 `output/` 只在构建、资源处理或 smoke 验证时临时生成，不提交到仓库。
+- `dist/` 和 `output/` 只在构建、资源处理或 smoke 验证时临时生成；本轮验证后已清理，不提交到仓库。
 
 ## 5. 当前 Git 状态
 
 - 当前分支：`main`
 - 远程仓库：`https://github.com/NicoKing-One/Link-Match.git`
-- 提交前基线：`19eaecf 1.2.8优化`。
-- 当前提交：本轮提交备注为 `1.2.8抖音上架`，当前 `main...origin/main` 无领先/落后提交。
-- 工作区状态：本轮改动已按备注 `1.2.8抖音上架` 完成本地提交并推送到远程 `main`。
-- 本轮提交文件：新增 `docs/douyin-minigame-integration-plan.md`，同步更新 `docs/project-handoff.md` 的当前阶段、当前进度、关键文件、最近验证、Git 状态和下一步建议。
-- 本轮收口内容：按备注 `1.2.8抖音上架` 收口抖音小游戏上架准备文档，明确平台入驻/认证/创建小游戏/必接能力/备案提审/发布运营配置/性能风险，以及下一轮 `1.2.9抖音小游戏接入Spike` 的执行方向。
-- 本轮提交备注：`1.2.8抖音上架`。
+- 提交前基线：`844df14 1.2.8抖音上架`。
+- 当前提交：本轮提交备注为 `1.2.9全局优化`，本地 `main` 已提交并推送到远程 `origin/main`。
+- 工作区状态：本轮改动已按备注 `1.2.9全局优化` 完成本地提交并推送到远程 `main`。
+- 本轮提交文件：更新 `README.md`、`docs/PRD.md`、`docs/project-handoff.md`、`scripts/smoke-browser.mjs`、`src/audio-settings.js`、`src/game.js`、`tests/audio-settings.test.mjs`，新增 `src/assets/audio/background_video.mp3`、`src/assets/audio/kenney-music-jingles-license.txt`、`src/assets/audio/README.md`。
+- 本轮收口内容：按备注 `1.2.9全局优化` 收口本地背景音乐接入、启动音频解锁重试、音频 smoke/单测同步、README/PRD 当前口径同步和未引用音频候选资源清理。
+- 本轮提交备注：`1.2.9全局优化`。
 
 ## 6. 运行方式
 
@@ -225,7 +231,7 @@ http://127.0.0.1:4173
 建议下一轮按这个顺序继续：
 
 1. 用户侧优先完成抖音开放平台注册/入驻/主体认证/对公验证，并创建小游戏拿到 `appID`；同时确认小游戏名称、图标、简介、资质材料、隐私政策和适龄提示的初版方向。
-2. 开发侧下一轮建议使用备注 `1.2.9抖音小游戏接入Spike`：新增 `platforms/douyin/` 工程壳，补齐 `project.config.json`、`game.json`、`game.js` 等最小文件，并在抖音开发者工具中验证当前 H5 架构能否进入首屏。
+2. 开发侧下一轮建议使用备注 `1.2.10抖音小游戏接入Spike`：新增 `platforms/douyin/` 工程壳，补齐 `project.config.json`、`game.json`、`game.js` 等最小文件，并在抖音开发者工具中验证当前 H5 架构能否进入首屏。
 3. Spike 阶段优先验证运行环境差异：DOM/CSS 支持、资源路径、WebAudio、存储、生命周期、真机扫码预览和包体/图片资源风险；先输出兼容性结论，再决定轻量适配、局部重写渲染入口或引擎化重构。
 4. 最小可预览包通过后，再接入抖音平台必接能力和商业能力：侧边栏复访、平台存储、分享/搜索配置、激励视频广告；广告优先映射现有“双倍金币 / 失败复活 / 道具获取”入口，暂缓头衔系统、商城、内购和普通 UI 微调。
 
