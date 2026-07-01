@@ -28,6 +28,8 @@ CONNECTOR_NAMES = [
     "road-candy-connector.png",
     "road-jelly-connector.png",
 ]
+CANDY_CENTER_SAMPLE_BOX = (350, 200, 470, 340)
+MAX_CANDY_COMPLETED_HUE_DISTANCE = 0.04
 
 
 def load_processing_module():
@@ -82,6 +84,39 @@ def count_internal_transparent_holes(image: Image.Image) -> int:
     return sum(1 for y in range(height) for x in range(width) if pixels[x, y] == 0 and not visited[y * width + x])
 
 
+def circular_hue_mean(image: Image.Image, box: tuple[int, int, int, int]) -> tuple[float, float]:
+    sample = image.convert("RGBA").crop(box)
+    get_pixels = getattr(sample, "get_flattened_data", sample.getdata)
+    pixels = get_pixels()
+    sin_sum = 0.0
+    cos_sum = 0.0
+    count = 0
+    import colorsys
+    import math
+
+    for red, green, blue, alpha in pixels:
+        if alpha < 220:
+            continue
+        hue, saturation, value = colorsys.rgb_to_hsv(red / 255, green / 255, blue / 255)
+        if saturation < 0.18 or value < 0.28:
+            continue
+        angle = hue * math.tau
+        sin_sum += math.sin(angle)
+        cos_sum += math.cos(angle)
+        count += 1
+
+    if count == 0:
+        raise ValueError("No saturated opaque pixels found in sample box")
+
+    hue = (math.atan2(sin_sum / count, cos_sum / count) / math.tau) % 1
+    return hue, count
+
+
+def hue_distance(left: float, right: float) -> float:
+    distance = abs(left - right)
+    return min(distance, 1 - distance)
+
+
 def main() -> None:
     errors: list[str] = []
     bboxes: dict[str, tuple[int, int, int, int]] = {}
@@ -125,6 +160,19 @@ def main() -> None:
 
     if errors:
         raise SystemExit("\n".join(errors))
+
+    with Image.open(ASSET_DIR / "level-candy-completed-bg.png") as completed_image:
+        completed_hue, completed_count = circular_hue_mean(completed_image, CANDY_CENTER_SAMPLE_BOX)
+    with Image.open(ASSET_DIR / "level-candy-current-bg.png") as current_image:
+        current_hue, current_count = circular_hue_mean(current_image, CANDY_CENTER_SAMPLE_BOX)
+    candy_hue_distance = hue_distance(completed_hue, current_hue)
+    if candy_hue_distance > MAX_CANDY_COMPLETED_HUE_DISTANCE:
+        raise SystemExit(
+            "level-candy-completed-bg.png: center color should match candy current/available pink palette, "
+            f"completed hue={completed_hue:.4f} from {completed_count} pixels, "
+            f"current hue={current_hue:.4f} from {current_count} pixels, "
+            f"distance={candy_hue_distance:.4f}",
+        )
 
     print(f"Validated {len(LEVEL_ICON_NAMES)} generated level icons at {EXPECTED_SIZE}.")
     for asset_name in LEVEL_ICON_NAMES:

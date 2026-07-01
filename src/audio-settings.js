@@ -122,10 +122,11 @@ export function createAudioController(options = {}) {
     return context;
   }
 
-  function ensureContext() {
+  function ensureContext(options = {}) {
+    const resumeSuspended = options.resumeSuspended !== false;
     const nextContext = getContext();
     if (!nextContext) return null;
-    if (nextContext.state === "suspended" && typeof nextContext.resume === "function") {
+    if (resumeSuspended && nextContext.state === "suspended" && typeof nextContext.resume === "function") {
       nextContext.resume().catch?.(() => {});
     }
     return nextContext;
@@ -139,10 +140,12 @@ export function createAudioController(options = {}) {
     pattern.forEach((tone) => createTone(nextContext, tone));
   }
 
-  function startMusic() {
+  function startMusic(options = {}) {
     if (!shouldPlayMusic(getSettings())) return;
-    const nextContext = ensureContext();
+    const scheduleWhenSuspended = options.scheduleWhenSuspended !== false;
+    const nextContext = ensureContext({ resumeSuspended: options.resumeSuspended });
     if (!nextContext || musicTimer) return;
+    if (!scheduleWhenSuspended && nextContext.state === "suspended") return;
     scheduleMusicPhrase(nextContext);
     if (typeof setIntervalFn === "function") {
       musicTimer = setIntervalFn(() => {

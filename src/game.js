@@ -75,6 +75,7 @@ const SHUFFLE_SETTLE_MS = 340;
 const SHUFFLE_ANIMATION_MS = SHUFFLE_SWAP_MS + SHUFFLE_SETTLE_MS;
 const ROAD_X_PATTERN = [30, 70];
 const HOME_THEME_CLASSES = CHAPTERS.map((chapter) => `home-theme-${chapter.id}`);
+const GAME_THEME_CLASSES = CHAPTERS.map((chapter) => chapter.backgroundClass);
 const IMAGE_ROAD_CONNECTOR_CLASS_BY_CHAPTER = {
   "fruit-forest": "road-vine-image-segment",
   "candy-garden": "road-candy-image-segment",
@@ -363,7 +364,7 @@ function renderSettingToggle(button, isOn) {
 }
 
 function startStartupMusic() {
-  audioController.startMusic();
+  audioController.startMusic({ resumeSuspended: false, scheduleWhenSuspended: false });
 }
 
 function unlockStartupAudio() {
@@ -543,6 +544,8 @@ function startGame(level) {
   hideModals();
 
   screens.game.dataset.boardTier = level.tier ?? "easy";
+  screens.game.classList.remove(...GAME_THEME_CLASSES);
+  screens.game.classList.add(CHAPTERS.find((chapter) => chapter.id === level.chapterId)?.backgroundClass ?? "theme-fruit-forest");
   elements.levelName.textContent = formatLevelTitle(level);
   updatePlaqueLevelLabels();
   renderBoard();

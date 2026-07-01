@@ -9,6 +9,7 @@ import {
   applyVersionedDataReset,
 } from "../src/storage-reset.js";
 import { MAX_STAMINA } from "../src/game-rules.js";
+import { getLevelStatus } from "../src/progression.js";
 
 test("resets all persisted player data when reset version changes", () => {
   const now = 1_782_489_600_000;
@@ -33,6 +34,8 @@ test("resets all persisted player data when reset version changes", () => {
     playerName: JSON.parse(storage.getItem("lianliankan.progress")).playerName,
     records: {},
   });
+  assert.equal(getLevelStatus(1, JSON.parse(storage.getItem("lianliankan.progress"))), "current");
+  assert.equal(getLevelStatus(2, JSON.parse(storage.getItem("lianliankan.progress"))), "locked");
   assert.ok(JSON.parse(storage.getItem("lianliankan.progress")).playerName.length > 0);
   assert.deepEqual(JSON.parse(storage.getItem("lianliankan.stamina")), {
     stamina: MAX_STAMINA,

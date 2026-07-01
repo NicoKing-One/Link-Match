@@ -72,7 +72,7 @@ test("each chapter repeats easy, normal and hard tiers on the easy board layout"
   }
 });
 
-test("starts with only level 1 playable and later chapters locked", () => {
+test("starts with only the first level playable", () => {
   const progress = createInitialProgress();
 
   assert.equal(progress.highestUnlockedLevel, 1);
@@ -81,8 +81,14 @@ test("starts with only level 1 playable and later chapters locked", () => {
   assert.ok(progress.playerName.length <= 6);
   assert.equal(getLevelStatus(1, progress), "current");
   assert.equal(getLevelStatus(2, progress), "locked");
+  assert.equal(getLevelStatus(30, progress), "locked");
+  assert.equal(getLevelStatus(31, progress), "locked");
+  assert.equal(getLevelStatus(60, progress), "locked");
+  assert.equal(getLevelStatus(61, progress), "locked");
+  assert.equal(getLevelStatus(90, progress), "locked");
   assert.equal(getChapterStatus(CHAPTERS[0], progress), "active");
   assert.equal(getChapterStatus(CHAPTERS[1], progress), "locked");
+  assert.equal(getChapterStatus(CHAPTERS[2], progress), "locked");
 });
 
 test("generates bounded random player names", () => {

@@ -5,12 +5,14 @@ import {
   canConnect,
   createBoard,
   createSeededRandom,
+  DEFAULT_ICONS,
   findAvailablePair,
   findConnection,
   hasAvailableMove,
-  LEVELS,
   shuffleBoard,
 } from "../src/engine.js";
+import { LEVELS as GAME_LEVELS } from "../src/levels.js";
+import * as engineModule from "../src/engine.js";
 
 test("connects matching tiles in a straight line", () => {
   const board = [
@@ -80,7 +82,7 @@ test("creates a paired board with an even tile count", () => {
 });
 
 test("creates repeatable boards from the same seed", () => {
-  const icons = LEVELS.find((level) => level.id === "easy").iconCount;
+  const icons = DEFAULT_ICONS.length;
   const iconKinds = Array.from({ length: icons }, (_, index) => `icon-${index}`);
 
   const first = createBoard({ rows: 6, cols: 7, iconKinds, rng: createSeededRandom("smoke-easy") });
@@ -92,9 +94,9 @@ test("creates repeatable boards from the same seed", () => {
 });
 
 test("easy, normal and hard levels share the easy board layout while time still steps down", () => {
-  const easy = LEVELS.find((level) => level.id === "easy");
-  const normal = LEVELS.find((level) => level.id === "normal");
-  const hard = LEVELS.find((level) => level.id === "hard");
+  const easy = GAME_LEVELS.find((level) => level.tier === "easy");
+  const normal = GAME_LEVELS.find((level) => level.tier === "normal");
+  const hard = GAME_LEVELS.find((level) => level.tier === "hard");
 
   assert.equal(easy.rows, 7);
   assert.equal(easy.cols, 6);
@@ -108,6 +110,10 @@ test("easy, normal and hard levels share the easy board layout while time still 
   assert.equal(hard.cols, 6);
   assert.equal(hard.rows * hard.cols, 42);
   assert.equal(hard.durationSeconds, 120);
+});
+
+test("engine module does not export legacy demo level presets", () => {
+  assert.equal("LEVELS" in engineModule, false);
 });
 
 test("finds available moves and preserves pairs when shuffling", () => {

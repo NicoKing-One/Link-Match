@@ -86,6 +86,32 @@ test("audio controller retries resuming suspended music when a loop is already s
   assert.equal(events.filter((event) => event === "context-resume").length, 2);
 });
 
+test("audio controller can defer suspended music scheduling until first user gesture", () => {
+  const events = [];
+  let intervalScheduled = false;
+  const controller = createAudioController({
+    getSettings: () => ({ music: true, sound: false, vibration: true }),
+    createAudioContext: () => createFakeAudioContext(events, { state: "suspended" }),
+    setIntervalFn: () => {
+      intervalScheduled = true;
+      return 1;
+    },
+  });
+
+  controller.startMusic({ resumeSuspended: false, scheduleWhenSuspended: false });
+
+  assert.ok(events.includes("context-created"));
+  assert.equal(events.includes("context-resume"), false);
+  assert.equal(events.some((event) => event.startsWith("oscillator-start:")), false);
+  assert.equal(intervalScheduled, false);
+
+  controller.startMusic();
+
+  assert.ok(events.includes("context-resume"));
+  assert.ok(events.some((event) => event.startsWith("oscillator-start:")));
+  assert.equal(intervalScheduled, true);
+});
+
 test("background music uses a brisk short-note loop instead of long ambient pads", () => {
   const events = [];
   const controller = createAudioController({

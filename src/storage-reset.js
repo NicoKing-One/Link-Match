@@ -1,7 +1,7 @@
 import { MAX_STAMINA } from "./game-rules.js";
 import { createInitialProgress } from "./progression.js";
 
-export const CURRENT_DATA_RESET_VERSION = "2026-06-26-all-data-reset";
+export const CURRENT_DATA_RESET_VERSION = "2026-07-01-lock-all-levels-reset";
 export const CURRENT_STAMINA_REFILL_VERSION = "2026-06-29-refill-current-stamina-60";
 export const DATA_RESET_VERSION_KEY = "lianliankan.dataResetVersion";
 export const STAMINA_REFILL_VERSION_KEY = "lianliankan.staminaRefillVersion";

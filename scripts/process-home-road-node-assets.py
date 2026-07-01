@@ -25,9 +25,7 @@ TRANSPARENT_ASSETS = [
     ("ig_09e9895771cf76e0016a3a20118c748191b4cf182bc73256d0.png", "road-candy-connector.png", False),
 ]
 
-OPAQUE_ASSETS = [
-    ("ig_09e9895771cf76e0016a3a203bf7f0819197683c2c6abb650a.png", "background-candy-full.png"),
-]
+OPAQUE_ASSETS = []
 
 
 def is_border_key_pixel(rgb: tuple[int, int, int], key: tuple[int, int, int]) -> bool:

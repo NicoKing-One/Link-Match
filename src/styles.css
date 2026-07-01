@@ -110,16 +110,19 @@ button:disabled {
 .home-theme-fruit-forest {
   --home-screen-bg: url("./assets/image/background-fruit-full.png");
   --home-start-button-bg: url("./assets/image/start-button-fruit-bg.png");
+  --home-chapter-arrow-bg: url("./assets/image/exchange-page-arrow-bg-v2.png");
 }
 
 .home-theme-candy-garden {
-  --home-screen-bg: url("./assets/image/background-candy-full.png");
+  --home-screen-bg: url("./assets/image/background-candy-premium-v1.png");
   --home-start-button-bg: url("./assets/image/start-button-candy-bg.png");
+  --home-chapter-arrow-bg: url("./assets/image/chapter-arrow-candy-bg.png");
 }
 
 .home-theme-jelly-castle {
-  --home-screen-bg: url("./assets/image/background-jelly-full.png");
+  --home-screen-bg: url("./assets/image/background-crystal-castle-premium-v1.png");
   --home-start-button-bg: url("./assets/image/start-button-jelly-bg.png");
+  --home-chapter-arrow-bg: url("./assets/image/chapter-arrow-jelly-bg.png");
 }
 
 .screen-game {
@@ -129,7 +132,19 @@ button:disabled {
   gap: 10px;
   padding: 18px 8px 154px;
   min-height: 0;
-  background: url("./assets/image/page-bg-saturated-jelly-v2.png") center top / cover no-repeat;
+  background: var(--game-screen-bg, url("./assets/image/background-fruit-full.png")) center top / cover no-repeat;
+}
+
+.screen-game.theme-fruit-forest {
+  --game-screen-bg: url("./assets/image/background-fruit-full.png");
+}
+
+.screen-game.theme-candy-garden {
+  --game-screen-bg: url("./assets/image/background-candy-premium-v1.png");
+}
+
+.screen-game.theme-jelly-castle {
+  --game-screen-bg: url("./assets/image/background-crystal-castle-premium-v1.png");
 }
 
 .brand-panel,
@@ -897,7 +912,7 @@ button:disabled {
   width: 12.0513cqw;
   height: 12.0513cqw;
   padding: 0;
-  background: url("./assets/image/exchange-page-arrow-bg-v2.png") center / contain no-repeat;
+  background: var(--home-chapter-arrow-bg, url("./assets/image/exchange-page-arrow-bg-v2.png")) center / contain no-repeat;
 }
 
 .chapter-arrow img {

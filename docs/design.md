@@ -47,7 +47,7 @@
 - 资源卡采用 40% icon 区 / 60% 文案区：
   - icon 尺寸约 `8cqw`，贴近 icon 区右侧。
   - 文案字号约 `4cqw`，贴近文案区左侧，并保留 `margin-left: 1cqw`。
-- 三主题背景使用 `src/assets/image/background-*-full.png` 完整背景。
+- 三主题背景使用 `src/assets/image/background-fruit-full.png`、`src/assets/image/background-candy-premium-v1.png`、`src/assets/image/background-crystal-castle-premium-v1.png` 完整背景。
 - 关卡节点统一为三层结构：
   - 顶部星级徽章：`road-stars-1.png`、`road-stars-2.png`、`road-stars-3.png`。
   - 中部状态图：已通关、当前、未开始三态主题资源。
@@ -59,7 +59,7 @@
 
 ## 4. 游戏页视觉规范
 
-- 游戏页使用 `page-bg-saturated-jelly-v2.png` 作为当前主背景。
+- 游戏页背景按当前章节主题切换，引用 `src/assets/image/` 根目录下的完整背景图。
 - `.board-wrap` 保留浅色实线边框，不再添加厚重背景或阴影覆盖。
 - 棋盘格由 CSS Grid 生成，尺寸由关卡配置动态决定。
 - 棋子使用 `src/assets/image/` 下的水果糖果图片资源，图标应占格子主体区域，避免过小。

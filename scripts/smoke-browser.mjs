@@ -166,6 +166,7 @@ try {
   await seedPlayableFreshState(page);
   await page.locator("#startButton").click();
   await page.waitForSelector(".screen-game.active .tile:not(.empty)");
+  await expectGameUsesThemeBackground(page);
   const staminaAfterStart = await readStoredStamina(page);
   const gameStaminaText = await page.locator(".screen-game .staminaText").innerText();
   if (
@@ -325,18 +326,20 @@ try {
 
 async function expectFaviconAvailable(page, baseUrl) {
   const faviconHref = await page.locator('link[rel="icon"]').getAttribute("href");
-  if (faviconHref !== "./favicon.ico") {
-    throw new Error(`Expected document to declare ./favicon.ico, got: ${faviconHref}`);
+  if (faviconHref !== "./assets/image/favicon.ico") {
+    throw new Error(`Expected document to declare ./assets/image/favicon.ico, got: ${faviconHref}`);
   }
 
-  const response = await page.request.get(`${baseUrl}/favicon.ico`);
+  const response = await page.request.get(`${baseUrl}/assets/image/favicon.ico`);
   if (!response.ok()) {
-    throw new Error(`Expected /favicon.ico to load without console 404 noise, got HTTP ${response.status()}.`);
+    throw new Error(
+      `Expected /assets/image/favicon.ico to load without console 404 noise, got HTTP ${response.status()}.`,
+    );
   }
 
   const contentType = response.headers()["content-type"] ?? "";
   if (!contentType.includes("image/x-icon")) {
-    throw new Error(`Expected /favicon.ico to be served as image/x-icon, got: ${contentType}`);
+    throw new Error(`Expected /assets/image/favicon.ico to be served as image/x-icon, got: ${contentType}`);
   }
 }
 
@@ -1378,6 +1381,7 @@ async function expectHomeRoadMap(page) {
     firstLevelText: "01",
     connectorSelector: ".road-vine-image-segment",
     connectorAsset: "road-vine-connector.png",
+    lockedCount: 29,
   });
   await expectHomeUsesUiHomeAssets(page);
 }
@@ -1575,34 +1579,70 @@ async function expectHomeChapterArrowsCycle(page) {
     throw new Error(`Expected home chapter arrows to stay clickable, got disabled=${initialDisabledState.join(",")}.`);
   }
 
+  const arrowThemeAssets = [
+    await readHomeChapterArrowThemeAsset(page, "fruit-forest", "exchange-page-arrow-bg-v2.png"),
+  ];
   await expectClickCreatesButtonSound(page, "#prevChapterButton", "previous theme arrow");
   await page.waitForFunction(() => document.querySelector("#startScreen")?.className.includes("home-theme-jelly-castle"));
+  arrowThemeAssets.push(await readHomeChapterArrowThemeAsset(page, "jelly-castle", "chapter-arrow-jelly-bg.png"));
   await expectGeneratedNodeRoadAssetSystem(page, {
     themeId: "jelly-castle",
     firstLevelText: "61",
     connectorSelector: ".road-jelly-image-segment",
     connectorAsset: "road-jelly-connector.png",
+    lockedCount: 30,
   });
   await expectClickCreatesButtonSound(page, "#nextChapterButton", "next theme arrow");
   await page.waitForFunction(() => document.querySelector("#startScreen")?.className.includes("home-theme-fruit-forest"));
   await page.locator("#nextChapterButton").click();
   await page.waitForFunction(() => document.querySelector("#startScreen")?.className.includes("home-theme-candy-garden"));
+  arrowThemeAssets.push(await readHomeChapterArrowThemeAsset(page, "candy-garden", "chapter-arrow-candy-bg.png"));
   await expectGeneratedNodeRoadAssetSystem(page, {
     themeId: "candy-garden",
     firstLevelText: "31",
     connectorSelector: ".road-candy-image-segment",
     connectorAsset: "road-candy-connector.png",
+    lockedCount: 30,
   });
   await page.locator("#nextChapterButton").click();
   await page.waitForFunction(() => document.querySelector("#startScreen")?.className.includes("home-theme-jelly-castle"));
+  arrowThemeAssets.push(await readHomeChapterArrowThemeAsset(page, "jelly-castle", "chapter-arrow-jelly-bg.png"));
   await expectGeneratedNodeRoadAssetSystem(page, {
     themeId: "jelly-castle",
     firstLevelText: "61",
     connectorSelector: ".road-jelly-image-segment",
     connectorAsset: "road-jelly-connector.png",
+    lockedCount: 30,
   });
   await page.locator("#nextChapterButton").click();
   await page.waitForFunction(() => document.querySelector("#startScreen")?.className.includes("home-theme-fruit-forest"));
+  expectDistinctHomeChapterArrowThemeAssets(arrowThemeAssets);
+}
+
+async function readHomeChapterArrowThemeAsset(page, expectedThemeId, expectedAsset) {
+  const asset = await page.locator(".screen-start.active .chapter-arrow").first().evaluate((node, expectedThemeId) => {
+    const screen = document.querySelector("#startScreen");
+    const computed = getComputedStyle(node);
+    return {
+      expectedThemeId,
+      screenClass: screen?.className ?? "",
+      backgroundImage: computed.backgroundImage,
+    };
+  }, expectedThemeId);
+
+  if (!asset.screenClass.includes(`home-theme-${expectedThemeId}`) || !asset.backgroundImage.includes(expectedAsset)) {
+    throw new Error(
+      `Expected chapter arrow to use ${expectedAsset} in theme ${expectedThemeId}, got ${JSON.stringify(asset)}.`,
+    );
+  }
+  return asset;
+}
+
+function expectDistinctHomeChapterArrowThemeAssets(assets) {
+  const uniqueAssets = new Set(assets.map((asset) => asset.backgroundImage));
+  if (uniqueAssets.size < 3) {
+    throw new Error(`Expected chapter arrows to use different image assets per theme, got ${JSON.stringify(assets)}.`);
+  }
 }
 
 async function expectGeneratedNodeRoadAssetSystem(page, expected) {
@@ -1630,6 +1670,7 @@ async function expectGeneratedNodeRoadAssetSystem(page, expected) {
       roadPathCount: document.querySelectorAll(".road-path").length,
       connectorCount: expected.connectorSelector ? document.querySelectorAll(expected.connectorSelector).length : null,
       levelCount: levels.length,
+      lockedCount: document.querySelectorAll(".road-level.locked").length,
       firstLevelText: firstLevel?.textContent ?? "",
       hasNumberClass: Boolean(firstLevel?.querySelector(".road-level-number")),
       hasMainClass: Boolean(firstLevel?.querySelector(".road-level-main")),
@@ -1670,6 +1711,9 @@ async function expectGeneratedNodeRoadAssetSystem(page, expected) {
   }
   if (expected.connectorSelector && roadData.connectorCount !== 29) {
     throw new Error(`Expected ${expected.themeId} to render 29 continuous image connector segments, got ${JSON.stringify(roadData)}.`);
+  }
+  if (roadData.lockedCount !== expected.lockedCount) {
+    throw new Error(`Expected ${expected.themeId} locked level count to be ${expected.lockedCount}, got ${JSON.stringify(roadData)}.`);
   }
   if (
     roadData.levelCount !== 30 ||
@@ -2567,6 +2611,20 @@ async function expectHomeUsesUiHomeAssets(page) {
   const missing = expected.filter(([key, value]) => !String(assets[key]).includes(value));
   if (!assets.screenClass.includes("home-theme-fruit-forest") || missing.length) {
     throw new Error(`Expected home screen to render flattened image assets, got ${JSON.stringify({ assets, missing })}.`);
+  }
+}
+
+async function expectGameUsesThemeBackground(page) {
+  const assets = await page.locator(".screen-game.active").evaluate((node) => ({
+    screenClass: node.className,
+    screenBackground: getComputedStyle(node).backgroundImage,
+  }));
+
+  if (
+    !assets.screenClass.includes("theme-fruit-forest") ||
+    !assets.screenBackground.includes("background-fruit-full.png")
+  ) {
+    throw new Error(`Expected fruit game screen to render fruit full background, got ${JSON.stringify(assets)}.`);
   }
 }
 
