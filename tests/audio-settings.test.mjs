@@ -6,6 +6,7 @@ import {
   AUDIO_SETTINGS_STORAGE_KEY,
   BACKGROUND_MUSIC_SOURCE,
   DEFAULT_AUDIO_SETTINGS,
+  bindAudioPlaybackLifecycle,
   createAudioController,
   loadAudioSettings,
   setAudioSetting,
@@ -144,6 +145,31 @@ test("startup music preloads and attempts muted autoplay warmup", async () => {
   assert.equal(played, true);
 });
 
+test("audio lifecycle stops music when the page is hidden or unloading", () => {
+  const events = [];
+  const lifecycleTarget = createFakeLifecycleTarget();
+  const controller = createAudioController({
+    getSettings: () => ({ music: true, sound: false, vibration: true }),
+    createAudioContext: () => createFakeAudioContext(events),
+    createMusicElement: createFakeMusicElement(events),
+  });
+
+  const unbind = bindAudioPlaybackLifecycle(controller, {
+    window: lifecycleTarget.window,
+    document: lifecycleTarget.document,
+  });
+
+  controller.startMusic();
+  lifecycleTarget.document.hidden = true;
+  lifecycleTarget.document.dispatch("visibilitychange");
+  lifecycleTarget.window.dispatch("pagehide");
+  lifecycleTarget.window.dispatch("beforeunload");
+  unbind();
+  lifecycleTarget.document.dispatch("visibilitychange");
+
+  assert.equal(events.filter((event) => event === "music-pause").length, 3);
+});
+
 test("background music media asset is the bundled MP3 file", () => {
   const mp3 = readFileSync(new URL(`../src/${BACKGROUND_MUSIC_SOURCE.replace("./", "")}`, import.meta.url));
   const hasId3Header = mp3.subarray(0, 3).toString("ascii") === "ID3";
@@ -242,6 +268,34 @@ function createFakeMusicElement(events, options = {}) {
         events.push("music-load");
       },
     };
+  };
+}
+
+function createFakeLifecycleTarget() {
+  const windowHandlers = new Map();
+  const documentHandlers = new Map();
+  return {
+    window: createEventTarget(windowHandlers),
+    document: {
+      hidden: false,
+      ...createEventTarget(documentHandlers),
+    },
+  };
+}
+
+function createEventTarget(handlers) {
+  return {
+    addEventListener(eventName, handler) {
+      const eventHandlers = handlers.get(eventName) ?? new Set();
+      eventHandlers.add(handler);
+      handlers.set(eventName, eventHandlers);
+    },
+    removeEventListener(eventName, handler) {
+      handlers.get(eventName)?.delete(handler);
+    },
+    dispatch(eventName) {
+      handlers.get(eventName)?.forEach((handler) => handler());
+    },
   };
 }
 

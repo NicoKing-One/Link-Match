@@ -1,16 +1,17 @@
 # Link Match 连连看项目交接文档
 
-更新时间：2026-07-01
+更新时间：2026-07-02
 
 ## 1. 项目定位
 
 - 项目名称：Link Match 连连看
-- 项目路径：`D:\工作文件\游戏\连连看`
+- 项目路径：`E:\VIGORPLAY\游戏\Link-Match`
 - 项目类型：移动端竖屏 H5 单机连连看 MVP
-- 当前阶段：`1.2.9全局优化` 提交收口：本地背景音乐、音频解锁重试、配套文档与资源清理已完成全量验证、本地提交和远程 `main` 推送。
+- 当前阶段：`1.2.9优化` 提交收口：窄屏设置页、游戏棋盘适配、棋子视觉比例和后台音乐生命周期已完成验证、本地提交和远程 `main` 推送。
 
 ## 2. 当前进度
 
+- 2026-07-02 `1.2.9优化`：按本轮提交备注收口当前工作区优化。设置页改为响应式三列 grid，面板、标题、返回按钮、开关和图标使用容器宽度单位适配窄屏，smoke 新增 360 宽视口检查，避免 OPPO 类窄屏出现开关溢出或横向滚动。游戏页新增 `src/game-layout.js`，根据顶部 HUD、底部工具栏和可用高度动态计算棋盘外框宽度，窗口 resize、开局和复活回到游戏页时都会重新居中收口棋盘，避免宽屏短高设备挤压底部工具栏；棋子图案显示比例同步放大到 185%。音频控制新增页面隐藏、卸载和 freeze 生命周期监听，切后台或离开页面时停止本地背景音乐。新增布局、样式、视觉和音频生命周期单测，`scripts/smoke-browser.mjs` 已同步覆盖窄屏设置页、棋盘居中和棋子视觉比例。本轮已通过 57 条单测、构建和完整 smoke；图片资源检查因当前机器 `python.exe` 无法访问且没有 `py` 启动器，本轮未重跑。
 - 2026-07-01 `1.2.9全局优化`：按本轮提交备注收口当前工作区全局优化。背景音乐从程序化 WebAudio 循环切换为随包本地 `src/assets/audio/background_video.mp3`，`src/audio-settings.js` 统一维护媒体 BGM 与 WebAudio 音效控制，启动时进行静音 warmup，首次播放被自动播放策略拦截后保留后续点击重试；`src/game.js` 同步改为只有播放成功才标记启动音频已解锁。`scripts/smoke-browser.mjs` 与 `tests/audio-settings.test.mjs` 已覆盖本地 BGM、播放拒绝重试、音乐/音效开关组合和启动主流程；README、PRD 与 handoff 同步当前音频口径。新增 `src/assets/audio/` 下当前 MP3、授权文件和说明，并删除未被运行时代码引用的旧 WAV 候选资源；运行时资源复扫为 89 个、未引用 0 个。已执行 50 条单测、首页关卡资源检查、构建和完整 smoke，均通过；`dist/`、`output/` 已按临时产物清理。
 - 2026-07-01 `1.2.8抖音上架`：按本轮提交备注收口抖音小游戏上架准备。新增 `docs/douyin-minigame-integration-plan.md`，整理抖音开放平台入驻、主体认证、创建小游戏、基础信息审核、必接能力、备案申报、版本提审、发布运营配置与性能优化要点；同时结合当前 H5 单机项目现状，明确推荐路线为先做“抖音小游戏接入 Spike + 最小可预览包”，暂缓头衔系统、商城、内购和普通 UI 微调。下一轮建议以 `1.2.10抖音小游戏接入Spike` 开始，优先新增抖音小游戏工程壳、验证当前 DOM/CSS/H5 架构在开发者工具中的兼容性、接入平台存储/生命周期/侧边栏复访等最小能力。
 - 2026-07-01 `1.2.8优化`：按本轮提交备注收口当前工作区累计优化。README 与 PRD 已同步当前实现，三档关卡统一使用 `6列 x 7行` 棋盘，normal/hard 继续通过图案种类和时间递减体现难度；首页与游戏页背景资源改为按章节主题切换，糖果/水晶完整背景和章节箭头使用新的运行时图片资源，favicon 迁移到 `src/assets/image/favicon.ico`。正式进度口径继续锁定为新档仅第 1 关可挑战，版本化清档标记更新为 `2026-07-01-lock-all-levels-reset`。`src/engine.js` 已移除旧 demo `LEVELS` 常量，单测改从 `src/levels.js` 读取正式 90 关配置，避免双关卡数据源误用。WebAudio 启动逻辑减少首次用户手势前的 suspended 上下文 BGM 调度，保留首次触摸/点击后的解锁与恢复路径。`scripts/smoke-browser.mjs` 已同步覆盖主题背景、主题箭头、锁关数量、favicon 新路径、统一棋盘布局、启动音频和主流程回归；`测试bug.txt` 已同步本轮已处理项和剩余真机/平台验证风险。
@@ -154,6 +155,7 @@
 - `src/storage-reset.js`：版本化数据重置、进度/体力 storage key、旧版本全量清档逻辑和当前真机旧档体力一次性补满标记。
 - `src/engine.js`：连连看棋盘生成、固定随机种子、连线判断、洗牌和可消除对检查。
 - `src/audio-settings.js`：设置页音乐/音效/振动会话态、本地背景音乐播放控制、WebAudio 音效控制器、统一按钮短音、成功/失败反馈。
+- `src/game-layout.js`：根据可用宽高、棋盘行列和外框 chrome 计算游戏棋盘外框宽度，保证短高设备上棋盘在 HUD 与工具栏之间居中且不溢出。
 - `docs/douyin-minigame-integration-plan.md`：抖音小游戏接入与上架计划，覆盖平台入驻、创建小游戏、基础信息、必接能力、备案提审、发布运营、性能风险、技术适配范围和第一阶段 Spike 计划。
 - `tests/progression.test.mjs`：章节、线性解锁、星星历史最高、三星关卡统计、随机玩家昵称、首通金币和重复通关无金币测试。
 - `tests/game-rules.test.mjs`：体力不再自然恢复、消耗、每日重置、广告/购买占位和默认满体力测试。
@@ -172,27 +174,26 @@
 - `scripts/process-level-icon-assets.py`：本轮关卡 icon 资源处理脚本，用于将 `gpt-image-2` 生成图映射到 9 个首页关卡状态资源，完成 chroma-key 透明化、去绿色溢边和内容边界裁切。
 - `src/assets/image/favicon.ico`：本轮补齐的站点图标，用于避免 favicon 请求产生 404。
 - `scripts/dev-server.mjs`：本地和真机预览静态服务，默认监听 `0.0.0.0:4173`，端口占用时自动尝试后续端口并打印 Local/Network 地址。
-- `scripts/smoke-browser.mjs`：浏览器自动化验收脚本，使用固定 `boardSeed`，包含 favicon 加载、首页地图、320/360/390 视口比例缩放、首页资源框 40%/60% 几何布局、三主题图片连接线、当前关卡居中、浏览锁定章节后返回首页同步当前章节、游戏/暂停返回首页后仍定位当前关卡、首页无清空数据入口、未开放功能统一文案、顶部金币卡不可打开商城、章节 tab 移除、章节标题栏/首页箭头资源渲染、个人中心昵称和三星关卡一致性断言、设置页 UI 精修断言、双倍金币广告奖励、道具广告奖励、失败复活广告完成/未完成/二次失败隐藏复活按钮、棋子按压反馈、洗牌动画中途换盘和移动端主流程 UI 断言。
+- `scripts/smoke-browser.mjs`：浏览器自动化验收脚本，使用固定 `boardSeed`，包含 favicon 加载、首页地图、320/360/390 视口比例缩放、首页资源框 40%/60% 几何布局、三主题图片连接线、当前关卡居中、浏览锁定章节后返回首页同步当前章节、游戏/暂停返回首页后仍定位当前关卡、首页无清空数据入口、未开放功能统一文案、顶部金币卡不可打开商城、章节 tab 移除、章节标题栏/首页箭头资源渲染、个人中心昵称和三星关卡一致性断言、设置页 UI 精修与窄屏适配断言、游戏棋盘居中和棋子视觉比例断言、双倍金币广告奖励、道具广告奖励、失败复活广告完成/未完成/二次失败隐藏复活按钮、棋子按压反馈、洗牌动画中途换盘和移动端主流程 UI 断言。
 
 ## 4. 最近验证
 
-最近一轮（2026-07-01，`1.2.9全局优化` 收口时）执行：
+最近一轮（2026-07-02，`1.2.9优化` 收口时）执行：
 
 ```powershell
-& 'C:\Users\youzi\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe' --test tests/*.test.mjs
-& 'C:\Users\youzi\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' scripts/check-home-road-node-assets.py
-& 'C:\Users\youzi\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe' scripts/build.mjs
-& 'C:\Users\youzi\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe' scripts/smoke-browser.mjs
+npm.cmd test
+npm.cmd run build
+npm.cmd install --no-save --no-package-lock playwright
+npm.cmd run smoke
 ```
 
 验证结果：
 
-- 单测：50 条通过，0 失败。
-- 首页关卡资源检查：9 张关卡节点资源与糖果/水晶连接线校验通过。
+- 单测：57 条通过，0 失败。
 - 构建：`scripts/build.mjs` 成功输出 `dist/`。
 - 完整浏览器 smoke：通过，输出 `Smoke passed: 42 tiles rendered`，棋子宽高比初始和消除后均为 `1.000`。
-- 资源复扫：`src/assets/` 下 89 个运行时图片/音频资源均能在运行时代码、脚本或测试中找到引用；未引用资源数量为 0。
-- 差异格式检查：`git diff --check` 通过。
+- Playwright：本轮用 `--no-save --no-package-lock` 临时安装到被 `.gitignore` 忽略的 `node_modules/`，未修改 `package.json` 或 lockfile。
+- 首页关卡资源检查：本机 `python.exe` 无法访问且没有 `py` 启动器，本轮未重跑；本轮未改动图片资源。
 
 临时验证产物：
 
@@ -202,20 +203,20 @@
 
 - 当前分支：`main`
 - 远程仓库：`https://github.com/NicoKing-One/Link-Match.git`
-- 提交前基线：`844df14 1.2.8抖音上架`。
-- 当前提交：本轮提交备注为 `1.2.9全局优化`，本地 `main` 已提交并推送到远程 `origin/main`。
-- 工作区状态：本轮改动已按备注 `1.2.9全局优化` 完成本地提交并推送到远程 `main`。
-- 本轮提交文件：更新 `README.md`、`docs/PRD.md`、`docs/project-handoff.md`、`scripts/smoke-browser.mjs`、`src/audio-settings.js`、`src/game.js`、`tests/audio-settings.test.mjs`，新增 `src/assets/audio/background_video.mp3`、`src/assets/audio/kenney-music-jingles-license.txt`、`src/assets/audio/README.md`。
-- 本轮收口内容：按备注 `1.2.9全局优化` 收口本地背景音乐接入、启动音频解锁重试、音频 smoke/单测同步、README/PRD 当前口径同步和未引用音频候选资源清理。
-- 本轮提交备注：`1.2.9全局优化`。
+- 提交前基线：`d581f9e 1.2.9全局优化`。
+- 当前提交：本轮提交备注为 `1.2.9优化`，本地 `main` 已提交并推送到远程 `origin/main`。
+- 工作区状态：本轮改动已按备注 `1.2.9优化` 完成本地提交并推送到远程 `main`。
+- 本轮提交文件：更新 `docs/project-handoff.md`、`scripts/smoke-browser.mjs`、`src/audio-settings.js`、`src/game.js`、`src/styles.css`、`tests/audio-settings.test.mjs`，新增 `src/game-layout.js`、`tests/game-layout-style.test.mjs`、`tests/game-layout.test.mjs`、`tests/game-visuals.test.mjs`、`tests/settings-layout.test.mjs`。
+- 本轮收口内容：按备注 `1.2.9优化` 收口设置页窄屏适配、游戏棋盘动态宽度和居中、棋子图案放大、后台/卸载音乐停止以及配套单测和 smoke 断言。
+- 本轮提交备注：`1.2.9优化`。
 
 ## 6. 运行方式
 
 推荐使用本地服务运行，不要直接双击 `src/index.html`。
 
 ```powershell
-Set-Location 'D:\工作文件\游戏\连连看'
-& 'C:\Users\youzi\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe' .\scripts\dev-server.mjs
+Set-Location 'E:\VIGORPLAY\游戏\Link-Match'
+npm.cmd run dev
 ```
 
 然后打开：

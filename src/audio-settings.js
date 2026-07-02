@@ -175,6 +175,33 @@ export function createAudioController(options = {}) {
   };
 }
 
+export function bindAudioPlaybackLifecycle(audioController, options = {}) {
+  const windowTarget = options.window ?? globalThis.window;
+  const documentTarget = options.document ?? globalThis.document;
+  const stopMusic = () => audioController?.stopMusic?.();
+  const stopMusicWhenHidden = () => {
+    if (documentTarget?.hidden) stopMusic();
+  };
+  const listeners = [];
+
+  function addListener(target, eventName, handler) {
+    if (!target?.addEventListener) return;
+    target.addEventListener(eventName, handler);
+    listeners.push({ target, eventName, handler });
+  }
+
+  addListener(documentTarget, "visibilitychange", stopMusicWhenHidden);
+  addListener(windowTarget, "pagehide", stopMusic);
+  addListener(windowTarget, "beforeunload", stopMusic);
+  addListener(windowTarget, "freeze", stopMusic);
+
+  return () => {
+    listeners.forEach(({ target, eventName, handler }) => {
+      target.removeEventListener?.(eventName, handler);
+    });
+  };
+}
+
 function createBrowserAudioContext() {
   const AudioContextClass = globalThis.AudioContext ?? globalThis.webkitAudioContext;
   return AudioContextClass ? new AudioContextClass() : null;

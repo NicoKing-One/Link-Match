@@ -268,10 +268,10 @@ try {
   await expectDraftThreeVisualSystem(page);
   await expectFlatImageAssets(page);
   await expectPageDoesNotScroll(page);
-  if (tileArtBoxRatio < 1.1 || tileArtBoxRatio > 1.32) {
+  if (tileArtBoxRatio < 2.3 || tileArtBoxRatio > 2.75) {
     throw new Error(`Expected tile art to keep the original large proportion inside the tile background, got ratio=${tileArtBoxRatio.toFixed(2)}.`);
   }
-  if (tileVisibleArtRatio < 0.96 || tileVisibleArtRatio > 1.28) {
+  if (tileVisibleArtRatio < 1.48 || tileVisibleArtRatio > 2.2) {
     throw new Error(`Expected visible tile art to keep its original proportion with the tile background, got ratio=${tileVisibleArtRatio.toFixed(2)}.`);
   }
 
@@ -1959,6 +1959,7 @@ async function expectSecondaryPageNavigation(page) {
   await expectSecondaryPageBuiltFromLayout(page, "#settingsScreen", ".settings-layout");
   await expectSecondaryPageOptimizedLikeProfile(page, "#settingsScreen", ".settings-layout", ".settings-panel, .settings-row");
   await expectSettingsPageRefinements(page);
+  await expectSettingsPageFitsNarrowViewport(page);
   await page.screenshot({ path: join(outputDir, "settings-mobile.png"), fullPage: true });
   await expectClickCreatesButtonSound(page, "#settingsBackButton", "settings back");
   await page.waitForSelector(".screen-start.active", { timeout: 1200 });
@@ -2082,11 +2083,15 @@ async function expectSecondaryPageOptimizedLikeProfile(page, screenSelector, lay
 
 async function expectSettingsPageRefinements(page) {
   const layout = await page.locator("#settingsScreen.active .settings-layout").evaluate((node) => {
+    const layoutStyle = getComputedStyle(node);
     const panel = node.querySelector(".settings-panel");
     const panelStyle = panel ? getComputedStyle(panel) : null;
+    const panelBox = panel?.getBoundingClientRect();
+    const screenBox = node.closest(".secondary-screen")?.getBoundingClientRect();
     const rows = [...node.querySelectorAll(".settings-row")];
     const rowData = rows.map((row) => {
       const rowBox = row.getBoundingClientRect();
+      const rowStyle = getComputedStyle(row);
       const icon = row.querySelector(".settings-icon");
       const iconBox = icon?.getBoundingClientRect();
       const iconStyle = icon ? getComputedStyle(icon) : null;
@@ -2103,6 +2108,8 @@ async function expectSettingsPageRefinements(page) {
       });
       return {
         childCenterMaxDelta: Math.max(...childCenters),
+        display: rowStyle.display,
+        gridTemplateColumns: rowStyle.gridTemplateColumns,
         iconHeight: iconStyle ? Number.parseFloat(iconStyle.height) : 0,
         iconMarginLeft: iconStyle ? Number.parseFloat(iconStyle.marginLeft) : 0,
         iconWidth: iconStyle ? Number.parseFloat(iconStyle.width) : 0,
@@ -2114,40 +2121,86 @@ async function expectSettingsPageRefinements(page) {
         labelWhiteSpace: labelStyle?.whiteSpace ?? "",
         leafIconCount: row.querySelectorAll(".secondary-label-row img").length,
         rowMinHeight: Number.parseFloat(getComputedStyle(row).minHeight),
+        rowLeft: Math.round(rowBox.left),
+        rowRight: Math.round(rowBox.right),
+        toggleLeft: Math.round(toggleBox?.left ?? 0),
         toggleAfterHeight: toggleAfter ? Number.parseFloat(toggleAfter.height) : 0,
         toggleAfterRight: toggleAfter ? Number.parseFloat(toggleAfter.right) : 0,
         toggleAfterTop: toggleAfter ? Number.parseFloat(toggleAfter.top) : 0,
         toggleAfterWidth: toggleAfter ? Number.parseFloat(toggleAfter.width) : 0,
+        toggleRight: Math.round(toggleBox?.right ?? 0),
         togglePaddingLeft: toggleStyle ? Number.parseFloat(toggleStyle.paddingLeft) : 0,
         togglePaddingRight: toggleStyle ? Number.parseFloat(toggleStyle.paddingRight) : 0,
+        toggleWidth: Math.round(toggleBox?.width ?? 0),
       };
     });
 
     return {
       clearProgressCount: node.querySelectorAll("#clearProgressButton, .settings-clear-card").length,
+      layoutContentWidth:
+        node.clientWidth -
+        Number.parseFloat(layoutStyle.paddingLeft) -
+        Number.parseFloat(layoutStyle.paddingRight),
+      layoutClientWidth: node.clientWidth,
+      layoutScrollWidth: node.scrollWidth,
+      panelLeft: Math.round(panelBox?.left ?? 0),
       panelPaddingBottom: panelStyle ? Number.parseFloat(panelStyle.paddingBottom) : 0,
       panelPaddingLeft: panelStyle ? Number.parseFloat(panelStyle.paddingLeft) : 0,
       panelPaddingRight: panelStyle ? Number.parseFloat(panelStyle.paddingRight) : 0,
       panelPaddingTop: panelStyle ? Number.parseFloat(panelStyle.paddingTop) : 0,
+      panelRight: Math.round(panelBox?.right ?? 0),
+      panelWidth: Math.round(panelBox?.width ?? 0),
       rowData,
       rowCount: rows.length,
+      screenLeft: Math.round(screenBox?.left ?? 0),
+      screenRight: Math.round(screenBox?.right ?? node.clientWidth),
+      screenWidth: Math.round(screenBox?.width ?? node.clientWidth),
     };
   });
 
   if (layout.rowCount !== 3) {
     throw new Error(`Expected settings page to keep exactly three setting rows, got ${JSON.stringify(layout)}.`);
   }
+  if (layout.layoutScrollWidth > layout.layoutClientWidth) {
+    throw new Error(`Expected settings layout to avoid horizontal overflow, got ${JSON.stringify(layout)}.`);
+  }
   if (
-    Math.abs(layout.panelPaddingTop - 60) > 0.5 ||
-    Math.abs(layout.panelPaddingRight - 20) > 0.5 ||
-    Math.abs(layout.panelPaddingBottom - 40) > 0.5 ||
-    Math.abs(layout.panelPaddingLeft - 20) > 0.5
+    layout.panelWidth < layout.layoutContentWidth * 0.92 ||
+    layout.panelWidth > Math.min(layout.screenWidth - 8, 378) + 1 ||
+    layout.panelLeft < layout.screenLeft ||
+    layout.panelRight > layout.screenRight
   ) {
-    throw new Error(`Expected settings panel padding to be 60px 20px 40px, got ${JSON.stringify(layout)}.`);
+    throw new Error(`Expected settings panel to size responsively inside the screen, got ${JSON.stringify(layout)}.`);
+  }
+  if (
+    layout.panelPaddingTop < 50 ||
+    layout.panelPaddingTop > 60 ||
+    layout.panelPaddingRight < 12 ||
+    layout.panelPaddingRight > 20 ||
+    layout.panelPaddingBottom < 32 ||
+    layout.panelPaddingBottom > 40 ||
+    layout.panelPaddingLeft < 12 ||
+    layout.panelPaddingLeft > 20
+  ) {
+    throw new Error(`Expected settings panel padding to use responsive ranges, got ${JSON.stringify(layout)}.`);
   }
   const rowWithLeaves = layout.rowData.find((row) => row.leafIconCount !== 0);
   if (rowWithLeaves) {
     throw new Error(`Expected settings row labels to remove side leaf icons, got ${JSON.stringify(layout)}.`);
+  }
+  const nonGridRow = layout.rowData.find((row) => row.display !== "grid" || row.gridTemplateColumns.split(" ").length < 3);
+  if (nonGridRow) {
+    throw new Error(`Expected settings rows to use responsive three-column grid layout, got ${JSON.stringify(layout)}.`);
+  }
+  const overflowingRow = layout.rowData.find(
+    (row) =>
+      row.rowLeft < layout.panelLeft ||
+      row.rowRight > layout.panelRight ||
+      row.toggleLeft < row.rowLeft ||
+      row.toggleRight > row.rowRight,
+  );
+  if (overflowingRow) {
+    throw new Error(`Expected settings rows and toggles to stay inside the panel, got ${JSON.stringify(layout)}.`);
   }
   const offCenterRow = layout.rowData.find((row) => row.childCenterMaxDelta > 3);
   if (offCenterRow) {
@@ -2155,46 +2208,116 @@ async function expectSettingsPageRefinements(page) {
   }
   const wrongIconSize = layout.rowData.find(
     (row) =>
-      Math.abs(row.iconWidth - 40) > 0.5 ||
-      Math.abs(row.iconHeight - 40) > 0.5,
+      row.iconWidth < 30 ||
+      row.iconWidth > 40 ||
+      row.iconHeight < 30 ||
+      row.iconHeight > 40 ||
+      row.iconMarginLeft !== 0,
   );
   if (wrongIconSize) {
-    throw new Error(`Expected settings icons to use 40px size, got ${JSON.stringify(layout)}.`);
+    throw new Error(`Expected settings icons to use responsive centered sizing, got ${JSON.stringify(layout)}.`);
   }
-  const crampedRow = layout.rowData.find((row) => row.iconLabelGap < 14 || row.labelToggleGap < 14);
+  const crampedRow = layout.rowData.find((row) => row.iconLabelGap < 5 || row.labelToggleGap < 5);
   if (crampedRow) {
-    throw new Error(`Expected settings icon, label and toggle to keep at least 14px spacing, got ${JSON.stringify(layout)}.`);
+    throw new Error(`Expected settings icon, label and toggle to keep readable spacing, got ${JSON.stringify(layout)}.`);
   }
-  const wrongRowHeight = layout.rowData.find((row) => Math.abs(row.rowMinHeight - 80) > 0.5);
+  const wrongRowHeight = layout.rowData.find((row) => row.rowMinHeight < 70 || row.rowMinHeight > 80);
   if (wrongRowHeight) {
-    throw new Error(`Expected settings rows to use 80px min-height, got ${JSON.stringify(layout)}.`);
+    throw new Error(`Expected settings rows to use responsive min-height, got ${JSON.stringify(layout)}.`);
   }
   const wrappedLabel = layout.rowData.find((row) => row.labelHeight > 28 || row.labelWhiteSpace !== "nowrap");
   if (wrappedLabel) {
     throw new Error(`Expected settings row labels to stay on one line, got ${JSON.stringify(layout)}.`);
   }
-  const wrongLabelSize = layout.rowData.find((row) => Math.abs(row.labelFontSize - 19.2) > 0.5);
+  const wrongLabelSize = layout.rowData.find((row) => row.labelFontSize < 16 || row.labelFontSize > 19.2);
   if (wrongLabelSize) {
-    throw new Error(`Expected settings row labels to use 1.2rem font size, got ${JSON.stringify(layout)}.`);
+    throw new Error(`Expected settings row labels to use responsive font size, got ${JSON.stringify(layout)}.`);
   }
   const wrongTogglePadding = layout.rowData.find(
-    (row) => Math.abs(row.togglePaddingLeft - 20) > 0.5 || Math.abs(row.togglePaddingRight - 50) > 0.5,
+    (row) =>
+      row.toggleWidth <= 0 ||
+      row.togglePaddingLeft < 10 ||
+      row.togglePaddingLeft > 20 ||
+      row.togglePaddingRight < 32 ||
+      row.togglePaddingRight > 50,
   );
   if (wrongTogglePadding) {
-    throw new Error(`Expected settings toggle padding to be 0 50px 0 20px, got ${JSON.stringify(layout)}.`);
+    throw new Error(`Expected settings toggle padding to scale with available width, got ${JSON.stringify(layout)}.`);
   }
   const wrongToggleKnob = layout.rowData.find(
     (row) =>
-      Math.abs(row.toggleAfterTop - 7) > 0.5 ||
-      Math.abs(row.toggleAfterRight - 10) > 0.5 ||
-      Math.abs(row.toggleAfterWidth - 26) > 0.5 ||
-      Math.abs(row.toggleAfterHeight - 26) > 0.5,
+      row.toggleAfterTop <= 0 ||
+      row.toggleAfterRight < 7 ||
+      row.toggleAfterRight > 10 ||
+      row.toggleAfterWidth < 23 ||
+      row.toggleAfterWidth > 26 ||
+      row.toggleAfterHeight < 23 ||
+      row.toggleAfterHeight > 26,
   );
   if (wrongToggleKnob) {
-    throw new Error(`Expected settings toggle knob to use top 7px, right 10px, 26px size, got ${JSON.stringify(layout)}.`);
+    throw new Error(`Expected settings toggle knob to scale within the switch, got ${JSON.stringify(layout)}.`);
   }
   if (layout.clearProgressCount !== 0) {
     throw new Error(`Expected settings clear-progress card to be removed, got ${JSON.stringify(layout)}.`);
+  }
+}
+
+async function expectSettingsPageFitsNarrowViewport(page) {
+  const originalViewport = page.viewportSize() ?? { width: 390, height: 844 };
+  await page.setViewportSize({ width: 360, height: 760 });
+  try {
+    const layout = await page.locator("#settingsScreen.active").evaluate((screen) => {
+      const screenBox = screen.getBoundingClientRect();
+      const layout = screen.querySelector(".settings-layout");
+      const layoutStyle = layout ? getComputedStyle(layout) : null;
+      const panel = screen.querySelector(".settings-panel");
+      const panelBox = panel?.getBoundingClientRect();
+      const rows = [...screen.querySelectorAll(".settings-row")].map((row) => {
+        const rowBox = row.getBoundingClientRect();
+        const toggleBox = row.querySelector(".settings-toggle")?.getBoundingClientRect();
+        return {
+          rowLeft: Math.round(rowBox.left),
+          rowRight: Math.round(rowBox.right),
+          rowWidth: Math.round(rowBox.width),
+          toggleLeft: Math.round(toggleBox?.left ?? 0),
+          toggleRight: Math.round(toggleBox?.right ?? 0),
+          toggleWidth: Math.round(toggleBox?.width ?? 0),
+        };
+      });
+      return {
+        panelLeft: Math.round(panelBox?.left ?? 0),
+        panelRight: Math.round(panelBox?.right ?? 0),
+        panelWidth: Math.round(panelBox?.width ?? 0),
+        layoutContentWidth: layout
+          ? layout.clientWidth -
+            Number.parseFloat(layoutStyle?.paddingLeft ?? "0") -
+            Number.parseFloat(layoutStyle?.paddingRight ?? "0")
+          : 0,
+        rows,
+        screenLeft: Math.round(screenBox.left),
+        screenRight: Math.round(screenBox.right),
+        screenWidth: Math.round(screenBox.width),
+      };
+    });
+
+    const overflowingRow = layout.rows.find(
+      (row) =>
+        row.rowLeft < layout.panelLeft ||
+        row.rowRight > layout.panelRight ||
+        row.toggleLeft < row.rowLeft ||
+        row.toggleRight > row.rowRight ||
+        row.toggleWidth < 68,
+    );
+    if (
+      layout.panelLeft < layout.screenLeft ||
+      layout.panelRight > layout.screenRight ||
+      layout.panelWidth < layout.layoutContentWidth * 0.92 ||
+      overflowingRow
+    ) {
+      throw new Error(`Expected settings page to fit a narrow OPPO-style viewport, got ${JSON.stringify(layout)}.`);
+    }
+  } finally {
+    await page.setViewportSize(originalViewport);
   }
 }
 

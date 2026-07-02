@@ -39,12 +39,14 @@ import {
   applyVersionedDataReset,
 } from "./storage-reset.js";
 import {
+  bindAudioPlaybackLifecycle,
   createAudioController,
   loadAudioSettings,
   setAudioSetting,
   shouldVibrate,
 } from "./audio-settings.js";
 import { scheduleHomeThemeAssetPreload } from "./home-assets.js";
+import { calculateBoardFrameWidth } from "./game-layout.js";
 
 const ICON_VIEW = {
   flower: { label: "草莓", src: "./assets/image/flower.png" },
@@ -74,6 +76,7 @@ const SHUFFLE_SWAP_MS = 320;
 const SHUFFLE_SETTLE_MS = 340;
 const SHUFFLE_ANIMATION_MS = SHUFFLE_SWAP_MS + SHUFFLE_SETTLE_MS;
 const ROAD_X_PATTERN = [30, 70];
+const GAME_LAYOUT_CLEARANCE_PX = 14;
 const HOME_THEME_CLASSES = CHAPTERS.map((chapter) => `home-theme-${chapter.id}`);
 const GAME_THEME_CLASSES = CHAPTERS.map((chapter) => chapter.backgroundClass);
 const IMAGE_ROAD_CONNECTOR_CLASS_BY_CHAPTER = {
@@ -126,6 +129,7 @@ const elements = {
   staminaTexts: document.querySelectorAll(".staminaText"),
   getStaminaButtons: document.querySelectorAll(".getStaminaButton"),
   board: document.querySelector("#board"),
+  boardWrap: document.querySelector(".board-wrap"),
   toast: document.querySelector("#toast"),
   linkLayer: document.querySelector("#linkLayer"),
   timeText: document.querySelector("#timeText"),
@@ -225,6 +229,7 @@ startStartupMusic();
 scheduleHomeThemeAssetPreload();
 
 function bindEvents() {
+  bindAudioPlaybackLifecycle(audioController);
   STARTUP_AUDIO_UNLOCK_EVENTS.forEach((eventName) => {
     window.addEventListener(eventName, unlockStartupAudio, { capture: true, once: true });
   });
@@ -278,9 +283,13 @@ function bindEvents() {
   elements.againButton.addEventListener("click", () => requestStartGame(state.level));
   elements.homeButton.addEventListener("click", returnHome);
   window.addEventListener("resize", () => {
-    if (!screens.start.classList.contains("active")) return;
-    window.clearTimeout(homeResizeTimer);
-    homeResizeTimer = window.setTimeout(renderRoadMap, 120);
+    if (screens.start.classList.contains("active")) {
+      window.clearTimeout(homeResizeTimer);
+      homeResizeTimer = window.setTimeout(renderRoadMap, 120);
+    }
+    if (screens.game.classList.contains("active")) {
+      updateGameLayout();
+    }
   });
 }
 
@@ -551,6 +560,7 @@ function startGame(level) {
   renderBoard();
   updateHud();
   showScreen("game");
+  updateGameLayout();
   startTimer();
   audioController.startMusic();
   playGameSound("resume");
@@ -979,6 +989,7 @@ async function reviveAfterAd() {
   renderBoard();
   updateHud();
   showScreen("game");
+  updateGameLayout();
   startTimer();
   audioController.startMusic();
   playGameSound("reward");
@@ -1478,6 +1489,49 @@ function showScreen(name) {
   Object.entries(screens).forEach(([screenName, screen]) => {
     screen.classList.toggle("active", screenName === name || (name === "result" && screenName === "game"));
   });
+}
+
+function updateGameLayout() {
+  if (!state.level || !screens.game.classList.contains("active")) return;
+
+  const screenBox = screens.game.getBoundingClientRect();
+  const topPanelBox = screens.game.querySelector(".top-panel")?.getBoundingClientRect();
+  const toolbarBox = screens.game.querySelector(".toolbar")?.getBoundingClientRect();
+  if (!screenBox.width || !topPanelBox || !toolbarBox) return;
+
+  const screenStyle = getComputedStyle(screens.game);
+  const boardWrapStyle = getComputedStyle(elements.boardWrap);
+  const availableWidth =
+    screenBox.width - parsePx(screenStyle.paddingLeft) - parsePx(screenStyle.paddingRight);
+  const availableHeight =
+    toolbarBox.top -
+    topPanelBox.bottom -
+    parsePx(screenStyle.rowGap || screenStyle.gap) -
+    GAME_LAYOUT_CLEARANCE_PX;
+  const frameHorizontalChrome =
+    parsePx(boardWrapStyle.paddingLeft) +
+    parsePx(boardWrapStyle.paddingRight) +
+    parsePx(boardWrapStyle.borderLeftWidth) +
+    parsePx(boardWrapStyle.borderRightWidth);
+  const frameVerticalChrome =
+    parsePx(boardWrapStyle.paddingTop) +
+    parsePx(boardWrapStyle.paddingBottom) +
+    parsePx(boardWrapStyle.borderTopWidth) +
+    parsePx(boardWrapStyle.borderBottomWidth);
+  const width = calculateBoardFrameWidth({
+    availableWidth,
+    availableHeight,
+    rows: state.level.rows,
+    cols: state.level.cols,
+    frameHorizontalChrome,
+    frameVerticalChrome,
+  });
+
+  elements.boardWrap.style.inlineSize = width > 0 ? `${width}px` : "";
+}
+
+function parsePx(value) {
+  return Number.parseFloat(value) || 0;
 }
 
 function formatTime(seconds) {
