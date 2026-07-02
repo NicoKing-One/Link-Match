@@ -268,11 +268,11 @@ try {
   await expectDraftThreeVisualSystem(page);
   await expectFlatImageAssets(page);
   await expectPageDoesNotScroll(page);
-  if (tileArtBoxRatio < 2.3 || tileArtBoxRatio > 2.75) {
-    throw new Error(`Expected tile art to keep the original large proportion inside the tile background, got ratio=${tileArtBoxRatio.toFixed(2)}.`);
+  if (tileArtBoxRatio < 1.12 || tileArtBoxRatio > 1.22) {
+    throw new Error(`Expected tile art to use the requested 125% scale, got ratio=${tileArtBoxRatio.toFixed(2)}.`);
   }
-  if (tileVisibleArtRatio < 1.48 || tileVisibleArtRatio > 2.2) {
-    throw new Error(`Expected visible tile art to keep its original proportion with the tile background, got ratio=${tileVisibleArtRatio.toFixed(2)}.`);
+  if (tileVisibleArtRatio < 0.9 || tileVisibleArtRatio > 1.27) {
+    throw new Error(`Expected visible tile art to match the requested 125% scale, got ratio=${tileVisibleArtRatio.toFixed(2)}.`);
   }
 
   const firstAspect = await getFirstTileAspect(page);
@@ -1069,16 +1069,12 @@ async function expectToastOverlaysBoardWithoutMovingTiles(page, before) {
     };
   });
   if (!before || !boxes) throw new Error("Could not measure toast, board and tile bounds.");
-  const overlaps =
-    boxes.toast.left < boxes.board.right &&
-    boxes.toast.right > boxes.board.left &&
-    boxes.toast.top < boxes.board.bottom &&
-    boxes.toast.bottom > boxes.board.top;
+  const sitsAboveBoard = boxes.toast.bottom <= boxes.board.top + 1;
   const boardMoved = Math.abs(boxes.board.top - before.board.top) > 1 || Math.abs(boxes.board.bottom - before.board.bottom) > 1;
   const tileMoved = Math.abs(boxes.tile.top - before.tile.top) > 1 || Math.abs(boxes.tile.bottom - before.tile.bottom) > 1;
-  if (!overlaps || boardMoved || tileMoved || boxes.toastZIndex <= boxes.boardZIndex) {
+  if (!sitsAboveBoard || boardMoved || tileMoved || boxes.toastZIndex <= boxes.boardZIndex) {
     throw new Error(
-      `Expected toast to overlay the board without pushing tiles down, before=${JSON.stringify(before)}, after=${JSON.stringify(boxes)}.`,
+      `Expected toast to sit above the board without pushing tiles down, before=${JSON.stringify(before)}, after=${JSON.stringify(boxes)}.`,
     );
   }
 }
@@ -2165,8 +2161,8 @@ async function expectSettingsPageRefinements(page) {
     throw new Error(`Expected settings layout to avoid horizontal overflow, got ${JSON.stringify(layout)}.`);
   }
   if (
-    layout.panelWidth < layout.layoutContentWidth * 0.92 ||
-    layout.panelWidth > Math.min(layout.screenWidth - 8, 378) + 1 ||
+    layout.panelWidth < layout.layoutContentWidth * 0.79 ||
+    layout.panelWidth > layout.layoutContentWidth * 0.81 ||
     layout.panelLeft < layout.screenLeft ||
     layout.panelRight > layout.screenRight
   ) {
@@ -2175,12 +2171,12 @@ async function expectSettingsPageRefinements(page) {
   if (
     layout.panelPaddingTop < 50 ||
     layout.panelPaddingTop > 60 ||
-    layout.panelPaddingRight < 12 ||
-    layout.panelPaddingRight > 20 ||
+    layout.panelPaddingRight < 28 ||
+    layout.panelPaddingRight > 33 ||
     layout.panelPaddingBottom < 32 ||
     layout.panelPaddingBottom > 40 ||
-    layout.panelPaddingLeft < 12 ||
-    layout.panelPaddingLeft > 20
+    layout.panelPaddingLeft < 28 ||
+    layout.panelPaddingLeft > 33
   ) {
     throw new Error(`Expected settings panel padding to use responsive ranges, got ${JSON.stringify(layout)}.`);
   }
@@ -2208,10 +2204,10 @@ async function expectSettingsPageRefinements(page) {
   }
   const wrongIconSize = layout.rowData.find(
     (row) =>
-      row.iconWidth < 30 ||
-      row.iconWidth > 40 ||
-      row.iconHeight < 30 ||
-      row.iconHeight > 40 ||
+      row.iconWidth < 26 ||
+      row.iconWidth > 29.5 ||
+      row.iconHeight < 26 ||
+      row.iconHeight > 29.5 ||
       row.iconMarginLeft !== 0,
   );
   if (wrongIconSize) {
@@ -2311,7 +2307,8 @@ async function expectSettingsPageFitsNarrowViewport(page) {
     if (
       layout.panelLeft < layout.screenLeft ||
       layout.panelRight > layout.screenRight ||
-      layout.panelWidth < layout.layoutContentWidth * 0.92 ||
+      layout.panelWidth < layout.layoutContentWidth * 0.79 ||
+      layout.panelWidth > layout.layoutContentWidth * 0.81 ||
       overflowingRow
     ) {
       throw new Error(`Expected settings page to fit a narrow OPPO-style viewport, got ${JSON.stringify(layout)}.`);

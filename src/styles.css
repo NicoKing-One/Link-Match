@@ -602,10 +602,10 @@ button:disabled {
 .settings-panel {
   position: relative;
   display: grid;
-  width: min(94%, 96.9231cqw);
+  width: 80%;
   max-width: calc(100% - 4.1026cqw);
   margin-top: 50px;
-  padding: clamp(50px, 13cqw, 60px) clamp(12px, 4cqw, 20px) clamp(32px, 9cqw, 40px);
+  padding: clamp(50px, 13cqw, 60px) clamp(12px, 8cqw, 8cqw) clamp(32px, 9cqw, 40px);
   gap: clamp(8px, 2.5cqw, 10px);
   border-radius: 31px;
   background: url("./assets/image/module-settings-panel-bg.png") center / 100% 100% no-repeat;
@@ -633,7 +633,7 @@ button:disabled {
   width: 100%;
   min-width: 0;
   min-height: clamp(17.9487cqw, 20cqw, 20.5128cqw);
-  padding: 0 clamp(10px, 3cqw, 16px);
+  padding-left: 6cqw;
   grid-template-columns: max-content max-content minmax(28.7179cqw, 30.7692cqw);
   justify-content: center;
   align-items: center;
@@ -644,15 +644,15 @@ button:disabled {
 
 .settings-icon {
   justify-self: center;
-  width: clamp(7.6923cqw, 10cqw, 10.2564cqw);
-  height: clamp(7.6923cqw, 10cqw, 10.2564cqw);
+  width: 7cqw;
+  height: 7cqw;
   object-fit: contain;
 }
 
 .settings-row strong {
   min-width: 0;
   color: #086d66;
-  font-size: clamp(1rem, 5cqw, 1.2rem);
+  font-size: 1rem;
   font-weight: 950;
   line-height: 1;
   text-align: center;
@@ -663,9 +663,9 @@ button:disabled {
   position: relative;
   justify-self: stretch;
   overflow: hidden;
-  width: 100%;
+  width: 80%;
   min-width: 0;
-  min-height: clamp(9.7436cqw, 11cqw, 10.7692cqw);
+  min-height: 9cqw;
   padding: 0 clamp(32px, 10cqw, 50px) 0 clamp(10px, 4cqw, 20px);
   border-radius: 999px;
   color: #ffffff;
@@ -2031,7 +2031,7 @@ h2 {
 
 .toast {
   position: absolute;
-  top: 12px;
+  top: -10%;
   left: 18px;
   right: 18px;
   z-index: 4;
@@ -2096,8 +2096,8 @@ h2 {
 .tile-art {
   position: relative;
   z-index: 1;
-  width: 185%;
-  height: 185%;
+  width: 125%;
+  height: 125%;
   object-fit: contain;
   pointer-events: none;
 }

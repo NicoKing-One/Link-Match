@@ -15,3 +15,10 @@ test("game board frame stays horizontally centered when runtime layout narrows i
     "Narrowed board frames must not keep horizontal margins at 0.",
   );
 });
+
+test("game toast sits above the board with the requested offset", async () => {
+  const styles = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
+  const toastRule = styles.match(/\.toast\s*{(?<body>[^}]*)}/m)?.groups?.body ?? "";
+
+  assert.match(toastRule, /top:\s*-10%;/);
+});

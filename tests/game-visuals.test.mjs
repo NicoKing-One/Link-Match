@@ -4,13 +4,14 @@ import test from "node:test";
 
 const styles = readFileSync(new URL("../src/styles.css", import.meta.url), "utf8");
 
-test("tile fruit art keeps a generous proportion inside compact mobile tiles", () => {
+test("tile fruit art uses the requested 125 percent scale inside compact mobile tiles", () => {
   const tileArtRule = getRule(".tile-art");
   const widthPercent = readPercentDeclaration(tileArtRule, "width");
   const heightPercent = readPercentDeclaration(tileArtRule, "height");
 
-  assert.ok(widthPercent >= 185, `Expected tile art width to be at least 185%, got ${widthPercent}%.`);
-  assert.ok(heightPercent >= 185, `Expected tile art height to be at least 185%, got ${heightPercent}%.`);
+  assert.equal(widthPercent, 125);
+  assert.equal(heightPercent, 125);
+  assert.match(tileArtRule, /object-fit:\s*contain;/);
 });
 
 function getRule(selector) {

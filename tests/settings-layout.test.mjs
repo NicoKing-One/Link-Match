@@ -11,7 +11,9 @@ test("settings rows use responsive columns without fixed toggle width", () => {
   assert.match(rowRule, /display:\s*grid;/);
   assert.match(rowRule, /grid-template-columns:\s*max-content\s+max-content\s+minmax\(/);
   assert.match(rowRule, /justify-content:\s*center;/);
-  assert.match(toggleRule, /width:\s*100%;/);
+  assert.match(rowRule, /padding-left:\s*6cqw;/);
+  assert.match(toggleRule, /width:\s*80%;/);
+  assert.match(toggleRule, /min-height:\s*9cqw;/);
   assert.doesNotMatch(toggleRule, /min-width:\s*\d+px/);
   assert.doesNotMatch(toggleRule, /flex:\s*0\s+0\s+auto/);
 });

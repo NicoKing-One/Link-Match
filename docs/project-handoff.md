@@ -7,10 +7,11 @@
 - 项目名称：Link Match 连连看
 - 项目路径：`E:\VIGORPLAY\游戏\Link-Match`
 - 项目类型：移动端竖屏 H5 单机连连看 MVP
-- 当前阶段：`1.2.9优化` 提交收口：窄屏设置页、游戏棋盘适配、棋子视觉比例和后台音乐生命周期已完成验证、本地提交和远程 `main` 推送。
+- 当前阶段：`1.2.10优化设置页面` 提交收口：设置页面板、设置行、开关、图标、文字和行背景裁切已完成验证、本地提交并推送到远程 `main`。
 
 ## 2. 当前进度
 
+- 2026-07-02 `1.2.10优化设置页面`：按本轮提交备注收口当前工作区设置页优化。`src/assets/image/module-settings-row-bg.png` 已裁掉左侧 96px 透明留白，四边透明边距复查为 0；设置页面板宽度改为 `80%`，左右 padding 调整为 `8cqw`，设置行改为 `padding-left: 6cqw`，设置图标统一为 `7cqw`，设置文字字号固定为 `1rem`，设置开关宽度改为 `80%` 且最小高度为 `9cqw`。`tests/settings-layout.test.mjs` 和 `scripts/smoke-browser.mjs` 已同步新的设置页尺寸口径。当前工作区还一并收口棋子图案比例为 `125%`、toast 位于棋盘上方的视觉断言。本轮已通过 58 条单测、首页关卡资源检查、构建和完整 smoke。
 - 2026-07-02 `1.2.9优化`：按本轮提交备注收口当前工作区优化。设置页改为响应式三列 grid，面板、标题、返回按钮、开关和图标使用容器宽度单位适配窄屏，smoke 新增 360 宽视口检查，避免 OPPO 类窄屏出现开关溢出或横向滚动。游戏页新增 `src/game-layout.js`，根据顶部 HUD、底部工具栏和可用高度动态计算棋盘外框宽度，窗口 resize、开局和复活回到游戏页时都会重新居中收口棋盘，避免宽屏短高设备挤压底部工具栏；棋子图案显示比例同步放大到 185%。音频控制新增页面隐藏、卸载和 freeze 生命周期监听，切后台或离开页面时停止本地背景音乐。新增布局、样式、视觉和音频生命周期单测，`scripts/smoke-browser.mjs` 已同步覆盖窄屏设置页、棋盘居中和棋子视觉比例。本轮已通过 57 条单测、构建和完整 smoke；图片资源检查因当前机器 `python.exe` 无法访问且没有 `py` 启动器，本轮未重跑。
 - 2026-07-01 `1.2.9全局优化`：按本轮提交备注收口当前工作区全局优化。背景音乐从程序化 WebAudio 循环切换为随包本地 `src/assets/audio/background_video.mp3`，`src/audio-settings.js` 统一维护媒体 BGM 与 WebAudio 音效控制，启动时进行静音 warmup，首次播放被自动播放策略拦截后保留后续点击重试；`src/game.js` 同步改为只有播放成功才标记启动音频已解锁。`scripts/smoke-browser.mjs` 与 `tests/audio-settings.test.mjs` 已覆盖本地 BGM、播放拒绝重试、音乐/音效开关组合和启动主流程；README、PRD 与 handoff 同步当前音频口径。新增 `src/assets/audio/` 下当前 MP3、授权文件和说明，并删除未被运行时代码引用的旧 WAV 候选资源；运行时资源复扫为 89 个、未引用 0 个。已执行 50 条单测、首页关卡资源检查、构建和完整 smoke，均通过；`dist/`、`output/` 已按临时产物清理。
 - 2026-07-01 `1.2.8抖音上架`：按本轮提交备注收口抖音小游戏上架准备。新增 `docs/douyin-minigame-integration-plan.md`，整理抖音开放平台入驻、主体认证、创建小游戏、基础信息审核、必接能力、备案申报、版本提审、发布运营配置与性能优化要点；同时结合当前 H5 单机项目现状，明确推荐路线为先做“抖音小游戏接入 Spike + 最小可预览包”，暂缓头衔系统、商城、内购和普通 UI 微调。下一轮建议以 `1.2.10抖音小游戏接入Spike` 开始，优先新增抖音小游戏工程壳、验证当前 DOM/CSS/H5 架构在开发者工具中的兼容性、接入平台存储/生命周期/侧边栏复访等最小能力。
@@ -178,37 +179,36 @@
 
 ## 4. 最近验证
 
-最近一轮（2026-07-02，`1.2.9优化` 收口时）执行：
+最近一轮（2026-07-02，`1.2.10优化设置页面` 收口时）执行：
 
 ```powershell
-npm.cmd test
-npm.cmd run build
-npm.cmd install --no-save --no-package-lock playwright
-npm.cmd run smoke
+C:\Users\youzi\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe --test tests/*.test.mjs
+C:\Users\youzi\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe scripts\check-home-road-node-assets.py
+C:\Users\youzi\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe scripts\build.mjs
+C:\Users\youzi\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe scripts\smoke-browser.mjs
 ```
 
 验证结果：
 
-- 单测：57 条通过，0 失败。
+- 单测：58 条通过，0 失败。
+- 首页关卡资源检查：通过，9 张关卡节点图和 2 张道路连接线资源均通过脚本校验。
 - 构建：`scripts/build.mjs` 成功输出 `dist/`。
 - 完整浏览器 smoke：通过，输出 `Smoke passed: 42 tiles rendered`，棋子宽高比初始和消除后均为 `1.000`。
-- Playwright：本轮用 `--no-save --no-package-lock` 临时安装到被 `.gitignore` 忽略的 `node_modules/`，未修改 `package.json` 或 lockfile。
-- 首页关卡资源检查：本机 `python.exe` 无法访问且没有 `py` 启动器，本轮未重跑；本轮未改动图片资源。
 
 临时验证产物：
 
-- `dist/` 和 `output/` 只在构建、资源处理或 smoke 验证时临时生成；本轮验证后已清理，不提交到仓库。
+- `dist/` 和 `output/` 只在构建、资源处理或 smoke 验证时临时生成，不提交到仓库。
 
 ## 5. 当前 Git 状态
 
 - 当前分支：`main`
 - 远程仓库：`https://github.com/NicoKing-One/Link-Match.git`
-- 提交前基线：`d581f9e 1.2.9全局优化`。
-- 当前提交：本轮提交备注为 `1.2.9优化`，本地 `main` 已提交并推送到远程 `origin/main`。
-- 工作区状态：本轮改动已按备注 `1.2.9优化` 完成本地提交并推送到远程 `main`。
-- 本轮提交文件：更新 `docs/project-handoff.md`、`scripts/smoke-browser.mjs`、`src/audio-settings.js`、`src/game.js`、`src/styles.css`、`tests/audio-settings.test.mjs`，新增 `src/game-layout.js`、`tests/game-layout-style.test.mjs`、`tests/game-layout.test.mjs`、`tests/game-visuals.test.mjs`、`tests/settings-layout.test.mjs`。
-- 本轮收口内容：按备注 `1.2.9优化` 收口设置页窄屏适配、游戏棋盘动态宽度和居中、棋子图案放大、后台/卸载音乐停止以及配套单测和 smoke 断言。
-- 本轮提交备注：`1.2.9优化`。
+- 提交前基线：`3b2540b 1.2.9优化`。
+- 当前提交：本轮提交备注为 `1.2.10优化设置页面`，本地 `main` 已提交并推送到远程 `origin/main`。
+- 工作区状态：本轮改动已按备注 `1.2.10优化设置页面` 完成验证、本地提交并推送到远程 `main`。
+- 本轮提交文件：更新 `docs/project-handoff.md`、`scripts/smoke-browser.mjs`、`src/assets/image/module-settings-row-bg.png`、`src/styles.css`、`tests/game-layout-style.test.mjs`、`tests/game-visuals.test.mjs`、`tests/settings-layout.test.mjs`。
+- 本轮收口内容：按备注 `1.2.10优化设置页面` 收口设置页面板宽度、设置行留白、开关尺寸、图标/文字尺寸和设置行背景 PNG 裁切，并同步当前工作区的棋子图案比例与 toast 视觉断言。
+- 本轮提交备注：`1.2.10优化设置页面`。
 
 ## 6. 运行方式
 
@@ -232,7 +232,7 @@ http://127.0.0.1:4173
 建议下一轮按这个顺序继续：
 
 1. 用户侧优先完成抖音开放平台注册/入驻/主体认证/对公验证，并创建小游戏拿到 `appID`；同时确认小游戏名称、图标、简介、资质材料、隐私政策和适龄提示的初版方向。
-2. 开发侧下一轮建议使用备注 `1.2.10抖音小游戏接入Spike`：新增 `platforms/douyin/` 工程壳，补齐 `project.config.json`、`game.json`、`game.js` 等最小文件，并在抖音开发者工具中验证当前 H5 架构能否进入首屏。
+2. 开发侧下一轮建议使用备注 `1.2.11抖音小游戏接入Spike`：新增 `platforms/douyin/` 工程壳，补齐 `project.config.json`、`game.json`、`game.js` 等最小文件，并在抖音开发者工具中验证当前 H5 架构能否进入首屏。
 3. Spike 阶段优先验证运行环境差异：DOM/CSS 支持、资源路径、WebAudio、存储、生命周期、真机扫码预览和包体/图片资源风险；先输出兼容性结论，再决定轻量适配、局部重写渲染入口或引擎化重构。
 4. 最小可预览包通过后，再接入抖音平台必接能力和商业能力：侧边栏复访、平台存储、分享/搜索配置、激励视频广告；广告优先映射现有“双倍金币 / 失败复活 / 道具获取”入口，暂缓头衔系统、商城、内购和普通 UI 微调。
 
